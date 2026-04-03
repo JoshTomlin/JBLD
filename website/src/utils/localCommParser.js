@@ -7,6 +7,49 @@ const rotationMoves = new Set(["x", "x'", "x2", "y", "y'", "y2", "z", "z'", "z2"
 const reidEdgeOrder = "UF UR UB UL DF DR DB DL FR FL BR BL".split(" ");
 const reidCornerOrder = "UFR URB UBL ULF DRF DFL DLB DBR".split(" ");
 const centerOrder = "U L F R B D".split(" ");
+const canonicalStickerNames = {
+  UFR: "UFR",
+  URB: "UBR",
+  UBL: "UBL",
+  ULF: "UFL",
+  RFU: "RFU",
+  RBU: "RBU",
+  RUB: "RBU",
+  RFD: "RFD",
+  RDF: "RFD",
+  BUR: "BUR",
+  BRU: "BUR",
+  BUL: "BUL",
+  BLU: "BUL",
+  FUR: "FUR",
+  FRU: "FUR",
+  FUL: "FUL",
+  FLU: "FUL",
+  DFR: "DFR",
+  DRF: "DFR",
+  DFL: "DFL",
+  DLF: "DFL",
+  DBR: "DBR",
+  DRB: "DBR",
+  DBL: "DBL",
+  DLB: "DBL",
+  BRD: "BRD",
+  BDR: "BRD",
+  BLD: "BLD",
+  BDL: "BLD",
+  FRD: "FRD",
+  FDR: "FRD",
+  FDL: "FDL",
+  FLD: "FDL",
+  LBU: "LBU",
+  LUB: "LBU",
+  LFU: "LFU",
+  LUF: "LFU",
+  LDB: "LDB",
+  LBD: "LDB",
+  LFD: "LFD",
+  LDF: "LFD",
+};
 const defaultDiffThreshold = 0.87;
 
 const orientationDict = {
@@ -110,6 +153,10 @@ function rotateLeft(value, amount) {
 
   const normalizedAmount = ((amount % value.length) + value.length) % value.length;
   return value.slice(normalizedAmount) + value.slice(0, normalizedAmount);
+}
+
+export function toCanonicalStickerName(sticker) {
+  return canonicalStickerNames[sticker] || sticker;
 }
 
 function splitMoves(algText = "") {
@@ -445,7 +492,9 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
 
 function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, buffers) {
   const mapToken = (token) =>
-    parseToLetterPair && token !== "flip" && token !== "twist" ? letterPairs[token] || token : token;
+    parseToLetterPair && token !== "flip" && token !== "twist"
+      ? letterPairs[toCanonicalStickerName(token)] || toCanonicalStickerName(token)
+      : toCanonicalStickerName(token);
   const mappedComm = comm.map(mapToken);
 
   if (pieceType.parity) {

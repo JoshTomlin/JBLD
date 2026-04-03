@@ -602,6 +602,12 @@ class App extends React.Component {
             groups.corners.push(token);
           }
         } else if (comm.phase === "parity") {
+          if (comm.target_a) {
+            groups.edges.push(comm.target_a);
+          }
+          if (comm.target_b) {
+            groups.corners.push(comm.target_b);
+          }
           groups.parity = true;
         }
         return groups;

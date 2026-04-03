@@ -54,7 +54,12 @@ jest.mock("./localCommParser", () => {
   };
 });
 
-const { getOrientationData, parseSolvedToComm, similarityRatio } = require("./localCommParser");
+const {
+  getOrientationData,
+  parseSolvedToComm,
+  similarityRatio,
+  toCanonicalStickerName,
+} = require("./localCommParser");
 const { buildCubedbUrl } = require("./localSolveParser");
 
 const baseSetting = {
@@ -155,5 +160,11 @@ describe("localCommParser", () => {
 
   it("scores identical sticker sequences as fully similar", () => {
     expect(similarityRatio(["UF", "UR", "UB"], ["UF", "UR", "UB"])).toBe(1);
+  });
+
+  it("normalizes cubing corner names to the app's letter-pair keys", () => {
+    expect(toCanonicalStickerName("URB")).toBe("UBR");
+    expect(toCanonicalStickerName("DRF")).toBe("DFR");
+    expect(toCanonicalStickerName("ULF")).toBe("UFL");
   });
 });
