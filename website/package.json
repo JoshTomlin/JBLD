@@ -30,7 +30,7 @@
     "web-vitals": "^1.1.2"
   },
   "scripts": {
-    "postinstall": "patch-package",
+    "postinstall": "node scripts/postinstall-fixes.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
