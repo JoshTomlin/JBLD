@@ -1,5 +1,5 @@
 diff --git a/node_modules/gan-web-bluetooth/dist/esm/index.mjs b/node_modules/gan-web-bluetooth/dist/esm/index.mjs
-index 60d9840..patched 100644
+index 60d9840..bcf1a11 100644
 --- a/node_modules/gan-web-bluetooth/dist/esm/index.mjs
 +++ b/node_modules/gan-web-bluetooth/dist/esm/index.mjs
 @@ -1,5 +1,8 @@
