@@ -573,16 +573,21 @@ class App extends React.Component {
       return null;
     }
 
-    if (comm.phase === "parity") {
-      return "parity";
+    if (comm.parse_text) {
+      return comm.parse_text;
     }
 
-    if (comm.special_type === "flip" || comm.target_b === "flip") {
-      return "(flip)";
+    if (comm.phase === "parity" || comm.special_type === "parity") {
+      const parityTarget = comm.parity_target || comm.target_b || comm.target_a;
+      return parityTarget ? `${parityTarget} Parity` : "Parity";
     }
 
-    if (comm.special_type === "twist" || comm.target_b === "twist") {
-      return "(twist)";
+    if (comm.special_type === "flip") {
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} flip`.trim();
+    }
+
+    if (comm.special_type === "rotation" || comm.special_type === "twist") {
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} rotation`.trim();
     }
 
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
@@ -591,29 +596,83 @@ class App extends React.Component {
   groupCommBreakdown = (commStats = []) => {
     return commStats.reduce(
       (groups, comm) => {
+        const token = this.formatCommToken(comm);
         if (comm.phase === "edge") {
-          const token = this.formatCommToken(comm);
           if (token) {
             groups.edges.push(token);
           }
         } else if (comm.phase === "corner") {
-          const token = this.formatCommToken(comm);
           if (token) {
             groups.corners.push(token);
           }
         } else if (comm.phase === "parity") {
-          if (comm.target_a) {
-            groups.edges.push(comm.target_a);
+          if (token) {
+            groups.parity.push(token);
           }
-          if (comm.target_b) {
-            groups.corners.push(comm.target_b);
-          }
-          groups.parity = true;
         }
         return groups;
       },
-      { edges: [], corners: [], parity: false }
+      { edges: [], corners: [], parity: [] }
     );
+  };
+
+  formatSolveResultLabel = (solve) => {
+    if (!solve) {
+      return "--";
+    }
+    if (solve.DNF) {
+      return `DNF (${this.convert_sec_to_format(solve.time_solve)})`;
+    }
+    return this.convert_sec_to_format(solve.time_solve);
+  };
+
+  getLatestSolveCommLines = (solve) => {
+    if (!solve || !Array.isArray(solve.comm_stats)) {
+      return [];
+    }
+
+    const groups = this.groupCommBreakdown(solve.comm_stats);
+    const lines = [];
+
+    if (groups.edges.length) {
+      lines.push({ label: "Edges", value: groups.edges.join(", ") });
+    }
+    if (groups.corners.length) {
+      lines.push({ label: "Corners", value: groups.corners.join(", ") });
+    }
+    if (groups.parity.length) {
+      lines.push({ label: "Parity", value: groups.parity.join(", ") });
+    }
+
+    return lines;
+  };
+
+  getLastSolveEventLabel = (solve) => {
+    if (!solve || !Array.isArray(solve.comm_stats) || !solve.comm_stats.length) {
+      return null;
+    }
+
+    return this.formatCommToken(solve.comm_stats[solve.comm_stats.length - 1]);
+  };
+
+  handle_disconnect_cube = async () => {
+    const { cube } = this.state;
+
+    try {
+      if (cube && typeof cube.disconnect === "function") {
+        await cube.disconnect();
+      }
+    } catch (error) {
+      console.warn("Failed to disconnect cube cleanly", error);
+    } finally {
+      this.setSmartCubeConnection({
+        connected: false,
+        cube: null,
+        gan: false,
+        connectionNotice: "Cube disconnected.",
+      });
+      this.handle_reset_cube("Cube state reset to solved.");
+    }
   };
 
   buildSolveRecord = (data, setting, parseError = null) => {
@@ -1472,10 +1531,13 @@ class App extends React.Component {
     }
     localStorage.setItem("setting", JSON.stringify(new_settings));
   };
-  handle_reset_cube = () => {
-    this.setState({ cube_moves: [] });
-    this.setState({ cube_moves_time: [] });
-    this.setState({ moves_to_show: "" });
+  handle_reset_cube = (message = "Cube state reset to solved.") => {
+    this.setState({
+      cube_moves: [],
+      cube_moves_time: [],
+      moves_to_show: "",
+      connectionNotice: message,
+    });
     this.handle_solve_status("Ready for scrambling");
   };
   handle_accidental_timer_stop = (message = "Accidental stop ignored") => {
@@ -1670,8 +1732,6 @@ class App extends React.Component {
   };
   desktop_layout = () => {
     const accuracyText = this.state.averages.success || "--";
-    const memoText = this.formatMetricText(this.state.averages.memo);
-    const execText = this.formatMetricText(this.state.averages.exe);
     const ao5Text = this.formatSummaryValue(this.state.averages.ao5);
     const sessions = [...this.state.sessions].sort(
       (a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0)
@@ -1686,6 +1746,8 @@ class App extends React.Component {
     const dnfCount = recentSolves.filter(({ DNF }) => DNF).length;
     const completedCount = recentSolves.length - dnfCount;
     const latestSolve = recentSolves[0] || null;
+    const memoText = latestSolve ? this.convert_sec_to_format(latestSolve.memo_time) : "--";
+    const execText = latestSolve ? this.convert_sec_to_format(latestSolve.exe_time) : "--";
     const latestFive = recentSolves.slice(0, 5);
     const trendLabel =
       latestFive.length >= 2 &&
@@ -1775,12 +1837,8 @@ class App extends React.Component {
     const selectedCommGroups = this.groupCommBreakdown(
       (this.state.selectedSolveDetails && this.state.selectedSolveDetails.comm_stats) || []
     );
-    const parserModeLabel =
-      this.state.remoteParserAvailable === false
-        ? "Local PWA parser"
-        : this.state.remoteParserAvailable === true
-          ? "Server parser"
-          : "Checking parser";
+    const latestSolveCommLines = this.getLatestSolveCommLines(latestSolve);
+    const latestSolveLastEvent = this.getLastSolveEventLabel(latestSolve);
     let mainView;
 
     if (this.state.activeView === "drill") {
@@ -1934,44 +1992,26 @@ class App extends React.Component {
         <section className="history_screen view_panel">
           <div className="section_header">
             <div>
-              <div className="placeholder_title">Recent Solves</div>
-              <div className="placeholder_text">{currentView.body}</div>
+              <div className="placeholder_title">History</div>
             </div>
             <div className="section_meta">{sessionCount} solves</div>
-          </div>
-          <div className="history_overview">
-            <div className="overview_card">
-              <span>Latest</span>
-              <strong>
-                {latestSolve
-                  ? latestSolve.DNF
-                    ? `DNF (${this.convert_sec_to_format(latestSolve.time_solve)})`
-                    : this.convert_sec_to_format(latestSolve.time_solve)
-                  : "--"}
-              </strong>
-            </div>
-            <div className="overview_card">
-              <span>Success</span>
-              <strong>{accuracyText}</strong>
-            </div>
-            <div className="overview_card">
-              <span>Trend</span>
-              <strong>{trendLabel}</strong>
-            </div>
           </div>
           <div className="history_list">
             {recentSolves.length ? (
               recentSolves.map((solve, index) => (
-                <article key={solve.date || index} className="history_card">
+                <button
+                  key={solve.date || index}
+                  type="button"
+                  className="history_card history_card_button"
+                  onClick={() => this.openSolveDetails(solve)}
+                >
                   <div className="history_card_top">
                     <div>
                       <div className="history_card_title">Solve {sessionCount - index}</div>
                       <div className="history_card_subtitle">{formatDate(solve.date)}</div>
                     </div>
                     <div className="history_card_time">
-                      {solve.DNF
-                        ? `DNF (${this.convert_sec_to_format(solve.time_solve)})`
-                        : this.convert_sec_to_format(solve.time_solve)}
+                      {this.formatSolveResultLabel(solve)}
                     </div>
                   </div>
                   <div className="history_card_metrics">
@@ -1984,34 +2024,11 @@ class App extends React.Component {
                       <strong>{this.convert_sec_to_format(solve.exe_time)}</strong>
                     </div>
                     <div className="history_metric_chip">
-                      <span>Flow</span>
-                      <strong>{solve.fluidness ? `${solve.fluidness}%` : "--"}</strong>
+                      <span>Status</span>
+                      <strong>{solve.DNF ? "DNF" : "OK"}</strong>
                     </div>
                   </div>
-                  <div className="history_card_actions">
-                    <button
-                      type="button"
-                      className="secondary_chip"
-                      onClick={() => this.openSolveDetails(solve)}
-                    >
-                      Details
-                    </button>
-                    {solve.link ? (
-                      <a
-                        className="secondary_chip"
-                        href={solve.link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        CubeDB
-                      </a>
-                    ) : (
-                      <button type="button" className="secondary_chip" disabled>
-                        CubeDB
-                      </button>
-                    )}
-                  </div>
-                </article>
+                </button>
               ))
             ) : (
               <div className="empty_state_card">
@@ -2266,43 +2283,60 @@ class App extends React.Component {
             </div>
           </div>
 
-          <div className="status_stack">
-            <div className="status_notice status_notice_info">
-              <strong>{parserModeLabel}</strong>
-              <span>
-                {this.state.remoteParserAvailable === false
-                  ? "Solves are reconstructed on-device and saved locally, so the installed app works without your laptop."
-                  : this.state.remoteParserAvailable === true
-                    ? "Connected to the full parser backend for richer reconstruction and sync."
-                    : "Checking whether the advanced parser backend is reachable."}
-              </span>
+          <div className="last_solve_panel">
+            <div className="chart_card_header">
+              <div>
+                <div className="chart_card_title">Last Solve</div>
+                <div className="history_card_subtitle">
+                  {latestSolve ? formatDate(latestSolve.date) : "Complete a solve to see details here."}
+                </div>
+              </div>
+              {latestSolve ? (
+                <button type="button" className="secondary_chip" onClick={() => this.openSolveDetails(latestSolve)}>
+                  Full details
+                </button>
+              ) : null}
             </div>
-
-            {this.state.isOffline ? (
-              <div className="status_notice status_notice_success">
-                <strong>Offline ready</strong>
-                <span>The app is currently offline and staying in local-only mode.</span>
+            {latestSolve ? (
+              <React.Fragment>
+                <div className="history_card_metrics">
+                  <div className="history_metric_chip">
+                    <span>Total</span>
+                    <strong>{this.formatSolveResultLabel(latestSolve)}</strong>
+                  </div>
+                  <div className="history_metric_chip">
+                    <span>Memo</span>
+                    <strong>{this.convert_sec_to_format(latestSolve.memo_time)}</strong>
+                  </div>
+                  <div className="history_metric_chip">
+                    <span>Exec</span>
+                    <strong>{this.convert_sec_to_format(latestSolve.exe_time)}</strong>
+                  </div>
+                </div>
+                {latestSolveCommLines.length ? (
+                  <div className="solve_modal_body solve_modal_body_compact">
+                    {latestSolveCommLines.map((line) => (
+                      <div key={line.label} className="comm_summary_line">
+                        <strong>{line.label}:</strong> {line.value}
+                      </div>
+                    ))}
+                    {latestSolveLastEvent ? (
+                      <div className="comm_summary_line">
+                        <strong>Ended on:</strong> {latestSolveLastEvent}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="solve_modal_body solve_modal_body_compact">
+                    Detailed comm breakdown will show up after a parsed solve is saved.
+                  </div>
+                )}
+              </React.Fragment>
+            ) : (
+              <div className="solve_modal_body solve_modal_body_compact">
+                Your latest memo split, exec split, and comm list will appear here.
               </div>
-            ) : null}
-
-            {this.state.installPromptAvailable || this.state.installStatusMessage || this.state.isInstalled ? (
-              <div className="status_notice status_notice_info">
-                <strong>{this.state.isInstalled ? "Installed app" : "Install on your phone"}</strong>
-                <span>
-                  {this.state.installStatusMessage ||
-                    "Add TrainBLD to your home screen so you can open it like a local app."}
-                </span>
-                {!this.state.isInstalled ? (
-                  <button
-                    type="button"
-                    className="secondary_chip status_notice_action"
-                    onClick={this.promptInstall}
-                  >
-                    Install TrainBLD
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+            )}
           </div>
 
           {this.state.connectionNotice ? (
@@ -2527,6 +2561,8 @@ class App extends React.Component {
                 export_setting={this.handle_export_setting}
                 id={this.state.parse_settings["ID"]}
                 onManageCube={this.connectGanCubeDirect}
+                onDisconnectCube={this.handle_disconnect_cube}
+                onResetCube={this.handle_reset_cube}
               />
             </div>
           </div>
@@ -2546,8 +2582,8 @@ class App extends React.Component {
             <div className="solve_modal" onClick={(event) => event.stopPropagation()}>
               <div className="solve_modal_header">
                 <div>
-                  <div className="section_label">Last solve</div>
-                  <div className="solve_modal_title">Parsed description</div>
+                  <div className="section_label">Solve details</div>
+                  <div className="solve_modal_title">Full reconstruction</div>
                 </div>
                 <button
                   type="button"
@@ -2569,7 +2605,7 @@ class App extends React.Component {
                   <div className="history_card_metrics">
                     <div className="history_metric_chip">
                       <span>Total</span>
-                      <strong>{this.convert_sec_to_format(this.state.selectedSolveDetails.time_solve)}</strong>
+                      <strong>{this.formatSolveResultLabel(this.state.selectedSolveDetails)}</strong>
                     </div>
                     <div className="history_metric_chip">
                       <span>Memo</span>
@@ -2608,9 +2644,9 @@ class App extends React.Component {
                             <strong>Corners:</strong> {selectedCommGroups.corners.join(", ")}
                           </div>
                         ) : null}
-                        {selectedCommGroups.parity ? (
+                        {selectedCommGroups.parity.length ? (
                           <div className="comm_summary_line">
-                            <strong>Parity</strong>
+                            <strong>Parity:</strong> {selectedCommGroups.parity.join(", ")}
                           </div>
                         ) : null}
                       </div>

@@ -251,33 +251,36 @@ function parseTargetsFromComment(comment) {
   const lower = cleaned.toLowerCase();
   const specialType = lower.includes("flip")
     ? "flip"
-    : lower.includes("twist")
-      ? "twist"
+    : lower.includes("twist") || lower.includes("rotation")
+      ? "rotation"
       : null;
-
-  if (lower.includes("parity")) {
-    return {
-      bufferTarget: null,
-      targetA: null,
-      targetB: null,
-      specialType,
-      display: "parity",
-    };
-  }
 
   const pieces = cleaned
     .split(/[\s:/>|-]+/)
     .map((token) => token.trim())
     .filter(Boolean)
     .flatMap(splitCompactToken)
-    .filter((token) => !/^(FLIP|TWIST|PARITY)$/i.test(token));
+    .filter((token) => !/^(FLIP|TWIST|ROTATION|PARITY)$/i.test(token));
+
+  if (lower.includes("parity")) {
+    const cornerPieces = pieces.filter((token) => cornerStickers.has(token));
+    const edgePieces = pieces.filter((token) => edgeStickers.has(token));
+    const parityTarget = cornerPieces[1] || cornerPieces[0] || null;
+    return {
+      bufferTarget: null,
+      targetA: edgePieces.join("") || null,
+      targetB: cornerPieces.join("") || null,
+      specialType: "parity",
+      display: parityTarget ? `${parityTarget} Parity` : "Parity",
+    };
+  }
 
   return {
-    bufferTarget: pieces.length >= 3 ? pieces[0] : null,
-    targetA: pieces.length >= 3 ? pieces[1] : pieces[0] || null,
-    targetB: pieces.length >= 3 ? pieces[2] : pieces[1] || null,
+    bufferTarget: pieces.length >= 3 && !specialType ? pieces[0] : null,
+    targetA: specialType ? pieces[0] || null : pieces.length >= 3 ? pieces[1] : pieces[0] || null,
+    targetB: specialType ? pieces[1] || null : pieces.length >= 3 ? pieces[2] : pieces[1] || null,
     specialType,
-    display: cleaned,
+    display: specialType ? `${pieces.join("")} ${specialType}`.trim() : cleaned,
   };
 }
 
@@ -290,10 +293,10 @@ function inferPhase(explicitPhase, targets) {
   if (targets.specialType === "flip") {
     return "edge";
   }
-  if (targets.specialType === "twist") {
+  if (targets.specialType === "rotation") {
     return "corner";
   }
-  if (targets.display.toLowerCase() === "parity") {
+  if (targets.specialType === "parity" || targets.display.toLowerCase().endsWith("parity")) {
     return "parity";
   }
   if (targets.targetA && edgeStickers.has(targets.targetA)) {
@@ -416,11 +419,22 @@ export function parseSolve(solveText, options = {}) {
       special_type: comm.special_type,
       alg: comm.alg,
       alg_length: comm.alg_length,
+      parse_text: targetsToParseText(comm),
     })),
     moveTimeline,
     solve: finalSolve,
     commCount: parsedComms.length,
   };
+}
+
+function targetsToParseText(comm) {
+  if (comm.special_type === "parity") {
+    return comm.comment && comm.comment.trim() ? parseTargetsFromComment(comm.comment).display : "Parity";
+  }
+  if (comm.special_type === "flip" || comm.special_type === "rotation") {
+    return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} ${comm.special_type}`.trim();
+  }
+  return [comm.target_a, comm.target_b].filter(Boolean).join("");
 }
 
 export function collapseMoves(algText) {

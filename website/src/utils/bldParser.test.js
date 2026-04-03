@@ -95,4 +95,41 @@ describe("bldParser", () => {
   it("normalizes repeated groups with cubing.js", () => {
     expect(toCanonicalAlg("(R U)2 (L U)2")).toBe("R U R U L U L U");
   });
+
+  it("formats parity, flips, and rotations with readable labels", () => {
+    const result = parseSolve([
+      "edges",
+      "[R U R', M'] // URUF flip",
+      "corners",
+      "[R' D' R, U] // UBRUFR twist",
+      "parity",
+      "[U R U': [S, R2]] // parity UFUR UFRUBR",
+    ].join("\n"));
+
+    expect(result.commStats[0]).toEqual(
+      expect.objectContaining({
+        phase: "edge",
+        special_type: "flip",
+        target_a: "UR",
+        target_b: "UF",
+        parse_text: "URUF flip",
+      })
+    );
+    expect(result.commStats[1]).toEqual(
+      expect.objectContaining({
+        phase: "corner",
+        special_type: "rotation",
+        target_a: "UBR",
+        target_b: "UFR",
+        parse_text: "UBRUFR rotation",
+      })
+    );
+    expect(result.commStats[2]).toEqual(
+      expect.objectContaining({
+        phase: "parity",
+        special_type: "parity",
+        parse_text: "UBR Parity",
+      })
+    );
+  });
 });

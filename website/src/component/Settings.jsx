@@ -198,13 +198,26 @@ class Setting extends React.Component {
                 {this.props.cur_setting["SMART_CUBE"] ? "Connected" : "Ready to connect"}
               </div>
             </div>
-            <button
-              type="button"
-              className="settings_inline_action"
-              onClick={this.props.onManageCube}
-            >
-              Manage
-            </button>
+            <div className="settings_action_row">
+              <button
+                type="button"
+                className="settings_inline_action"
+                onClick={
+                  this.props.cur_setting["SMART_CUBE"]
+                    ? this.props.onDisconnectCube
+                    : this.props.onManageCube
+                }
+              >
+                {this.props.cur_setting["SMART_CUBE"] ? "Disconnect" : "Connect"}
+              </button>
+              <button
+                type="button"
+                className="settings_inline_action settings_inline_action_secondary"
+                onClick={this.props.onResetCube}
+              >
+                Reset Cube
+              </button>
+            </div>
           </div>
         </div>
 

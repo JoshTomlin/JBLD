@@ -430,6 +430,16 @@ function parseCommList(comm, lastSolvedPieces) {
   return found;
 }
 
+function buildParityLabel(tokens, bufferToken) {
+  const filtered = tokens.filter(Boolean);
+  if (!filtered.length) {
+    return "Parity";
+  }
+
+  const target = filtered.find((token) => token !== bufferToken) || filtered[0];
+  return `${target} Parity`;
+}
+
 export function parseSolvedToComm(lastSolvedPieces, buffers) {
   const { edgeBuffer, cornerBuffer } = buffers;
   const comm = [];
@@ -496,36 +506,37 @@ function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, bu
       ? letterPairs[toCanonicalStickerName(token)] || toCanonicalStickerName(token)
       : toCanonicalStickerName(token);
   const mappedComm = comm.map(mapToken);
-
-  if (pieceType.parity) {
-    return {
-      bufferTarget: null,
-      targetA: mappedComm.slice(0, 2).join(""),
-      targetB: mappedComm.slice(2).join(""),
-      specialType: null,
-      parseText: `${mappedComm.slice(0, 2).join("")} ${mappedComm.slice(2).join("")}`.trim(),
-    };
-  }
-
   const edgeBufferToken = parseToLetterPair ? letterPairs[buffers.edgeBuffer] || buffers.edgeBuffer : buffers.edgeBuffer;
   const cornerBufferToken = parseToLetterPair ? letterPairs[buffers.cornerBuffer] || buffers.cornerBuffer : buffers.cornerBuffer;
+
+  if (pieceType.parity) {
+    const edgeTargets = mappedComm.slice(0, 2);
+    const cornerTargets = mappedComm.slice(2);
+    return {
+      bufferTarget: null,
+      targetA: edgeTargets.join(""),
+      targetB: cornerTargets.join(""),
+      specialType: "parity",
+      parseText: buildParityLabel(cornerTargets, cornerBufferToken),
+    };
+  }
 
   const isEdge = pieceType.edge;
   const bufferToken = isEdge ? edgeBufferToken : cornerBufferToken;
   const specialType = mappedComm.includes("flip")
     ? "flip"
     : mappedComm.includes("twist")
-      ? "twist"
+      ? "rotation"
       : null;
 
   if (specialType) {
-    const relevantTargets = mappedComm.filter((token) => token !== specialType);
+    const relevantTargets = mappedComm.filter((token) => token !== "flip" && token !== "twist");
     return {
-      bufferTarget: relevantTargets[0] || null,
-      targetA: relevantTargets[1] || null,
-      targetB: specialType,
+      bufferTarget: null,
+      targetA: relevantTargets[0] || null,
+      targetB: relevantTargets[1] || null,
       specialType,
-      parseText: relevantTargets.concat(specialType).join(" ").trim(),
+      parseText: `${relevantTargets.join("")} ${specialType}`.trim(),
     };
   }
 

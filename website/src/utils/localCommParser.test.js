@@ -146,6 +146,21 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UF", "UR", "UB"]);
   });
 
+  it("marks combined edge and corner cycles as parity", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UF: ["UR", "UF"],
+        UR: ["UF", "UR"],
+        UFR: ["UBR", "UFR"],
+        UBR: ["UFR", "UBR"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: false, parity: true });
+    expect(comm).toEqual(["UF", "UR", "UFR", "UBR"]);
+  });
+
   it("adds the orientation prefix to the local CubeDB link", () => {
     const result = buildCubedbUrl({
       scramble: baseSetting.SCRAMBLE,
