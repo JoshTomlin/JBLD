@@ -7,6 +7,7 @@ import Timer from "./component/Timer";
 import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
+import { computeSessionAggregateStats } from "./utils/solveAverages";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -905,90 +906,29 @@ class App extends React.Component {
     this.setState({ averages: averages });
   };
   initialAverages = () => {
-    const sum = (previousValue, currentValue) => previousValue + currentValue;
-
     if (localStorage.getItem("averages") === null) {
       this.initialAveragesNoSolves();
     } else {
       let averages = JSON.parse(localStorage.getItem("averages"));
-      let mo3, ao5, ao12, succcess, aoAll, current, memo, exe, fluid;
       let solve_stats = JSON.parse(localStorage.getItem("solves"));
-      let len = solve_stats.length;
-      mo3 = solve_stats.length >= 3 ? this.calc_mo3(solve_stats) : "";
-      ao5 =
-        solve_stats.length >= 5
-          ? this.calc_average(solve_stats.slice(len - 5, len))
-          : "";
-      ao12 =
-        solve_stats.length >= 12
-          ? this.calc_average(solve_stats.slice(len - 12, len))
-          : "";
-      if (solve_stats.length > 0) {
-        let time = solve_stats[solve_stats.length - 1]["time_solve"];
-        if (solve_stats[solve_stats.length - 1]["DNF"] === true) {
-          current = "DNF(" + this.convert_sec_to_format(time) + ")";
-        } else {
-          current = time;
-        }
-      }
+      const aggregateStats = computeSessionAggregateStats(solve_stats, {
+        calcMo3: this.calc_mo3,
+        calcAverage: this.calc_average,
+        formatSeconds: this.convert_sec_to_format,
+      });
 
-      if (
-        [...solve_stats].map(({ DNF }) => DNF).filter((x) => x === false)
-          .length > 0
-      ) {
-        aoAll = [...solve_stats]
-          .filter(function ({ DNF, time_solve }) {
-            if (DNF === false) {
-              return parseFloat(time_solve);
-            }
-          })
-          .map(({ time_solve }) => parseFloat(time_solve));
-        aoAll = parseFloat((aoAll.reduce(sum) / aoAll.length).toFixed(2));
-        succcess = `${
-          [...solve_stats].map(({ DNF }) => DNF).filter((x) => x === false)
-            .length
-        }/${[...solve_stats].length}`;
-        memo = [...solve_stats]
-          .filter(function ({ DNF, memo_time }) {
-            if (DNF === false) {
-              return parseFloat(memo_time);
-            }
-          })
-          .map(({ memo_time }) => parseFloat(memo_time));
-        memo = parseFloat((memo.reduce(sum) / memo.length).toFixed(2));
+      averages["current"] = aggregateStats.current;
+      averages["mo3"] = aggregateStats.mo3;
+      averages["ao5"] = aggregateStats.ao5;
+      averages["ao12"] = aggregateStats.ao12;
+      averages["aoAll"] = aggregateStats.aoAll;
+      averages["memo"] = aggregateStats.memo;
+      averages["exe"] = aggregateStats.exe;
+      averages["fluid"] = aggregateStats.fluid;
+      averages["success"] = aggregateStats.success;
 
-        exe = [...solve_stats]
-          .filter(function ({ DNF, exe_time }) {
-            if (DNF === false) {
-              return parseFloat(exe_time);
-            }
-          })
-          .map(({ exe_time }) => parseFloat(exe_time));
-        exe = parseFloat((exe.reduce(sum) / exe.length).toFixed(2));
-
-        fluid = [...solve_stats]
-          .filter(function ({ DNF, fluidness }) {
-            if (DNF === false) {
-              return parseFloat(fluidness);
-            }
-          })
-          .map(({ fluidness }) => parseFloat(fluidness));
-        fluid = parseFloat((fluid.reduce(sum) / fluid.length).toFixed(2));
-        averages["current"] = current;
-        averages["mo3"] = mo3;
-        averages["ao5"] = ao5;
-        averages["ao12"] = ao12;
-        averages["aoAll"] = aoAll;
-        averages["memo"] = memo;
-        averages["exe"] = exe;
-        averages["fluid"] = fluid;
-        averages["success"] = succcess;
-
-        localStorage.setItem("averages", JSON.stringify(averages));
-        this.setState({ averages: averages });
-      } else {
-        this.initialAveragesNoSolves();
-      }
+      localStorage.setItem("averages", JSON.stringify(averages));
+      this.setState({ averages: averages });
     }
   };
   plus_two_last_solve = () => {
