@@ -58,6 +58,7 @@ jobs:
           npm run build 2>&1 | tee ../npm-build.log
         env:
           NODE_OPTIONS: --openssl-legacy-provider
+          CI: "false"
 
       - name: Upload debug logs
         if: always()
