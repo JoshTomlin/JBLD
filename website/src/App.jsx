@@ -5,6 +5,8 @@ import Setting from "./component/Settings";
 import "bootstrap/dist/css/bootstrap.css";
 import Timer from "./component/Timer";
 import { Helmet } from "react-helmet";
+import { buildSolveAnalysis } from "./utils/bldParser";
+import { buildLocalSolveResult } from "./utils/localSolveParser";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -15,6 +17,7 @@ class App extends React.Component {
     this.GiikerCube = this.GiikerCube.bind(this);
     this.connectGanCubeDirect = this.connectGanCubeDirect.bind(this);
     this.newMovesNotation = this.newMovesNotation.bind(this);
+    this.deferredInstallPrompt = null;
     this.state = {
       activeView: "solve",
       showMenu: false,
@@ -54,6 +57,13 @@ class App extends React.Component {
       cube_moves_time: [],
       cube: null,
       connectionNotice: null,
+      remoteParserAvailable: null,
+      installPromptAvailable: false,
+      installStatusMessage: null,
+      isOffline: typeof navigator !== "undefined" ? !navigator.onLine : false,
+      isInstalled:
+        typeof window !== "undefined" &&
+        (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true),
       generated_setting: "",
       timeStart: null,
       timeFinish: null,
@@ -95,7 +105,74 @@ class App extends React.Component {
   componentDidMount = () => {
     this.initialStatsFromLocalstorage();
     this.handle_scramble();
-    this.syncSessionsFromServer();
+    window.addEventListener("online", this.handleNetworkChange);
+    window.addEventListener("offline", this.handleNetworkChange);
+    window.addEventListener("beforeinstallprompt", this.handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", this.handleAppInstalled);
+    this.probeRemoteParserAvailability();
+  };
+  componentWillUnmount = () => {
+    window.removeEventListener("online", this.handleNetworkChange);
+    window.removeEventListener("offline", this.handleNetworkChange);
+    window.removeEventListener("beforeinstallprompt", this.handleBeforeInstallPrompt);
+    window.removeEventListener("appinstalled", this.handleAppInstalled);
+  };
+  handleNetworkChange = () => {
+    this.setState({ isOffline: !navigator.onLine });
+  };
+  handleBeforeInstallPrompt = (event) => {
+    event.preventDefault();
+    this.deferredInstallPrompt = event;
+    this.setState({
+      installPromptAvailable: true,
+      installStatusMessage: "Install TrainBLD to keep it on your phone for offline practice.",
+    });
+  };
+  handleAppInstalled = () => {
+    this.deferredInstallPrompt = null;
+    this.setState({
+      installPromptAvailable: false,
+      isInstalled: true,
+      installStatusMessage: "TrainBLD is installed. Open it from your home screen for local use.",
+    });
+  };
+  promptInstall = async () => {
+    if (!this.deferredInstallPrompt) {
+      this.setState({
+        installStatusMessage:
+          "Use your browser menu and choose Add to Home Screen if the install button is unavailable.",
+      });
+      return;
+    }
+
+    this.deferredInstallPrompt.prompt();
+    const choiceResult = await this.deferredInstallPrompt.userChoice;
+    this.deferredInstallPrompt = null;
+    this.setState({
+      installPromptAvailable: false,
+      installStatusMessage:
+        choiceResult && choiceResult.outcome === "accepted"
+          ? "Install accepted. TrainBLD should appear on your home screen shortly."
+          : "Install was dismissed. You can trigger it again later from the browser menu.",
+    });
+  };
+  probeRemoteParserAvailability = async () => {
+    try {
+      const response = await fetch(`${this.getApiOrigin()}/options`, {
+        method: "OPTIONS",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      const remoteParserAvailable = response.ok;
+      this.setState({ remoteParserAvailable });
+      if (remoteParserAvailable) {
+        this.syncSessionsFromServer();
+      }
+    } catch (error) {
+      console.warn("Remote parser probe failed, using local mode", error);
+      this.setState({ remoteParserAvailable: false });
+    }
   };
   parseJsonStorage = (key, fallbackValue) => {
     try {
@@ -187,7 +264,7 @@ class App extends React.Component {
 
   getApiOrigin = () =>
     window.location.port === "8080"
-      ? `${window.location.protocol}//${window.location.hostname}`
+      ? `${window.location.protocol}//${window.location.hostname}:8082`
       : "";
 
   apiRequest = async (path, options = {}) => {
@@ -266,6 +343,9 @@ class App extends React.Component {
   };
 
   syncSessionsFromServer = async () => {
+    if (this.state.remoteParserAvailable === false) {
+      return;
+    }
     const userId = this.state.parse_settings && this.state.parse_settings.ID;
     if (!userId) {
       return;
@@ -284,6 +364,9 @@ class App extends React.Component {
   };
 
   fetchSolveDetails = async (solveId) => {
+    if (this.state.remoteParserAvailable === false) {
+      return null;
+    }
     const userId = this.state.parse_settings && this.state.parse_settings.ID;
     if (!userId || !solveId) {
       return null;
@@ -327,6 +410,9 @@ class App extends React.Component {
   };
 
   createSessionOnServer = async (name) => {
+    if (this.state.remoteParserAvailable === false) {
+      return null;
+    }
     const payload = {
       user_id: this.state.parse_settings.ID,
       name,
@@ -523,10 +609,22 @@ class App extends React.Component {
   };
 
   buildSolveRecord = (data, setting, parseError = null) => {
-    const parsedMetrics = this.extractSolveMetricsFromText(data && data.txt ? data.txt : "");
+    const solveText = data && data.txt ? data.txt : this.buildFallbackSolveText(setting, parseError);
+    const parsedMetrics = this.extractSolveMetricsFromText(solveText);
     const fallbackTotal = parseFloat(setting.TIME_SOLVE || 0);
     const fallbackMemo = parseFloat(setting.MEMO || 0);
     const fallbackExe = Math.max(fallbackTotal - fallbackMemo, 0);
+    let solveAnalysis = null;
+    const providedCommStats = data && Array.isArray(data.commStats) ? data.commStats : null;
+    const providedMoveTimeline = data && Array.isArray(data.moveTimeline) ? data.moveTimeline : null;
+
+    if (!providedCommStats || !providedMoveTimeline) {
+      try {
+        solveAnalysis = buildSolveAnalysis(solveText);
+      } catch (error) {
+        console.warn("Failed to analyze solve text locally", error);
+      }
+    }
 
     return {
       date: Date.now(),
@@ -542,18 +640,34 @@ class App extends React.Component {
         parsedMetrics.exe_time !== null && parsedMetrics.exe_time !== undefined
           ? parsedMetrics.exe_time
           : fallbackExe,
-      txt_solve:
-        data && data.txt ? data.txt : this.buildFallbackSolveText(setting, parseError),
+      txt_solve: solveText,
       link: data && data.cubedb ? data.cubedb : null,
       fluidness:
         parsedMetrics.fluidness !== null && parsedMetrics.fluidness !== undefined
           ? parsedMetrics.fluidness
-          : null,
+          : data && data.fluidness !== undefined
+            ? data.fluidness
+            : null,
       DNF: Boolean(parsedMetrics.isDnf),
       scramble: setting.SCRAMBLE || "",
-      solve: setting.SOLVE || "",
+      solve: (data && data.solve) || (solveAnalysis && solveAnalysis.solve) || setting.SOLVE || "",
+      comm_stats: providedCommStats || (solveAnalysis && solveAnalysis.commStats) || [],
+      move_timeline: providedMoveTimeline || (solveAnalysis && solveAnalysis.moveTimeline) || [],
       parseError,
     };
+  };
+  runLocalParse = (setting, reason = null) => {
+    const localResult = buildLocalSolveResult(setting, this.convert_sec_to_format);
+    this.setState({
+      parsed_solve: localResult,
+      parsed_solve_cubedb: localResult.cubedb || null,
+      parsed_solve_txt: localResult.txt,
+      connectionNotice: reason
+        ? `Solve saved locally. ${reason}`
+        : "Solve parsed locally on this device.",
+    });
+    this.safelyStoreSolveResult(localResult, setting);
+    this.handle_solve_status("Ready for scrambling");
   };
 
   newMovesNotation(move) {
@@ -1455,6 +1569,13 @@ class App extends React.Component {
   handle_parse_solve = (timer_finish) => {
     const setting = this.extract_solve_from_cube_moves(timer_finish);
     console.log(setting);
+    if (this.state.remoteParserAvailable === false) {
+      this.runLocalParse(
+        setting,
+        "The advanced parser backend is unavailable, so TrainBLD used local PWA mode instead."
+      );
+      return;
+    }
     let result;
     const requestOptions = {
       method: "POST",
@@ -1518,13 +1639,12 @@ class App extends React.Component {
         console.log(requestOptions["body"]);
         console.log(error);
         const parseError = error && error.message ? error.message : "Unknown parse error";
-        this.addSolveToLocalStorage(null, setting, parseError);
-        this.setState({
-          parsed_solve: null,
-          parsed_solve_cubedb: null,
-          parsed_solve_txt: this.buildFallbackSolveText(setting, parseError),
+        this.setState({ remoteParserAvailable: false }, () => {
+          this.runLocalParse(
+            setting,
+            `The remote parser failed (${parseError}). TrainBLD switched to local PWA mode.`
+          );
         });
-        this.handle_solve_status("Parsing didn't succeed");
       });
   };
   handle_scramble = () => {
@@ -1683,6 +1803,12 @@ class App extends React.Component {
     const selectedCommGroups = this.groupCommBreakdown(
       (this.state.selectedSolveDetails && this.state.selectedSolveDetails.comm_stats) || []
     );
+    const parserModeLabel =
+      this.state.remoteParserAvailable === false
+        ? "Local PWA parser"
+        : this.state.remoteParserAvailable === true
+          ? "Server parser"
+          : "Checking parser";
     let mainView;
 
     if (this.state.activeView === "drill") {
@@ -2166,6 +2292,45 @@ class App extends React.Component {
               <span className="summary_pill_label">Accuracy</span>
               <span className="summary_pill_value">{accuracyText}</span>
             </div>
+          </div>
+
+          <div className="status_stack">
+            <div className="status_notice status_notice_info">
+              <strong>{parserModeLabel}</strong>
+              <span>
+                {this.state.remoteParserAvailable === false
+                  ? "Solves are reconstructed on-device and saved locally, so the installed app works without your laptop."
+                  : this.state.remoteParserAvailable === true
+                    ? "Connected to the full parser backend for richer reconstruction and sync."
+                    : "Checking whether the advanced parser backend is reachable."}
+              </span>
+            </div>
+
+            {this.state.isOffline ? (
+              <div className="status_notice status_notice_success">
+                <strong>Offline ready</strong>
+                <span>The app is currently offline and staying in local-only mode.</span>
+              </div>
+            ) : null}
+
+            {this.state.installPromptAvailable || this.state.installStatusMessage || this.state.isInstalled ? (
+              <div className="status_notice status_notice_info">
+                <strong>{this.state.isInstalled ? "Installed app" : "Install on your phone"}</strong>
+                <span>
+                  {this.state.installStatusMessage ||
+                    "Add TrainBLD to your home screen so you can open it like a local app."}
+                </span>
+                {!this.state.isInstalled ? (
+                  <button
+                    type="button"
+                    className="secondary_chip status_notice_action"
+                    onClick={this.promptInstall}
+                  >
+                    Install TrainBLD
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {this.state.connectionNotice ? (

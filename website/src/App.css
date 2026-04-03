@@ -324,6 +324,13 @@ textarea {
   padding-bottom: 12px;
 }
 
+.status_stack {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 342px);
+  margin: 0 auto 12px;
+}
+
 .summary_pill {
   min-width: 108px;
   padding: 10px 14px;
@@ -357,6 +364,42 @@ textarea {
   font-size: 0.82rem;
   line-height: 1.45;
   max-width: 342px;
+}
+
+.status_notice {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(8, 17, 38, 0.9);
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+  max-width: 342px;
+}
+
+.status_notice strong {
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.status_notice span {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.status_notice_info {
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+.status_notice_success {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(20, 83, 45, 0.22);
+}
+
+.status_notice_action {
+  justify-self: start;
+  min-height: 38px;
+  margin-top: 2px;
 }
 
 .secondary_chip,
