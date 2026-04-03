@@ -1,0 +1,14 @@
+diff --git a/node_modules/gan-web-bluetooth/dist/esm/index.mjs b/node_modules/gan-web-bluetooth/dist/esm/index.mjs
+index 60d9840..patched 100644
+--- a/node_modules/gan-web-bluetooth/dist/esm/index.mjs
++++ b/node_modules/gan-web-bluetooth/dist/esm/index.mjs
+@@ -1,5 +1,8 @@
+-import { Subject } from 'rxjs';
+-import { ModeOfOperation } from 'aes-js';
++import rxjs from 'rxjs';
++const { Subject } = rxjs;
++import aesJs from 'aes-js';
++const { ModeOfOperation } = aesJs;
+ 
+ // GAN Smart Timer bluetooth service and characteristic UUIDs
+ const GAN_TIMER_SERVICE = '0000fff0-0000-1000-8000-00805f9b34fb';

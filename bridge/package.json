@@ -1,0 +1,10 @@
+{
+  "name": "gan-bridge",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "gan-web-bluetooth": "^x.y.z",
+    "webbluetooth": "^x.y.z",
+    "ws": "^8.0.0"
+  }
+}

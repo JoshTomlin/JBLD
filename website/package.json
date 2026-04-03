@@ -1,0 +1,56 @@
+{
+  "name": "trainbld",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "14.17.5"
+  },
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.14.1",
+    "@testing-library/react": "^11.2.7",
+    "@testing-library/user-event": "^12.8.3",
+    "bootstrap": "^5.1.0",
+    "cube-solver": "^2.4.1",
+    "cubing": "^0.20.2",
+    "gan-web-bluetooth": "^3.0.2",
+    "mdbreact": "^5.1.0",
+    "patch-package": "^8.0.0",
+    "react": "^17.0.2",
+    "react-base-table": "^1.12.0",
+    "react-bootstrap": "^2.0.0-beta.6",
+    "react-dom": "^17.0.2",
+    "react-helmet": "^6.1.0",
+    "react-script-tag": "^1.1.2",
+    "react-scripts": "4.0.3",
+    "react-table-scrollbar": "^0.1.11",
+    "rubiks-cube-scramble": "^1.0.2",
+    "scramble-display": "^0.3.1",
+    "sr-scrambler": "^1.0.1",
+    "web-vitals": "^1.1.2"
+  },
+  "scripts": {
+    "postinstall": "patch-package",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+  
+}

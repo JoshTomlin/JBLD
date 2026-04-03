@@ -1,0 +1,9 @@
+PS C:\Users\narwa\OneDrive\Documents\Cubing\Docker Experiment\TrainBLD_with_docker> tailscale serve --bg http://127.0.0.1:80
+>> 
+Available within your tailnet:
+
+https://desktop-3k2bicb.tail1bd626.ts.net/
+|-- proxy http://127.0.0.1:80
+
+Serve started and running in the background.
+To disable the proxy, run: tailscale serve --https=443 off

@@ -1,0 +1,7 @@
+pyperclip
+python-dotenv
+permutation
+werkzeug
+psycopg2
+flask
+Flask-Cors
