@@ -1,0 +1,655 @@
+import { Move } from "cubing/alg";
+import { KPuzzle } from "cubing/kpuzzle";
+import { experimentalCube3x3x3KPuzzle } from "cubing/puzzles";
+
+const cubeDefinition = experimentalCube3x3x3KPuzzle;
+const rotationMoves = new Set(["x", "x'", "x2", "y", "y'", "y2", "z", "z'", "z2"]);
+const reidEdgeOrder = "UF UR UB UL DF DR DB DL FR FL BR BL".split(" ");
+const reidCornerOrder = "UFR URB UBL ULF DRF DFL DLB DBR".split(" ");
+const centerOrder = "U L F R B D".split(" ");
+const defaultDiffThreshold = 0.87;
+
+const orientationDict = {
+  "white-green": "",
+  "white-blue": "y2",
+  "white-orange": "y'",
+  "white-red": "y",
+  "green-white": "y2 x'",
+  "green-yellow": "x",
+  "green-orange": "x y'",
+  "green-red": "x y",
+  "yellow-green": "z2",
+  "yellow-blue": "x2",
+  "yellow-orange": "z2 y",
+  "yellow-red": "x2 y",
+  "blue-white": "x'",
+  "blue-yellow": "x' y2",
+  "blue-orange": "x' y'",
+  "blue-red": "x' y",
+  "orange-white": "z y",
+  "orange-green": "z",
+  "orange-yellow": "z y'",
+  "orange-blue": "y2 z'",
+  "red-white": "z' y'",
+  "red-green": "z'",
+  "red-yellow": "z' y",
+  "red-blue": "y2 z'",
+};
+
+const inverseRotationMap = {
+  x: "x'",
+  "x'": "x",
+  x2: "x2",
+  y: "y'",
+  "y'": "y",
+  y2: "y2",
+  z: "z'",
+  "z'": "z",
+  z2: "z2",
+};
+
+const translationMaps = {
+  y: {
+    R: "B",
+    r: "b",
+    B: "L",
+    b: "l",
+    L: "F",
+    l: "f",
+    F: "R",
+    f: "r",
+    M: "S",
+    z: "x",
+    S: "M'",
+    x: "z'",
+  },
+  x: {
+    U: "F",
+    u: "f",
+    F: "D",
+    f: "d",
+    D: "B",
+    d: "b",
+    B: "U",
+    b: "u",
+    S: "E",
+    E: "S'",
+    y: "z",
+    z: "y'",
+  },
+  z: {
+    R: "U",
+    r: "u",
+    U: "L",
+    u: "l",
+    L: "D",
+    l: "d",
+    D: "R",
+    d: "r",
+    M: "E",
+    E: "M'",
+    x: "y",
+    y: "x'",
+  },
+};
+
+const stickerIdentityOrder = [
+  ...reidEdgeOrder.flatMap((piece) => [piece, rotateLeft(piece, 1)]),
+  ...reidCornerOrder.flatMap((piece) => [
+    piece,
+    rotateLeft(piece, 1),
+    rotateLeft(piece, 2),
+  ]),
+  ...centerOrder,
+];
+
+function rotateLeft(value, amount) {
+  if (!value) {
+    return value;
+  }
+
+  const normalizedAmount = ((amount % value.length) + value.length) % value.length;
+  return value.slice(normalizedAmount) + value.slice(0, normalizedAmount);
+}
+
+function splitMoves(algText = "") {
+  return algText
+    .trim()
+    .split(/\s+/)
+    .map((move) => move.trim())
+    .filter(Boolean);
+}
+
+function normalizeMoveToken(move) {
+  return move.replace(/’/g, "'");
+}
+
+function translateAlgorithm(tokens, translation) {
+  return tokens
+    .join(" ")
+    .split("")
+    .map((char) => (char in translation ? translation[char] : char))
+    .join("")
+    .replace(/''/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function applyRotationToTokens(tokens, rotation) {
+  if (!rotation || !translationMaps[rotation[0]]) {
+    return tokens.slice();
+  }
+
+  let next = tokens.slice();
+  const baseRotation = rotation[0];
+  const amount = rotation.endsWith("2") ? 2 : rotation.endsWith("'") ? 3 : 1;
+
+  for (let i = 0; i < amount; i += 1) {
+    next = translateAlgorithm(next, translationMaps[baseRotation]);
+  }
+
+  return next;
+}
+
+function parseRotationFromAlg(tokens) {
+  const remaining = tokens.slice();
+  let normalized = remaining.slice();
+
+  while (normalized.length && rotationMoves.has(normalized[0])) {
+    const [rotation, ...rest] = normalized;
+    normalized = applyRotationToTokens(rest, rotation);
+  }
+
+  return normalized;
+}
+
+export function getOrientationData(orientation = "white-green") {
+  const orientationRotations = splitMoves(orientationDict[orientation] || "");
+  const inverseRotations = orientationRotations
+    .map((rotation) => inverseRotationMap[rotation] || rotation)
+    .reverse();
+
+  return {
+    rotationPrefix: orientationRotations.join(" "),
+    normalizationRotations: inverseRotations,
+  };
+}
+
+export function normalizeForOrientation(scramble, solve, orientation = "white-green") {
+  const { rotationPrefix, normalizationRotations } = getOrientationData(orientation);
+  const scrambleTokens = splitMoves(scramble);
+  const solveTokens = splitMoves(solve);
+  const normalizedScramble = parseRotationFromAlg([...normalizationRotations, ...scrambleTokens]);
+  const normalizedSolve = parseRotationFromAlg([...normalizationRotations, ...solveTokens]);
+
+  return {
+    scrambleTokens: normalizedScramble,
+    solveTokens: normalizedSolve,
+    rotationPrefix,
+  };
+}
+
+function toReidStruct(state) {
+  const output = [[], [], []];
+
+  for (let i = 0; i < 12; i += 1) {
+    output[0].push(
+      rotateLeft(
+        reidEdgeOrder[state.EDGES.permutation[i]],
+        state.EDGES.orientation[i]
+      )
+    );
+  }
+
+  for (let i = 0; i < 8; i += 1) {
+    output[1].push(
+      rotateLeft(
+        reidCornerOrder[state.CORNERS.permutation[i]],
+        state.CORNERS.orientation[i]
+      )
+    );
+  }
+
+  output[2] = centerOrder.slice();
+  return output;
+}
+
+function buildInverseStickerMap(state) {
+  const reid = toReidStruct(state);
+  const inverseMap = {};
+
+  reidEdgeOrder.forEach((slotName, index) => {
+    const piece = reid[0][index];
+    inverseMap[piece] = slotName;
+    inverseMap[rotateLeft(piece, 1)] = rotateLeft(slotName, 1);
+  });
+
+  reidCornerOrder.forEach((slotName, index) => {
+    const piece = reid[1][index];
+    inverseMap[piece] = slotName;
+    inverseMap[rotateLeft(piece, 1)] = rotateLeft(slotName, 1);
+    inverseMap[rotateLeft(piece, 2)] = rotateLeft(slotName, 2);
+  });
+
+  centerOrder.forEach((center) => {
+    inverseMap[center] = center;
+  });
+
+  return inverseMap;
+}
+
+function stateToInverseTokens(state) {
+  const inverseMap = buildInverseStickerMap(state);
+  return stickerIdentityOrder.map((label) => inverseMap[label] || label);
+}
+
+function countSolvedEdges(state) {
+  return state.EDGES.permutation.reduce(
+    (count, pieceIndex, index) =>
+      count + (pieceIndex === index && state.EDGES.orientation[index] === 0 ? 1 : 0),
+    0
+  );
+}
+
+function countSolvedCorners(state) {
+  return state.CORNERS.permutation.reduce(
+    (count, pieceIndex, index) =>
+      count + (pieceIndex === index && state.CORNERS.orientation[index] === 0 ? 1 : 0),
+    0
+  );
+}
+
+function longestCommonBlock(a, b, aStart, aEnd, bStart, bEnd) {
+  let bestA = aStart;
+  let bestB = bStart;
+  let bestSize = 0;
+  const index = new Map();
+
+  for (let i = bStart; i < bEnd; i += 1) {
+    const token = b[i];
+    const entries = index.get(token) || [];
+    entries.push(i);
+    index.set(token, entries);
+  }
+
+  const lengths = new Map();
+
+  for (let i = aStart; i < aEnd; i += 1) {
+    const nextLengths = new Map();
+    const matches = index.get(a[i]) || [];
+
+    for (const j of matches) {
+      if (j < bStart || j >= bEnd) {
+        continue;
+      }
+
+      const size = (lengths.get(j - 1) || 0) + 1;
+      nextLengths.set(j, size);
+      if (size > bestSize) {
+        bestSize = size;
+        bestA = i - size + 1;
+        bestB = j - size + 1;
+      }
+    }
+
+    nextLengths.forEach((value, key) => lengths.set(key, value));
+  }
+
+  return { aStart: bestA, bStart: bestB, size: bestSize };
+}
+
+function matchingBlocks(a, b, aStart, aEnd, bStart, bEnd, output) {
+  const match = longestCommonBlock(a, b, aStart, aEnd, bStart, bEnd);
+
+  if (!match.size) {
+    return;
+  }
+
+  if (aStart < match.aStart && bStart < match.bStart) {
+    matchingBlocks(a, b, aStart, match.aStart, bStart, match.bStart, output);
+  }
+
+  output.push(match);
+
+  if (match.aStart + match.size < aEnd && match.bStart + match.size < bEnd) {
+    matchingBlocks(
+      a,
+      b,
+      match.aStart + match.size,
+      aEnd,
+      match.bStart + match.size,
+      bEnd,
+      output
+    );
+  }
+}
+
+export function similarityRatio(a, b) {
+  const matches = [];
+  matchingBlocks(a, b, 0, a.length, 0, b.length, matches);
+  const matchedSize = matches.reduce((sum, match) => sum + match.size, 0);
+  return a.length + b.length ? (2 * matchedSize) / (a.length + b.length) : 1;
+}
+
+function diffSolvedState(previousTokens, currentTokens) {
+  const changed = {};
+
+  for (let i = 0; i < stickerIdentityOrder.length; i += 1) {
+    if (previousTokens[i] !== currentTokens[i]) {
+      changed[stickerIdentityOrder[i]] = [previousTokens[i], currentTokens[i]];
+    }
+  }
+
+  return changed;
+}
+
+function isSamePiece(a, b) {
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  return a.split("").every((char) => b.includes(char));
+}
+
+function isSamePieceInList(target, items) {
+  return items.some((item) => isSamePiece(item, target));
+}
+
+function parseCommList(comm, lastSolvedPieces) {
+  const first = comm[0];
+  const second = comm[1];
+
+  if (!first || !second || !isSamePiece(first, second)) {
+    return comm;
+  }
+
+  const edgeStickerSet = new Set(
+    Object.keys(lastSolvedPieces).filter((key) => key.length === 2)
+  );
+  const cornerStickerSet = new Set(
+    Object.keys(lastSolvedPieces).filter((key) => key.length === 3)
+  );
+  const found = [first];
+  const sourceSet = first.length === 2 ? edgeStickerSet : cornerStickerSet;
+
+  sourceSet.forEach((sticker) => {
+    if (!isSamePieceInList(sticker, found)) {
+      found.push(sticker);
+    }
+  });
+
+  found.push(first.length === 2 ? "flip" : "twist");
+  return found;
+}
+
+export function parseSolvedToComm(lastSolvedPieces, buffers) {
+  const { edgeBuffer, cornerBuffer } = buffers;
+  const comm = [];
+  const pieceType = { edge: false, corner: false, parity: false };
+
+  const appendCycle = (buffer) => {
+    comm.push(buffer);
+    let currentLabel = lastSolvedPieces[buffer][0];
+    let guard = 0;
+
+    while (currentLabel !== lastSolvedPieces[buffer][1] && guard < 20) {
+      guard += 1;
+      for (const key of Object.keys(lastSolvedPieces)) {
+        if (lastSolvedPieces[key][1] === currentLabel) {
+          currentLabel = lastSolvedPieces[key][0];
+          comm.push(key);
+          break;
+        }
+      }
+    }
+  };
+
+  if (edgeBuffer in lastSolvedPieces) {
+    pieceType.edge = true;
+    appendCycle(edgeBuffer);
+  }
+
+  if (cornerBuffer in lastSolvedPieces) {
+    pieceType.corner = true;
+    appendCycle(cornerBuffer);
+  }
+
+  if (!(cornerBuffer in lastSolvedPieces)) {
+    const tempCorner = Object.keys(lastSolvedPieces).find((key) => key.length === 3);
+    if (tempCorner) {
+      pieceType.corner = true;
+      appendCycle(tempCorner);
+    }
+  }
+
+  if (!(edgeBuffer in lastSolvedPieces)) {
+    const tempEdge = Object.keys(lastSolvedPieces).find((key) => key.length === 2);
+    if (tempEdge) {
+      pieceType.edge = true;
+      appendCycle(tempEdge);
+    }
+  }
+
+  if (pieceType.edge && pieceType.corner) {
+    pieceType.parity = true;
+    pieceType.edge = false;
+    pieceType.corner = false;
+  }
+
+  return {
+    comm: parseCommList(comm, lastSolvedPieces),
+    pieceType,
+  };
+}
+
+function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, buffers) {
+  const mapToken = (token) =>
+    parseToLetterPair && token !== "flip" && token !== "twist" ? letterPairs[token] || token : token;
+  const mappedComm = comm.map(mapToken);
+
+  if (pieceType.parity) {
+    return {
+      bufferTarget: null,
+      targetA: mappedComm.slice(0, 2).join(""),
+      targetB: mappedComm.slice(2).join(""),
+      specialType: null,
+      parseText: `${mappedComm.slice(0, 2).join("")} ${mappedComm.slice(2).join("")}`.trim(),
+    };
+  }
+
+  const edgeBufferToken = parseToLetterPair ? letterPairs[buffers.edgeBuffer] || buffers.edgeBuffer : buffers.edgeBuffer;
+  const cornerBufferToken = parseToLetterPair ? letterPairs[buffers.cornerBuffer] || buffers.cornerBuffer : buffers.cornerBuffer;
+
+  const isEdge = pieceType.edge;
+  const bufferToken = isEdge ? edgeBufferToken : cornerBufferToken;
+  const specialType = mappedComm.includes("flip")
+    ? "flip"
+    : mappedComm.includes("twist")
+      ? "twist"
+      : null;
+
+  if (specialType) {
+    const relevantTargets = mappedComm.filter((token) => token !== specialType);
+    return {
+      bufferTarget: relevantTargets[0] || null,
+      targetA: relevantTargets[1] || null,
+      targetB: specialType,
+      specialType,
+      parseText: relevantTargets.concat(specialType).join(" ").trim(),
+    };
+  }
+
+  const withoutBuffer =
+    mappedComm[0] === bufferToken ? mappedComm.slice(1) : mappedComm.slice();
+
+  return {
+    bufferTarget: mappedComm[0] || null,
+    targetA: withoutBuffer[0] || null,
+    targetB: withoutBuffer[1] || null,
+    specialType: null,
+    parseText:
+      pieceType.edge || pieceType.corner
+        ? withoutBuffer.join("")
+        : mappedComm.join(" ").trim(),
+  };
+}
+
+function phaseFromPieceType(pieceType) {
+  if (pieceType.edge) {
+    return "edge";
+  }
+  if (pieceType.corner) {
+    return "corner";
+  }
+  if (pieceType.parity) {
+    return "parity";
+  }
+  return "unknown";
+}
+
+function applyMove(cube, moveToken) {
+  cube.applyMove(new Move(normalizeMoveToken(moveToken)));
+}
+
+export function buildLocalCommAnalysis(setting) {
+  const orientation = setting.CUBE_OREINTATION || "white-green";
+  const buffers = {
+    edgeBuffer: setting.EDGES_BUFFER || "UF",
+    cornerBuffer: setting.CORNER_BUFFER || "UFR",
+  };
+  const letterPairs = (() => {
+    try {
+      return JSON.parse(setting.LETTER_PAIRS_DICT || "{}");
+    } catch (_error) {
+      return {};
+    }
+  })();
+  const parseToLetterPair = setting.PARSE_TO_LETTER_PAIR !== false;
+  const diffThreshold = Number(setting.DIFF_BETWEEN_ALGS || defaultDiffThreshold);
+  const { scrambleTokens, solveTokens, rotationPrefix } = normalizeForOrientation(
+    setting.SCRAMBLE || "",
+    setting.SOLVE || "",
+    orientation
+  );
+
+  const cube = new KPuzzle(cubeDefinition);
+  scrambleTokens.forEach((move) => applyMove(cube, move));
+
+  let currentMaxTokens = stateToInverseTokens(cube.state);
+  let pieceType = null;
+  let maxPiecePlace = 0;
+  let countMovesFromStart = 0;
+  let currentAlg = [];
+  const comms = [];
+  const solveStates = [];
+  let count = 0;
+
+  while (count < solveTokens.length && rotationMoves.has(solveTokens[count])) {
+    currentAlg.push(solveTokens[count]);
+    applyMove(cube, solveTokens[count]);
+    currentMaxTokens = stateToInverseTokens(cube.state);
+    count += 1;
+  }
+
+  for (let index = count; index < solveTokens.length; index += 1) {
+    const move = solveTokens[index];
+    currentAlg.push(move);
+    applyMove(cube, move);
+    count += 1;
+    const currentTokens = stateToInverseTokens(cube.state);
+    const diff = similarityRatio(currentMaxTokens, currentTokens);
+    const solvedEdges = countSolvedEdges(cube.state);
+    const solvedCorners = countSolvedCorners(cube.state);
+
+    solveStates.push({
+      move,
+      count,
+      solvedEdges,
+      solvedCorners,
+      diff,
+    });
+
+    if (diff > diffThreshold && count - maxPiecePlace >= 4 && diff !== 1) {
+      const spanLength = count - maxPiecePlace;
+      const lastSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
+      const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
+
+      if (!(parsed.comm.length > 3 && spanLength < 8)) {
+        pieceType = parsed.pieceType;
+        const phase = phaseFromPieceType(pieceType);
+        const commentDisplay = buildCommentDisplay(
+          parsed.comm,
+          pieceType,
+          parseToLetterPair,
+          letterPairs,
+          buffers
+        );
+        const algLength = currentAlg.length;
+        countMovesFromStart += algLength;
+
+        comms.push({
+          comm_index: comms.length + 1,
+          phase,
+          piece_type: phase,
+          buffer_target: commentDisplay.bufferTarget,
+          target_a: commentDisplay.targetA,
+          target_b: commentDisplay.targetB,
+          special_type: commentDisplay.specialType,
+          alg: currentAlg.join(" "),
+          alg_length: algLength,
+          move_start_index: countMovesFromStart - algLength + 1,
+          move_end_index: countMovesFromStart,
+          parse_text: commentDisplay.parseText,
+          raw_comm: parsed.comm,
+        });
+
+        currentAlg = [];
+        currentMaxTokens = currentTokens;
+        maxPiecePlace = count;
+      }
+    }
+  }
+
+  if (currentAlg.length) {
+    const currentTokens = stateToInverseTokens(cube.state);
+    const trailingSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
+    const trailingParsed = parseSolvedToComm(trailingSolvedPieces, buffers);
+
+    if (trailingParsed.comm.length) {
+      const phase = phaseFromPieceType(trailingParsed.pieceType);
+      const commentDisplay = buildCommentDisplay(
+        trailingParsed.comm,
+        trailingParsed.pieceType,
+        parseToLetterPair,
+        letterPairs,
+        buffers
+      );
+      const algLength = currentAlg.length;
+      countMovesFromStart += algLength;
+      comms.push({
+        comm_index: comms.length + 1,
+        phase,
+        piece_type: phase,
+        buffer_target: commentDisplay.bufferTarget,
+        target_a: commentDisplay.targetA,
+        target_b: commentDisplay.targetB,
+        special_type: commentDisplay.specialType,
+        alg: currentAlg.join(" "),
+        alg_length: algLength,
+        move_start_index: countMovesFromStart - algLength + 1,
+        move_end_index: countMovesFromStart,
+        parse_text: commentDisplay.parseText,
+        raw_comm: trailingParsed.comm,
+      });
+    }
+  }
+
+  return {
+    rotationPrefix,
+    commStats: comms,
+    parsed: comms.length > 0,
+    solved: countSolvedEdges(cube.state) === 12 && countSolvedCorners(cube.state) === 8,
+    solveStates,
+  };
+}

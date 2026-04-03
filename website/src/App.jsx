@@ -1610,6 +1610,56 @@ class App extends React.Component {
       this.updateActiveSessionSolves(() => []);
     }
   };
+  resetLocalAppData = () => {
+    if (
+      !window.confirm(
+        "Reset all local TrainBLD data on this device? This clears sessions, solves, averages, and cached app state."
+      )
+    ) {
+      return;
+    }
+
+    const preservedSetting = this.state.parse_settings;
+    const freshSession = this.buildSessionRecord("Session 1", []);
+
+    try {
+      localStorage.removeItem("sessions");
+      localStorage.removeItem("activeSessionId");
+      localStorage.removeItem("solves");
+      localStorage.removeItem("averages");
+      localStorage.removeItem("setting");
+      localStorage.setItem("setting", JSON.stringify(preservedSetting));
+      localStorage.setItem("sessions", JSON.stringify([freshSession]));
+      localStorage.setItem("activeSessionId", JSON.stringify(freshSession.id));
+      localStorage.setItem("solves", JSON.stringify([]));
+    } catch (error) {
+      console.error("Failed to reset local app data", error);
+    }
+
+    this.initialAveragesNoSolves();
+    this.setState(
+      {
+        showMenu: false,
+        showSettings: false,
+        showLastSolveDetails: false,
+        loadingSolveDetails: false,
+        selectedSolveDetails: null,
+        activeView: "solve",
+        sessions: [freshSession],
+        activeSessionId: freshSession.id,
+        solves_stats: [],
+        renderTable: null,
+        parsed_solve: null,
+        parsed_solve_txt: null,
+        parsed_solve_cubedb: null,
+        connectionNotice: "Local TrainBLD data was reset on this device.",
+      },
+      () => {
+        this.handle_scramble();
+        this.initialStatsFromLocalstorage();
+      }
+    );
+  };
   formatSummaryValue = (value, empty = "-") => {
     if (value === null || value === undefined || value === "" || value === 10000) {
       return empty;
@@ -2456,6 +2506,13 @@ class App extends React.Component {
                   onClick={() => this.setState({ showMenu: false, activeView: "solve" })}
                 >
                   Solve
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
+                  onClick={this.resetLocalAppData}
+                >
+                  Reset Local Data
                 </button>
               </div>
             </div>

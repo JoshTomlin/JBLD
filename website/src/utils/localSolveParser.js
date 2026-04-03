@@ -1,3 +1,5 @@
+import { buildLocalCommAnalysis } from "./localCommParser";
+
 const splitMoves = (algText = "") =>
   algText
     .trim()
@@ -31,13 +33,14 @@ const buildSolveTitle = ({ dateSolve, totalText, memoText, execText, fluidness, 
   return parts.join(" ");
 };
 
-const buildCubedbUrl = ({ scramble, solve, title, execTime }) => {
+export const buildCubedbUrl = ({ scramble, solve, title, execTime, rotationPrefix }) => {
+  const algorithm = rotationPrefix ? `${rotationPrefix} // memo\n${solve || ""}` : solve || "";
   const params = new URLSearchParams({
     puzzle: "3",
     title,
     scramble: scramble || "",
     time: String(execTime || 0),
-    alg: solve || "",
+    alg: algorithm,
   });
 
   return `https://www.cubedb.net/?${params.toString()}`;
@@ -73,12 +76,21 @@ export function buildLocalSolveResult(setting, formatSeconds) {
     fluidness,
     isDnf: false,
   });
-  const moveTimeline = solveMoves.map((notation, index) => ({
-    id: `local-move-${index + 1}`,
-    index: index + 1,
-    notation,
-    time_offset: index < timeOffsets.length ? timeOffsets[index] : null,
-  }));
+  const commAnalysis = buildLocalCommAnalysis(setting);
+  const moveTimeline = solveMoves.map((notation, index) => {
+    const comm = commAnalysis.commStats.find(
+      (entry) => index + 1 >= entry.move_start_index && index + 1 <= entry.move_end_index
+    );
+
+    return {
+      id: `local-move-${index + 1}`,
+      index: index + 1,
+      notation,
+      comm_index: comm ? comm.comm_index : null,
+      phase: comm ? comm.phase : "unknown",
+      time_offset: index < timeOffsets.length ? timeOffsets[index] : null,
+    };
+  });
   const localSummary = [
     `${title}`,
     "",
@@ -90,7 +102,12 @@ export function buildLocalSolveResult(setting, formatSeconds) {
     moveTimestamps.length ? `// Timed moves ${moveTimestamps.length}` : "// Timed moves unavailable",
     "",
     "Solve:",
-    setting.SOLVE || "",
+    ...(commAnalysis.rotationPrefix ? [`${commAnalysis.rotationPrefix} // memo`] : []),
+    ...(commAnalysis.commStats.length
+      ? commAnalysis.commStats.map(
+          (comm) => `${comm.alg} // ${comm.parse_text || comm.phase}`
+        )
+      : [setting.SOLVE || ""]),
   ].join("\n");
 
   return {
@@ -100,29 +117,17 @@ export function buildLocalSolveResult(setting, formatSeconds) {
       solve: setting.SOLVE || "",
       title,
       execTime,
+      rotationPrefix: commAnalysis.rotationPrefix,
     }),
     local_only: true,
     fluidness,
-    commStats: solveMoves.length
-      ? [
-          {
-            comm_index: 1,
-            phase: "unknown",
-            piece_type: "unknown",
-            buffer_target: null,
-            target_a: null,
-            target_b: null,
-            special_type: "local-summary",
-            alg: setting.SOLVE || "",
-            alg_length: solveMoves.length,
-          },
-        ]
-      : [],
+    commStats: commAnalysis.commStats,
     moveTimeline,
     solve: setting.SOLVE || "",
     stats: {
       totalMoves: solveMoves.length,
       timedMoves: moveTimestamps.length,
+      totalComms: commAnalysis.commStats.length,
     },
   };
 }
