@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          npm ci --verbose 2>&1 | tee ../npm-ci.log
+          npm ci --legacy-peer-deps --verbose 2>&1 | tee ../npm-ci.log
 
       - name: Build PWA
         shell: bash
