@@ -8,6 +8,7 @@ import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
 import { computeSessionAggregateStats } from "./utils/solveAverages";
+import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -1283,29 +1284,20 @@ class App extends React.Component {
   };
   extract_solve_from_cube_moves = (timer_finish) => {
     let parse_setting_new = { ...this.state.parse_settings };
-    let scramble = [];
-    let solve = [];
-    let memo_time = 0;
     let solve_time = 0;
     let moves = this.state.cube_moves;
     let moves_time = this.state.cube_moves_time;
     let time_start_solve = this.state.timeStart;
     let time_end_solve = timer_finish;
-    // console.log(time_end_solve - time_start_solve);
-
-    for (let i = 0; i < moves.length; i++) {
-      if (moves_time[i] < time_start_solve) {
-        scramble.push(moves[i]);
-      }
-      if (moves_time[i] > time_start_solve && moves_time[i] < timer_finish) {
-        if (memo_time === 0) {
-          memo_time = (moves_time[i] - time_start_solve) / 1000;
-        }
-        solve.push(moves[i]);
-      }
-    }
-    // console.log("scramble :\n", scramble.join(" "));
-    // console.log("solve :\n", solve.join(" "));
+    const extracted = extractRecordedSolveData({
+      moves,
+      moveTimes: moves_time,
+      timeStart: time_start_solve,
+      timeFinish: time_end_solve,
+    });
+    const scramble = extracted.scramble;
+    const solve = extracted.solve;
+    const memo_time = extracted.memoTime;
 
     solve_time = ((time_end_solve - time_start_solve) / 1000).toFixed(2);
     console.log(time_end_solve, time_start_solve, solve_time)
@@ -1323,23 +1315,7 @@ class App extends React.Component {
     // console.log(scramble.length);
     // console.log(this.state.cube_moves_time);
 
-    let cube_moves_time_diff = [];
-    let only_solve_moves = this.state.cube_moves_time.slice(
-      scramble.length,
-      this.state.cube_moves_time.length
-    );
-    cube_moves_time_diff.push(0);
-    for (var i = 0; i < only_solve_moves.length - 1; i++) {
-      cube_moves_time_diff.push(
-        parseFloat(
-          ((only_solve_moves[i + 1] - only_solve_moves[0]) / 1000).toFixed(2)
-        )
-      );
-    }
-    // console.log(cube_moves_time_diff);
-
-    parse_setting_new["SOLVE_TIME_MOVES"] =
-      JSON.stringify(cube_moves_time_diff);
+    parse_setting_new["SOLVE_TIME_MOVES"] = JSON.stringify(extracted.solveMoveOffsets);
     parse_setting_new["SAVE_SOLVE"] = true;
     parse_setting_new["SESSION_ID"] = this.isServerSessionId(this.state.activeSessionId)
       ? this.state.activeSessionId
