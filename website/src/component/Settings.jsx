@@ -24,7 +24,7 @@ class Setting extends React.Component {
             gen_with_move_count: true,
             edge_buffer: "UF",
             corner_buffer: "UFR",
-            cube_oreintation : "white-green",
+            cube_oreintation : "yellow-green",
             scramble_type : "3x3",
             GEN_PARSED_TO_CUBEDB: true,
             letter_pair_dict: this.get_letter_pair_dict(),
@@ -120,6 +120,7 @@ class Setting extends React.Component {
       const setting = {
         EDGES_BUFFER: "UF",
         CORNER_BUFFER: "UFR",
+        CUBE_OREINTATION: "yellow-green",
         PARSE_TO_LETTER_PAIR: true,
         GEN_WITH_MOVE_COUNT: true,
         GEN_PARSED_TO_CUBEDB: true,

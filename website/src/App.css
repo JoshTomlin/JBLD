@@ -295,12 +295,14 @@ textarea {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 20px;
+  gap: 12px;
   padding: 0;
+  flex-wrap: nowrap;
 }
 
 .split_metric {
-  min-width: 68px;
+  min-width: 0;
+  flex: 1;
   text-align: center;
 }
 
@@ -321,13 +323,6 @@ textarea {
   height: 28px;
   background: rgba(30, 58, 138, 0.5);
   margin-top: 2px;
-}
-
-.solve_summary_bar {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  padding-bottom: 4px;
 }
 
 .status_stack {
@@ -365,7 +360,7 @@ textarea {
   padding: 10px 14px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  background: rgba(127, 29, 29, 0.18);
+  background: rgb(87, 24, 24);
   color: #fecaca;
   font-size: 0.82rem;
   line-height: 1.45;
@@ -621,7 +616,8 @@ textarea {
 }
 
 .view_panel {
-  height: 100%;
+  height: auto;
+  min-height: calc(100% - 16px);
   margin: 0 16px 16px;
   padding: 24px;
   border: 1px solid var(--line);
@@ -645,6 +641,7 @@ textarea {
 
 .history_screen {
   grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100%;
 }
 
 .section_header,
@@ -1382,7 +1379,6 @@ textarea {
   display: grid;
   gap: 10px;
   min-height: 0;
-  max-height: 178px;
   overflow: hidden;
 }
 
@@ -1391,24 +1387,25 @@ textarea {
   justify-content: center;
 }
 
-.last_solve_panel .solve_modal_body {
-  padding: 10px 12px;
-  max-height: 78px;
-  overflow: auto;
-}
-
-.last_solve_panel .comm_summary_line {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .last_solve_panel .chart_card_header {
   align-items: flex-start;
 }
 
 .last_solve_panel .history_card_time {
   font-size: 1rem;
+}
+
+.last_solve_summary {
+  min-height: 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.last_solve_summary .comm_summary_line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @supports not (height: 100dvh) {

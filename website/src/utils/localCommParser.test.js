@@ -161,6 +161,36 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UF", "UR", "UFR", "UBR"]);
   });
 
+  it("detects non-buffer edge flips without falling back to floating", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UR: ["RU", "UR"],
+        RU: ["UR", "RU"],
+        UF: ["FU", "UF"],
+        FU: ["UF", "FU"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: true, corner: false, parity: false });
+    expect(comm).toEqual(["UF", "UR", "flip"]);
+  });
+
+  it("detects non-buffer corner twists without falling back to floating", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UBR: ["BRU", "UBR"],
+        BRU: ["UBR", "BRU"],
+        UFR: ["RFU", "UFR"],
+        RFU: ["UFR", "RFU"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UBL" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: true, parity: false });
+    expect(comm).toEqual(["UFR", "UBR", "twist"]);
+  });
+
   it("adds the orientation prefix to the local CubeDB link", () => {
     const result = buildCubedbUrl({
       scramble: baseSetting.SCRAMBLE,

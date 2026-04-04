@@ -403,6 +403,69 @@ function isSamePieceInList(target, items) {
   return items.some((item) => isSamePiece(item, target));
 }
 
+function pickRepresentativeSticker(stickers, order) {
+  return order.find((candidate) => stickers.some((sticker) => isSamePiece(sticker, candidate))) || stickers[0] || null;
+}
+
+function uniquePiecesForStickers(stickers) {
+  return stickers.reduce((pieces, sticker) => {
+    if (!isSamePieceInList(sticker, pieces)) {
+      pieces.push(sticker);
+    }
+    return pieces;
+  }, []);
+}
+
+function sortPiecesByOrder(pieces, order) {
+  return pieces.slice().sort((a, b) => {
+    const aIndex = order.findIndex((candidate) => isSamePiece(candidate, a));
+    const bIndex = order.findIndex((candidate) => isSamePiece(candidate, b));
+    return aIndex - bIndex;
+  });
+}
+
+function detectNonBufferSpecialCase(lastSolvedPieces) {
+  const changedStickers = Object.keys(lastSolvedPieces);
+  if (!changedStickers.length) {
+    return null;
+  }
+
+  const edgeStickers = changedStickers.filter((sticker) => sticker.length === 2);
+  const cornerStickers = changedStickers.filter((sticker) => sticker.length === 3);
+
+  if (edgeStickers.length && cornerStickers.length) {
+    return null;
+  }
+
+  if (edgeStickers.length === 4) {
+    const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(edgeStickers), reidEdgeOrder);
+
+    if (uniquePieces.length === 2) {
+      return {
+        comm: uniquePieces
+          .map((piece) => toCanonicalStickerName(pickRepresentativeSticker([piece], reidEdgeOrder)))
+          .concat("flip"),
+        pieceType: { edge: true, corner: false, parity: false },
+      };
+    }
+  }
+
+  if (cornerStickers.length === 4) {
+    const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(cornerStickers), reidCornerOrder);
+
+    if (uniquePieces.length === 2) {
+      return {
+        comm: uniquePieces
+          .map((piece) => toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder)))
+          .concat("twist"),
+        pieceType: { edge: false, corner: true, parity: false },
+      };
+    }
+  }
+
+  return null;
+}
+
 function parseCommList(comm, lastSolvedPieces) {
   const first = comm[0];
   const second = comm[1];
@@ -442,6 +505,11 @@ function buildParityLabel(tokens, bufferToken) {
 
 export function parseSolvedToComm(lastSolvedPieces, buffers) {
   const { edgeBuffer, cornerBuffer } = buffers;
+  const nonBufferSpecialCase = detectNonBufferSpecialCase(lastSolvedPieces);
+  if (nonBufferSpecialCase) {
+    return nonBufferSpecialCase;
+  }
+
   const comm = [];
   const pieceType = { edge: false, corner: false, parity: false };
 

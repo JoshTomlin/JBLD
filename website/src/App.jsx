@@ -88,7 +88,7 @@ class App extends React.Component {
               COMMS_UNPARSED: false,
               EDGES_BUFFER: "UF",
               CORNER_BUFFER: "UFR",
-              CUBE_OREINTATION: "white-green",
+              CUBE_OREINTATION: "yellow-green",
               SCRAMBLE_TYPE: "3x3",
               PARSE_TO_LETTER_PAIR: true,
               GEN_WITH_MOVE_COUNT: true,
@@ -650,6 +650,33 @@ class App extends React.Component {
     }
     if (groups.parity.length) {
       lines.push({ label: "Parity", value: groups.parity.join(", ") });
+    }
+
+    return lines;
+  };
+
+  getLatestSolveCompactSummary = (solve) => {
+    if (!solve || !Array.isArray(solve.comm_stats)) {
+      return [];
+    }
+
+    const groups = this.groupCommBreakdown(solve.comm_stats);
+    const lines = [];
+
+    if (groups.edges.length) {
+      lines.push({ label: "Edges", value: groups.edges.join(", ") });
+    }
+
+    if (groups.corners.length) {
+      lines.push({ label: "Corners", value: groups.corners.join(", ") });
+    }
+
+    if ((solve.parseError || solve.DNF || groups.parity.length) && lines.length) {
+      const lastIndex = lines.length - 1;
+      lines[lastIndex] = {
+        ...lines[lastIndex],
+        value: `${lines[lastIndex].value} ?`,
+      };
     }
 
     return lines;
@@ -1846,8 +1873,7 @@ class App extends React.Component {
     const selectedCommGroups = this.groupCommBreakdown(
       (this.state.selectedSolveDetails && this.state.selectedSolveDetails.comm_stats) || []
     );
-    const latestSolveCommLines = this.getLatestSolveCommLines(latestSolve).slice(0, 2);
-    const latestSolveLastEvent = this.getLastSolveEventLabel(latestSolve);
+    const latestSolveCompactSummary = this.getLatestSolveCompactSummary(latestSolve);
     let mainView;
 
     if (this.state.activeView === "drill") {
@@ -2276,20 +2302,19 @@ class App extends React.Component {
                     <div className="split_metric_label">Memo</div>
                     <div className="split_metric_value">{memoText}</div>
                   </div>
+                  <div className="split_metric_divider"></div>
+                  <div className="split_metric">
+                    <div className="split_metric_label">Ao5</div>
+                    <div className="split_metric_value">{ao5Text}</div>
+                  </div>
+                  <div className="split_metric_divider"></div>
+                  <div className="split_metric">
+                    <div className="split_metric_label">Accuracy</div>
+                    <div className="split_metric_value">{accuracyText}</div>
+                  </div>
                 </div>
               }
             />
-          </div>
-
-          <div className="solve_summary_bar">
-            <div className="summary_pill">
-              <span className="summary_pill_label">Ao5</span>
-              <span className="summary_pill_value">{ao5Text}</span>
-            </div>
-            <div className="summary_pill">
-              <span className="summary_pill_label">Accuracy</span>
-              <span className="summary_pill_value">{accuracyText}</span>
-            </div>
           </div>
 
           <div className="last_solve_panel">
@@ -2302,26 +2327,21 @@ class App extends React.Component {
               ) : null}
             </div>
             {latestSolve ? (
-              latestSolveCommLines.length || latestSolveLastEvent ? (
-                <div className="solve_modal_body solve_modal_body_compact">
-                  {latestSolveCommLines.map((line) => (
+              latestSolveCompactSummary.length ? (
+                <div className="last_solve_summary">
+                  {latestSolveCompactSummary.map((line) => (
                     <div key={line.label} className="comm_summary_line">
                       <strong>{line.label}:</strong> {line.value}
                     </div>
                   ))}
-                  {latestSolveLastEvent ? (
-                    <div className="comm_summary_line">
-                      <strong>Ended on:</strong> {latestSolveLastEvent}
-                    </div>
-                  ) : null}
                 </div>
               ) : (
-                <div className="solve_modal_body solve_modal_body_compact">
+                <div className="last_solve_summary">
                   Comms will appear here after a parsed solve is saved.
                 </div>
               )
             ) : (
-              <div className="solve_modal_body solve_modal_body_compact">
+              <div className="last_solve_summary">
                 Your latest comms will appear here.
               </div>
             )}
