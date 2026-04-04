@@ -1,6 +1,6 @@
-# _TrainBLD_
+# _JBLD_
 
-### [TrainBLD.com](https://trainbld.com), [Video demo](https://www.youtube.com/watch?v=wQnM1zwroVU), [Post](https://www.speedsolving.com/threads/trainbld-new-web-timer-that-reconstructs-your-3bld-solves.85466/)
+### [JBLD](https://trainbld.com), [Video demo](https://www.youtube.com/watch?v=wQnM1zwroVU), [Post](https://www.speedsolving.com/threads/trainbld-new-web-timer-that-reconstructs-your-3bld-solves.85466/)
 
 ### A new web timer that makes Rubik's blindfolded training easier and more efficient.
 

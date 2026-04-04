@@ -172,6 +172,7 @@ textarea {
 }
 
 .scramble_block {
+  position: relative;
   padding: 32px 24px 24px;
   text-align: center;
   cursor: pointer;
@@ -213,6 +214,7 @@ textarea {
 }
 
 .main_view_page {
+  height: 100%;
   padding-top: 16px;
 }
 
@@ -368,6 +370,42 @@ textarea {
   font-size: 0.82rem;
   line-height: 1.45;
   max-width: 342px;
+}
+
+.connection_notice_floating {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 8px;
+  margin: 0;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  text-align: left;
+  z-index: 2;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+}
+
+.connection_notice_text {
+  min-width: 0;
+}
+
+.connection_notice_close {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fecaca;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
 }
 
 .status_notice {
@@ -601,8 +639,12 @@ textarea {
 .study_screen {
   display: grid;
   gap: 18px;
-  align-content: start;
+  align-content: stretch;
   overflow: auto;
+}
+
+.history_screen {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .section_header,
@@ -627,6 +669,11 @@ textarea {
 .session_cards {
   display: grid;
   gap: 14px;
+}
+
+.history_list {
+  align-content: start;
+  min-height: 100%;
 }
 
 .drill_tabs,
@@ -1360,6 +1407,10 @@ textarea {
   align-items: flex-start;
 }
 
+.last_solve_panel .history_card_time {
+  font-size: 1rem;
+}
+
 @supports not (height: 100dvh) {
   body,
   .app_shell,
@@ -1530,6 +1581,10 @@ textarea {
   .solve_modal_backdrop {
     padding: 10px;
     align-items: flex-end;
+  }
+
+  .menu_overlay {
+    align-self: center;
   }
 
   .solve_modal,

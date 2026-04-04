@@ -1,6 +1,6 @@
 {
-  "short_name": "TrainBLD",
-  "name": "TrainBLD Timer",
+  "short_name": "JBLD",
+  "name": "JBLD Timer",
   "icons": [
     {
       "src": "logo2.ico",
@@ -23,7 +23,7 @@
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "description": "TrainBLD is a blindfolded solving timer with local solve history and offline-friendly install support.",
+  "description": "JBLD is a blindfolded solving timer with local solve history and offline-friendly install support.",
   "theme_color": "#101820",
   "background_color": "#f6f4ec"
 }

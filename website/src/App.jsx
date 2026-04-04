@@ -127,7 +127,7 @@ class App extends React.Component {
     this.deferredInstallPrompt = event;
     this.setState({
       installPromptAvailable: true,
-      installStatusMessage: "Install TrainBLD to keep it on your phone for offline practice.",
+      installStatusMessage: "Install JBLD to keep it on your phone for offline practice.",
     });
   };
   handleAppInstalled = () => {
@@ -135,7 +135,7 @@ class App extends React.Component {
     this.setState({
       installPromptAvailable: false,
       isInstalled: true,
-      installStatusMessage: "TrainBLD is installed. Open it from your home screen for local use.",
+      installStatusMessage: "JBLD is installed. Open it from your home screen for local use.",
     });
   };
   promptInstall = async () => {
@@ -154,7 +154,7 @@ class App extends React.Component {
       installPromptAvailable: false,
       installStatusMessage:
         choiceResult && choiceResult.outcome === "accepted"
-          ? "Install accepted. TrainBLD should appear on your home screen shortly."
+          ? "Install accepted. JBLD should appear on your home screen shortly."
           : "Install was dismissed. You can trigger it again later from the browser menu.",
     });
   };
@@ -162,6 +162,9 @@ class App extends React.Component {
     this.setState({ showMenu: false }, () => {
       this.promptInstall();
     });
+  };
+  dismissConnectionNotice = () => {
+    this.setState({ connectionNotice: null });
   };
   probeRemoteParserAvailability = async () => {
     try {
@@ -1561,7 +1564,7 @@ class App extends React.Component {
     if (this.state.remoteParserAvailable === false) {
       this.runLocalParse(
         setting,
-        "The advanced parser backend is unavailable, so TrainBLD used local PWA mode instead."
+        "The advanced parser backend is unavailable, so JBLD used local PWA mode instead."
       );
       return;
     }
@@ -1631,7 +1634,7 @@ class App extends React.Component {
         this.setState({ remoteParserAvailable: false }, () => {
           this.runLocalParse(
             setting,
-            `The remote parser failed (${parseError}). TrainBLD switched to local PWA mode.`
+            `The remote parser failed (${parseError}). JBLD switched to local PWA mode.`
           );
         });
       });
@@ -1662,7 +1665,7 @@ class App extends React.Component {
   resetLocalAppData = () => {
     if (
       !window.confirm(
-        "Reset all local TrainBLD data on this device? This clears sessions, solves, averages, and cached app state."
+        "Reset all local JBLD data on this device? This clears sessions, solves, averages, and cached app state."
       )
     ) {
       return;
@@ -1701,7 +1704,7 @@ class App extends React.Component {
         parsed_solve: null,
         parsed_solve_txt: null,
         parsed_solve_cubedb: null,
-        connectionNotice: "Local TrainBLD data was reset on this device.",
+        connectionNotice: "Local JBLD data was reset on this device.",
       },
       () => {
         this.handle_scramble();
@@ -1774,6 +1777,7 @@ class App extends React.Component {
         return best;
       }, null);
     const sessionCount = recentSolves.length;
+    const solveCountLabel = `${sessionCount} ${sessionCount === 1 ? "solve" : "solves"}`;
     const troubleSolves = [...recentSolves]
       .filter(({ time_solve }) => Number.isFinite(parseFloat(time_solve)))
       .sort((a, b) => parseFloat(b.time_solve) - parseFloat(a.time_solve))
@@ -1999,7 +2003,7 @@ class App extends React.Component {
             <div>
               <div className="placeholder_title">History</div>
             </div>
-            <div className="section_meta">{sessionCount} solves</div>
+            <div className="section_meta">{solveCountLabel}</div>
           </div>
           <div className="history_list">
             {recentSolves.length ? (
@@ -2292,63 +2296,36 @@ class App extends React.Component {
             <div className="chart_card_header">
               <div>
                 <div className="chart_card_title">Last Solve</div>
-                <div className="history_card_subtitle">
-                  {latestSolve ? formatDate(latestSolve.date) : "Complete a solve to see details here."}
-                </div>
               </div>
               {latestSolve ? (
-                <button type="button" className="secondary_chip" onClick={() => this.openSolveDetails(latestSolve)}>
-                  Full details
-                </button>
+                <div className="history_card_time">{this.formatSolveResultLabel(latestSolve)}</div>
               ) : null}
             </div>
             {latestSolve ? (
-              <React.Fragment>
-                <div className="history_card_metrics">
-                  <div className="history_metric_chip">
-                    <span>Total</span>
-                    <strong>{this.formatSolveResultLabel(latestSolve)}</strong>
-                  </div>
-                  <div className="history_metric_chip">
-                    <span>Memo</span>
-                    <strong>{this.convert_sec_to_format(latestSolve.memo_time)}</strong>
-                  </div>
-                  <div className="history_metric_chip">
-                    <span>Exec</span>
-                    <strong>{this.convert_sec_to_format(latestSolve.exe_time)}</strong>
-                  </div>
+              latestSolveCommLines.length || latestSolveLastEvent ? (
+                <div className="solve_modal_body solve_modal_body_compact">
+                  {latestSolveCommLines.map((line) => (
+                    <div key={line.label} className="comm_summary_line">
+                      <strong>{line.label}:</strong> {line.value}
+                    </div>
+                  ))}
+                  {latestSolveLastEvent ? (
+                    <div className="comm_summary_line">
+                      <strong>Ended on:</strong> {latestSolveLastEvent}
+                    </div>
+                  ) : null}
                 </div>
-                {latestSolveCommLines.length ? (
-                  <div className="solve_modal_body solve_modal_body_compact">
-                    {latestSolveCommLines.map((line) => (
-                      <div key={line.label} className="comm_summary_line">
-                        <strong>{line.label}:</strong> {line.value}
-                      </div>
-                    ))}
-                    {latestSolveLastEvent ? (
-                      <div className="comm_summary_line">
-                        <strong>Ended on:</strong> {latestSolveLastEvent}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="solve_modal_body solve_modal_body_compact">
-                    Detailed comm breakdown will show up after a parsed solve is saved.
-                  </div>
-                )}
-              </React.Fragment>
+              ) : (
+                <div className="solve_modal_body solve_modal_body_compact">
+                  Comms will appear here after a parsed solve is saved.
+                </div>
+              )
             ) : (
               <div className="solve_modal_body solve_modal_body_compact">
-                Your latest memo split, exec split, and comm list will appear here.
+                Your latest comms will appear here.
               </div>
             )}
           </div>
-
-          {this.state.connectionNotice ? (
-            <div className="connection_notice" role="alert">
-              {this.state.connectionNotice}
-            </div>
-          ) : null}
 
         </section>
       );
@@ -2402,6 +2379,22 @@ class App extends React.Component {
               >
                 <div className="scramble_label">Scramble</div>
                 <div className="scramble_value">{this.state.scramble}</div>
+                {this.state.connectionNotice ? (
+                  <div className="connection_notice connection_notice_floating" role="alert">
+                    <div className="connection_notice_text">{this.state.connectionNotice}</div>
+                    <button
+                      type="button"
+                      className="connection_notice_close"
+                      aria-label="Dismiss notice"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        this.dismissConnectionNotice();
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -2472,15 +2465,6 @@ class App extends React.Component {
               </div>
 
               <div className="menu_list">
-                {!this.state.isInstalled ? (
-                  <button
-                    type="button"
-                    className="menu_item"
-                    onClick={this.handleMenuInstall}
-                  >
-                    {this.state.installPromptAvailable ? "Add to Home Screen" : "Install Help"}
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   className="menu_item menu_item_primary"
@@ -2491,16 +2475,9 @@ class App extends React.Component {
                 <button
                   type="button"
                   className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, showSettings: true })}
+                  onClick={() => this.setState({ showMenu: false, activeView: "solve" })}
                 >
-                  Settings
-                </button>
-                <button
-                  type="button"
-                  className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "drill" })}
-                >
-                  Drill
+                  Solve
                 </button>
                 <button
                   type="button"
@@ -2512,30 +2489,16 @@ class App extends React.Component {
                 <button
                   type="button"
                   className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "history" })}
+                  onClick={() => this.setState({ showMenu: false, activeView: "drill" })}
                 >
-                  History
+                  Drill
                 </button>
                 <button
                   type="button"
                   className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "stats" })}
+                  onClick={() => this.setState({ showMenu: false, showSettings: true })}
                 >
-                  Stats
-                </button>
-                <button
-                  type="button"
-                  className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "sessions" })}
-                >
-                  Sessions
-                </button>
-                <button
-                  type="button"
-                  className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "solve" })}
-                >
-                  Solve
+                  Settings
                 </button>
                 <button
                   type="button"
@@ -3804,7 +3767,7 @@ class App extends React.Component {
     }
 
     function newMovesNotation(move) {
-      console.log("[trainbld] newMovesNotation", move);
+      console.log("[jbld] newMovesNotation", move);
         const cube_moves_new = [...this_App.state.cube_moves];
         const cube_moves_time_new = [...this_App.state.cube_moves_time];
 

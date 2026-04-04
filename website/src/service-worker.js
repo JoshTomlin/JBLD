@@ -17,14 +17,14 @@ registerRoute(
 registerRoute(
   ({ request }) => request.destination === "style" || request.destination === "script",
   new StaleWhileRevalidate({
-    cacheName: "trainbld-static-assets",
+    cacheName: "jbld-static-assets",
   })
 );
 
 registerRoute(
   ({ request }) => request.destination === "image",
   new CacheFirst({
-    cacheName: "trainbld-images",
+    cacheName: "jbld-images",
     plugins: [
       new ExpirationPlugin({
         maxEntries: 30,

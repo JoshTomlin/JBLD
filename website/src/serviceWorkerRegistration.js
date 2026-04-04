@@ -22,7 +22,7 @@ export function register(config) {
 
         navigator.serviceWorker.ready.then(() => {
           console.log(
-            "TrainBLD is running with a local service worker cache."
+            "JBLD is running with a local service worker cache."
           );
         });
       } else {
@@ -44,13 +44,13 @@ function registerValidSW(swUrl, config) {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === "installed") {
             if (navigator.serviceWorker.controller) {
-              console.log("New TrainBLD content is available and will be used after all tabs are closed.");
+              console.log("New JBLD content is available and will be used after all tabs are closed.");
 
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
             } else {
-              console.log("TrainBLD content is cached for offline use.");
+              console.log("JBLD content is cached for offline use.");
 
               if (config && config.onSuccess) {
                 config.onSuccess(registration);
@@ -85,7 +85,7 @@ function checkValidServiceWorker(swUrl, config) {
       }
     })
     .catch(() => {
-      console.log("No internet connection found. TrainBLD is running in offline mode.");
+      console.log("No internet connection found. JBLD is running in offline mode.");
     });
 }
 
