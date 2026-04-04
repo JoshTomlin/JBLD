@@ -158,6 +158,11 @@ class App extends React.Component {
           : "Install was dismissed. You can trigger it again later from the browser menu.",
     });
   };
+  handleMenuInstall = () => {
+    this.setState({ showMenu: false }, () => {
+      this.promptInstall();
+    });
+  };
   probeRemoteParserAvailability = async () => {
     try {
       const response = await fetch(`${this.getApiOrigin()}/options`, {
@@ -1837,7 +1842,7 @@ class App extends React.Component {
     const selectedCommGroups = this.groupCommBreakdown(
       (this.state.selectedSolveDetails && this.state.selectedSolveDetails.comm_stats) || []
     );
-    const latestSolveCommLines = this.getLatestSolveCommLines(latestSolve);
+    const latestSolveCommLines = this.getLatestSolveCommLines(latestSolve).slice(0, 2);
     const latestSolveLastEvent = this.getLastSolveEventLabel(latestSolve);
     let mainView;
 
@@ -2467,6 +2472,15 @@ class App extends React.Component {
               </div>
 
               <div className="menu_list">
+                {!this.state.isInstalled ? (
+                  <button
+                    type="button"
+                    className="menu_item"
+                    onClick={this.handleMenuInstall}
+                  >
+                    {this.state.installPromptAvailable ? "Add to Home Screen" : "Install Help"}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="menu_item menu_item_primary"

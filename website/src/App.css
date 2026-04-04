@@ -39,6 +39,7 @@ body,
 body {
   margin: 0;
   overflow: hidden;
+  min-height: 100dvh;
   color: var(--text);
   font-family: "Rubik", sans-serif;
   background:
@@ -73,12 +74,14 @@ textarea {
 .app_shell {
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
   padding: 0;
 }
 
 .app_frame {
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   background: var(--bg);
@@ -202,6 +205,7 @@ textarea {
 .main_view {
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 .main_view_solve {
@@ -216,8 +220,9 @@ textarea {
   height: 100%;
   padding: 0 24px 16px;
   display: grid;
-  grid-template-rows: 1fr auto auto auto;
-  align-items: center;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .timer_stage {
@@ -239,7 +244,6 @@ textarea {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-touch-callout: none;
   padding: 12px 0 8px;
 }
 
@@ -321,7 +325,7 @@ textarea {
   display: flex;
   justify-content: center;
   gap: 10px;
-  padding-bottom: 12px;
+  padding-bottom: 4px;
 }
 
 .status_stack {
@@ -460,7 +464,7 @@ textarea {
 
 .bottom_nav {
   min-height: 96px;
-  padding: 17px 16px 40px;
+  padding: 17px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1327,9 +1331,41 @@ textarea {
   border: 1px solid rgba(59, 130, 246, 0.16);
   border-radius: 20px;
   background: rgba(16, 24, 47, 0.86);
-  padding: 16px;
+  padding: 14px;
   display: grid;
-  gap: 14px;
+  gap: 10px;
+  min-height: 0;
+  max-height: 178px;
+  overflow: hidden;
+}
+
+.settings_action_row .settings_inline_action {
+  flex: 1;
+  justify-content: center;
+}
+
+.last_solve_panel .solve_modal_body {
+  padding: 10px 12px;
+  max-height: 78px;
+  overflow: auto;
+}
+
+.last_solve_panel .comm_summary_line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.last_solve_panel .chart_card_header {
+  align-items: flex-start;
+}
+
+@supports not (height: 100dvh) {
+  body,
+  .app_shell,
+  .app_frame {
+    min-height: 100vh;
+  }
 }
 
 .settings_list_card {
@@ -1477,8 +1513,16 @@ textarea {
     padding-bottom: 10px;
   }
 
+  .last_solve_panel {
+    max-height: 148px;
+  }
+
+  .last_solve_panel .solve_modal_body {
+    max-height: 58px;
+  }
+
   .bottom_nav {
-    padding-bottom: 28px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1509,7 +1553,6 @@ textarea {
     gap: 12px;
   }
 
-  .history_card_metrics,
   .history_card_actions,
   .session_card,
   .stats_header,
@@ -1520,6 +1563,12 @@ textarea {
   .study_problem_card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .history_card_metrics {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
   }
 
   .history_overview,
@@ -1547,10 +1596,6 @@ textarea {
     justify-items: stretch;
   }
 
-  .settings_buffer_grid {
-    grid-template-columns: 1fr;
-  }
-
   .settings_screen {
     padding: 8px 14px 18px;
     gap: 14px;
@@ -1561,7 +1606,6 @@ textarea {
   }
 
   .settings_inline_action {
-    grid-column: 1 / -1;
     width: 100%;
     justify-content: center;
   }
@@ -1569,6 +1613,35 @@ textarea {
   .settings_action_row {
     grid-column: 1 / -1;
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .settings_buffer_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .solve_screen {
+    padding: 0 14px 10px;
+    gap: 8px;
+  }
+
+  .solve_summary_bar {
+    gap: 8px;
+  }
+
+  .summary_pill {
+    min-width: 0;
+    flex: 1;
+    padding: 9px 12px;
+  }
+
+  .last_solve_panel {
+    padding: 12px;
+    max-height: 140px;
+  }
+
+  .last_solve_panel .solve_modal_body {
+    max-height: 52px;
   }
 }
