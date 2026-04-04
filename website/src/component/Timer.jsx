@@ -18,6 +18,16 @@ class Timer extends React.Component {
     this.holdTimeout = null;
   }
 
+  componentDidMount() {
+    this.syncDisplayTimeFromProps(this.props.displayTimeMs);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.displayTimeMs !== this.props.displayTimeMs && !this.state.running) {
+      this.syncDisplayTimeFromProps(this.props.displayTimeMs);
+    }
+  }
+
   formatTime = (val, ...rest) => {
     let value = val.toString();
     if (value.length < 2) {
@@ -66,6 +76,15 @@ class Timer extends React.Component {
       currentTimeMs: 0,
       currentTimeSec: 0,
       currentTimeMin: 0,
+    });
+  };
+
+  syncDisplayTimeFromProps = (timeMs) => {
+    const safeTimeMs = Number.isFinite(timeMs) && timeMs > 0 ? Math.floor(timeMs) : 0;
+    this.setState({
+      currentTimeMs: safeTimeMs % 1000,
+      currentTimeSec: Math.floor(safeTimeMs / 1000) % 60,
+      currentTimeMin: Math.floor(safeTimeMs / 1000 / 60),
     });
   };
 

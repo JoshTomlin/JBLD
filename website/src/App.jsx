@@ -634,6 +634,19 @@ class App extends React.Component {
     return this.convert_sec_to_format(solve.time_solve);
   };
 
+  getTimerDisplayMs = (latestSolve) => {
+    if (
+      Number.isFinite(this.state.timeStart) &&
+      Number.isFinite(this.state.timeFinish) &&
+      this.state.timeFinish > this.state.timeStart
+    ) {
+      return this.state.timeFinish - this.state.timeStart;
+    }
+
+    const latestTime = latestSolve ? parseFloat(latestSolve.time_solve) : NaN;
+    return Number.isFinite(latestTime) ? Math.round(latestTime * 1000) : 0;
+  };
+
   getLatestSolveCommLines = (solve) => {
     if (!solve || !Array.isArray(solve.comm_stats)) {
       return [];
@@ -655,31 +668,82 @@ class App extends React.Component {
     return lines;
   };
 
-  getLatestSolveCompactSummary = (solve) => {
-    if (!solve || !Array.isArray(solve.comm_stats)) {
-      return [];
+  formatCommElapsedTime = (solve, comms) => {
+    if (!solve || !Array.isArray(comms) || !comms.length) {
+      return null;
     }
 
-    const groups = this.groupCommBreakdown(solve.comm_stats);
-    const lines = [];
+    const timedOffsets =
+      Array.isArray(solve.move_timeline) && solve.move_timeline.length
+        ? solve.move_timeline
+            .map((move) => (Number.isFinite(move.time_offset) ? move.time_offset : null))
+            .filter((value) => value !== null)
+        : [];
 
-    if (groups.edges.length) {
-      lines.push({ label: "Edges", value: groups.edges.join(", ") });
+    if (!timedOffsets.length) {
+      return null;
     }
 
-    if (groups.corners.length) {
-      lines.push({ label: "Corners", value: groups.corners.join(", ") });
+    const lastMoveOffset = timedOffsets[timedOffsets.length - 1];
+    let previousOffset = 0;
+    let total = 0;
+
+    comms.forEach((comm) => {
+      const endIndex = Number(comm.move_end_index);
+      const moveOffset =
+        Number.isFinite(endIndex) && endIndex > 0 && endIndex <= timedOffsets.length
+          ? timedOffsets[endIndex - 1]
+          : null;
+
+      if (moveOffset !== null) {
+        total += Math.max(moveOffset - previousOffset, 0);
+        previousOffset = moveOffset;
+      }
+    });
+
+    if (!total && lastMoveOffset) {
+      total = lastMoveOffset;
     }
 
-    if ((solve.parseError || solve.DNF || groups.parity.length) && lines.length) {
-      const lastIndex = lines.length - 1;
-      lines[lastIndex] = {
-        ...lines[lastIndex],
-        value: `${lines[lastIndex].value} ?`,
+    return total ? this.convert_sec_to_format(Number(total.toFixed(2))) : null;
+  };
+
+  getLastSolvePanelData = (solve) => {
+    if (!solve) {
+      return {
+        metrics: [],
+        lines: [],
       };
     }
 
-    return lines;
+    const commStats = Array.isArray(solve.comm_stats) ? solve.comm_stats : [];
+    const groups = this.groupCommBreakdown(commStats);
+    const edgeComms = commStats.filter((comm) => comm.phase === "edge");
+    const cornerComms = commStats.filter((comm) => comm.phase === "corner" || comm.phase === "parity");
+    const edgeTime = this.formatCommElapsedTime(solve, edgeComms);
+    const cornerTime = this.formatCommElapsedTime(solve, cornerComms);
+    const uncertain = Boolean(solve.parseError);
+    const edgeSummary = groups.edges.length
+      ? `${groups.edges.join(", ")}${edgeTime ? ` (${edgeTime})` : ""}${uncertain ? " ?" : ""}`
+      : "--";
+    const cornerTokens = [...groups.corners, ...groups.parity];
+    const cornerSummary = cornerTokens.length
+      ? `${cornerTokens.join(", ")}${cornerTime ? ` (${cornerTime})` : ""}${uncertain ? " ?" : ""}`
+      : "--";
+
+    return {
+      metrics: [
+        { label: "Total", value: this.formatSolveResultLabel(solve) },
+        { label: "Memo", value: this.convert_sec_to_format(solve.memo_time) },
+        { label: "Exec", value: this.convert_sec_to_format(solve.exe_time) },
+        { label: "Edge Algs", value: String(groups.edges.length) },
+        { label: "Corner Algs", value: String(groups.corners.length + groups.parity.length) },
+      ],
+      lines: [
+        { label: "Edge Comms", value: edgeSummary },
+        { label: "Corner Comms", value: cornerSummary },
+      ],
+    };
   };
 
   getLastSolveEventLabel = (solve) => {
@@ -722,7 +786,10 @@ class App extends React.Component {
 
     if (!providedCommStats || !providedMoveTimeline) {
       try {
-        solveAnalysis = buildSolveAnalysis(solveText);
+        solveAnalysis = buildSolveAnalysis(solveText, {
+          edgeBuffer: setting.EDGES_BUFFER || "UF",
+          cornerBuffer: setting.CORNER_BUFFER || "UFR",
+        });
       } catch (error) {
         console.warn("Failed to analyze solve text locally", error);
       }
@@ -758,15 +825,13 @@ class App extends React.Component {
       parseError,
     };
   };
-  runLocalParse = (setting, reason = null) => {
+  runLocalParse = (setting, _reason = null) => {
     const localResult = buildLocalSolveResult(setting, this.convert_sec_to_format);
     this.setState({
       parsed_solve: localResult,
       parsed_solve_cubedb: localResult.cubedb || null,
       parsed_solve_txt: localResult.txt,
-      connectionNotice: reason
-        ? `Solve saved locally. ${reason}`
-        : "Solve parsed locally on this device.",
+      connectionNotice: null,
     });
     this.safelyStoreSolveResult(localResult, setting);
     this.handle_solve_status("Ready for scrambling");
@@ -1376,10 +1441,7 @@ class App extends React.Component {
     } catch (error) {
       console.error("Failed to store solve result from server response", error, result);
       this.addSolveToLocalStorage(result, setting, "Server response merge failed");
-      this.setState({
-        connectionNotice:
-          "Solve completed, but syncing the server response failed. The solve was kept locally.",
-      });
+      this.setState({ connectionNotice: null });
     }
   };
   extract_solve_from_cube_moves = (timer_finish) => {
@@ -1567,11 +1629,15 @@ class App extends React.Component {
     localStorage.setItem("setting", JSON.stringify(new_settings));
   };
   handle_reset_cube = (message = "Cube state reset to solved.") => {
+    const nextMessage =
+      message && typeof message === "object" && typeof message.preventDefault === "function"
+        ? "Cube state reset to solved."
+        : message;
     this.setState({
       cube_moves: [],
       cube_moves_time: [],
       moves_to_show: "",
-      connectionNotice: message,
+      connectionNotice: nextMessage,
     });
     this.handle_solve_status("Ready for scrambling");
   };
@@ -1635,9 +1701,7 @@ class App extends React.Component {
         console.log(requestOptions);
         if (result && result.save_error) {
           console.warn("Solve parsed but failed to save on server", result.save_error);
-          this.setState({
-            connectionNotice: `Solve parsed, but syncing to the server failed. It was kept locally. ${result.save_error}`,
-          });
+          this.setState({ connectionNotice: null });
         }
         this.setState({ parsed_solve: result });
         if ("cubedb" in result) {
@@ -1873,7 +1937,8 @@ class App extends React.Component {
     const selectedCommGroups = this.groupCommBreakdown(
       (this.state.selectedSolveDetails && this.state.selectedSolveDetails.comm_stats) || []
     );
-    const latestSolveCompactSummary = this.getLatestSolveCompactSummary(latestSolve);
+    const lastSolvePanelData = this.getLastSolvePanelData(latestSolve);
+    const timerDisplayMs = this.getTimerDisplayMs(latestSolve);
     let mainView;
 
     if (this.state.activeView === "drill") {
@@ -2288,19 +2353,20 @@ class App extends React.Component {
             <Timer
               scramble={this.state.scramble}
               solve_status={this.state.solve_status}
+              displayTimeMs={timerDisplayMs}
               onStart={(timer_start) => this.handle_onStart_timer(timer_start)}
               onStop={(timer_finish) => this.handle_onStop_timer(timer_finish)}
               minStopDelayMs={350}
               footer={
                 <div className="solve_metrics">
                   <div className="split_metric">
-                    <div className="split_metric_label">Exec</div>
-                    <div className="split_metric_value">{execText}</div>
+                    <div className="split_metric_label">Memo</div>
+                    <div className="split_metric_value">{memoText}</div>
                   </div>
                   <div className="split_metric_divider"></div>
                   <div className="split_metric">
-                    <div className="split_metric_label">Memo</div>
-                    <div className="split_metric_value">{memoText}</div>
+                    <div className="split_metric_label">Exec</div>
+                    <div className="split_metric_value">{execText}</div>
                   </div>
                   <div className="split_metric_divider"></div>
                   <div className="split_metric">
@@ -2317,34 +2383,34 @@ class App extends React.Component {
             />
           </div>
 
-          <div className="last_solve_panel">
-            <div className="chart_card_header">
-              <div>
-                <div className="chart_card_title">Last Solve</div>
-              </div>
+          <div className="last_solve_block">
+            <div className="last_solve_heading">Last Solve</div>
+            <div className="last_solve_panel">
               {latestSolve ? (
-                <div className="history_card_time">{this.formatSolveResultLabel(latestSolve)}</div>
-              ) : null}
-            </div>
-            {latestSolve ? (
-              latestSolveCompactSummary.length ? (
-                <div className="last_solve_summary">
-                  {latestSolveCompactSummary.map((line) => (
-                    <div key={line.label} className="comm_summary_line">
-                      <strong>{line.label}:</strong> {line.value}
-                    </div>
-                  ))}
-                </div>
+                <React.Fragment>
+                  <div className="last_solve_metrics">
+                    {lastSolvePanelData.metrics.map((metric) => (
+                      <div key={metric.label} className="last_solve_metric">
+                        <div className="split_metric_label">{metric.label}</div>
+                        <div className="split_metric_value">{metric.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="last_solve_summary">
+                    {lastSolvePanelData.lines.map((line) => (
+                      <div key={line.label} className="last_solve_comm_line">
+                        <span className="last_solve_comm_label">{line.label}:</span>
+                        <span className="last_solve_comm_value">{line.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </React.Fragment>
               ) : (
                 <div className="last_solve_summary">
-                  Comms will appear here after a parsed solve is saved.
+                  Your latest comms will appear here.
                 </div>
-              )
-            ) : (
-              <div className="last_solve_summary">
-                Your latest comms will appear here.
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
         </section>
@@ -2411,7 +2477,7 @@ class App extends React.Component {
                         this.dismissConnectionNotice();
                       }}
                     >
-                      ×
+                      x
                     </button>
                   </div>
                 ) : null}

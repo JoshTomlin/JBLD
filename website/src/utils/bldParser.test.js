@@ -132,4 +132,18 @@ describe("bldParser", () => {
       })
     );
   });
+
+  it("labels parity by the non-buffer corner target", () => {
+    const result = parseSolve("[U R U': [S, R2]] // parity UFUR UFRUBL", {
+      cornerBuffer: "UFR",
+    });
+
+    expect(result.commStats[0]).toEqual(
+      expect.objectContaining({
+        phase: "parity",
+        special_type: "parity",
+        parse_text: "UBL Parity",
+      })
+    );
+  });
 });

@@ -493,13 +493,15 @@ function parseCommList(comm, lastSolvedPieces) {
   return found;
 }
 
-function buildParityLabel(tokens, bufferToken) {
+function buildParityLabel(tokens, bufferToken, letterPairs = {}) {
   const filtered = tokens.filter(Boolean);
   if (!filtered.length) {
     return "Parity";
   }
 
-  const target = filtered.find((token) => token !== bufferToken) || filtered[0];
+  const bufferLetter = letterPairs[bufferToken] || null;
+  const target =
+    filtered.find((token) => token !== bufferToken && token !== bufferLetter) || filtered[0];
   return `${target} Parity`;
 }
 
@@ -540,22 +542,6 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
     appendCycle(cornerBuffer);
   }
 
-  if (!(cornerBuffer in lastSolvedPieces)) {
-    const tempCorner = Object.keys(lastSolvedPieces).find((key) => key.length === 3);
-    if (tempCorner) {
-      pieceType.corner = true;
-      appendCycle(tempCorner);
-    }
-  }
-
-  if (!(edgeBuffer in lastSolvedPieces)) {
-    const tempEdge = Object.keys(lastSolvedPieces).find((key) => key.length === 2);
-    if (tempEdge) {
-      pieceType.edge = true;
-      appendCycle(tempEdge);
-    }
-  }
-
   if (pieceType.edge && pieceType.corner) {
     pieceType.parity = true;
     pieceType.edge = false;
@@ -585,7 +571,7 @@ function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, bu
       targetA: edgeTargets.join(""),
       targetB: cornerTargets.join(""),
       specialType: "parity",
-      parseText: buildParityLabel(cornerTargets, cornerBufferToken),
+      parseText: buildParityLabel(cornerTargets, cornerBufferToken, letterPairs),
     };
   }
 
@@ -703,7 +689,7 @@ export function buildLocalCommAnalysis(setting) {
       const lastSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
       const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
 
-      if (!(parsed.comm.length > 3 && spanLength < 8)) {
+      if (parsed.comm.length && !(parsed.comm.length > 3 && spanLength < 8)) {
         pieceType = parsed.pieceType;
         const phase = phaseFromPieceType(pieceType);
         const commentDisplay = buildCommentDisplay(

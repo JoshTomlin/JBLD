@@ -55,6 +55,40 @@ const letterPairs = {
 const descriptionWords = new Set(["corners", "edges", "parity"]);
 const edgeStickers = new Set(Object.keys(letterPairs).filter((key) => key.length === 2));
 const cornerStickers = new Set(Object.keys(letterPairs).filter((key) => key.length === 3));
+const canonicalEdgeOrder = "UF UR UB UL DF DR DB DL FR FL BR BL".split(" ");
+const canonicalCornerOrder = "UFR UBR UBL UFL DFR DFL DBL DBR".split(" ");
+
+function isSamePiece(a, b) {
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  return a.split("").every((char) => b.includes(char));
+}
+
+function toCanonicalSticker(token) {
+  if (!token) {
+    return token;
+  }
+
+  if (edgeStickers.has(token)) {
+    return canonicalEdgeOrder.find((candidate) => isSamePiece(candidate, token)) || token;
+  }
+
+  if (cornerStickers.has(token)) {
+    return canonicalCornerOrder.find((candidate) => isSamePiece(candidate, token)) || token;
+  }
+
+  if (token.length === 2) {
+    return canonicalEdgeOrder.find((candidate) => isSamePiece(candidate, token)) || token;
+  }
+
+  if (token.length === 3) {
+    return canonicalCornerOrder.find((candidate) => isSamePiece(candidate, token)) || token;
+  }
+
+  return token;
+}
 
 function fixUD(alg) {
   return alg
@@ -230,7 +264,7 @@ function splitCompactToken(token) {
   return [normalized];
 }
 
-function parseTargetsFromComment(comment) {
+function parseTargetsFromComment(comment, options = {}) {
   if (!comment) {
     return {
       bufferTarget: null,
@@ -249,6 +283,8 @@ function parseTargetsFromComment(comment) {
     .trim();
 
   const lower = cleaned.toLowerCase();
+  const cornerBuffer = toCanonicalSticker((options.cornerBuffer || "UFR").toUpperCase());
+  const cornerBufferLetter = mapStickerToLetter(cornerBuffer);
   const specialType = lower.includes("flip")
     ? "flip"
     : lower.includes("twist") || lower.includes("rotation")
@@ -260,12 +296,17 @@ function parseTargetsFromComment(comment) {
     .map((token) => token.trim())
     .filter(Boolean)
     .flatMap(splitCompactToken)
+    .map(toCanonicalSticker)
     .filter((token) => !/^(FLIP|TWIST|ROTATION|PARITY)$/i.test(token));
 
   if (lower.includes("parity")) {
     const cornerPieces = pieces.filter((token) => cornerStickers.has(token));
     const edgePieces = pieces.filter((token) => edgeStickers.has(token));
-    const parityTarget = cornerPieces[1] || cornerPieces[0] || null;
+    const parityTarget =
+      cornerPieces.find((token) => token !== cornerBuffer && token !== cornerBufferLetter) ||
+      cornerPieces[1] ||
+      cornerPieces[0] ||
+      null;
     return {
       bufferTarget: null,
       targetA: edgePieces.join("") || null,
@@ -375,7 +416,7 @@ export function parseSolve(solveText, options = {}) {
 
     const algorithm = parseRotationAndSlice(body);
     const simplified = normalizeAlgorithmText(algorithm);
-    const targets = parseTargetsFromComment(comment);
+    const targets = parseTargetsFromComment(comment, options);
     const phase = inferPhase(currentPhase, targets);
     const moveCount = countAlgorithmMoves(simplified);
 
@@ -419,7 +460,7 @@ export function parseSolve(solveText, options = {}) {
       special_type: comm.special_type,
       alg: comm.alg,
       alg_length: comm.alg_length,
-      parse_text: targetsToParseText(comm),
+      parse_text: targetsToParseText(comm, options),
     })),
     moveTimeline,
     solve: finalSolve,
@@ -427,9 +468,11 @@ export function parseSolve(solveText, options = {}) {
   };
 }
 
-function targetsToParseText(comm) {
+function targetsToParseText(comm, options = {}) {
   if (comm.special_type === "parity") {
-    return comm.comment && comm.comment.trim() ? parseTargetsFromComment(comm.comment).display : "Parity";
+    return comm.comment && comm.comment.trim()
+      ? parseTargetsFromComment(comm.comment, options).display
+      : "Parity";
   }
   if (comm.special_type === "flip" || comm.special_type === "rotation") {
     return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} ${comm.special_type}`.trim();

@@ -191,6 +191,20 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UFR", "UBR", "twist"]);
   });
 
+  it("does not invent floating comms when no buffer is involved", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UR: ["UB", "UR"],
+        UB: ["UL", "UB"],
+        UL: ["UR", "UL"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: false, parity: false });
+    expect(comm).toEqual([]);
+  });
+
   it("adds the orientation prefix to the local CubeDB link", () => {
     const result = buildCubedbUrl({
       scramble: baseSetting.SCRAMBLE,

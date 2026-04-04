@@ -214,7 +214,7 @@ class Setting extends React.Component {
               <button
                 type="button"
                 className="settings_inline_action settings_inline_action_secondary"
-                onClick={this.props.onResetCube}
+                onClick={() => this.props.onResetCube()}
               >
                 Reset Cube
               </button>
