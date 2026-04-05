@@ -85,6 +85,7 @@ textarea {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   background: var(--bg);
+  overflow: hidden;
 }
 
 .app_header,
@@ -504,6 +505,9 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   background: var(--bg);
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
 }
 
 .nav_item {

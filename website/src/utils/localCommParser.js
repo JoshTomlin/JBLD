@@ -211,7 +211,7 @@ function parseRotationFromAlg(tokens) {
   return normalized;
 }
 
-export function getOrientationData(orientation = "white-green") {
+export function getOrientationData(orientation = "yellow-green") {
   const orientationRotations = splitMoves(orientationDict[orientation] || "");
   const inverseRotations = orientationRotations
     .map((rotation) => inverseRotationMap[rotation] || rotation)
@@ -223,7 +223,7 @@ export function getOrientationData(orientation = "white-green") {
   };
 }
 
-export function normalizeForOrientation(scramble, solve, orientation = "white-green") {
+export function normalizeForOrientation(scramble, solve, orientation = "yellow-green") {
   const { rotationPrefix, normalizationRotations } = getOrientationData(orientation);
   const scrambleTokens = splitMoves(scramble);
   const solveTokens = splitMoves(solve);
@@ -627,7 +627,7 @@ function applyMove(cube, moveToken) {
 }
 
 export function buildLocalCommAnalysis(setting) {
-  const orientation = setting.CUBE_OREINTATION || "white-green";
+  const orientation = setting.CUBE_OREINTATION || "yellow-green";
   const buffers = {
     edgeBuffer: setting.EDGES_BUFFER || "UF",
     cornerBuffer: setting.CORNER_BUFFER || "UFR",
