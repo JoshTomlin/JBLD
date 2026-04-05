@@ -705,7 +705,22 @@ class App extends React.Component {
       total = lastMoveOffset;
     }
 
-    return total ? this.convert_sec_to_format(Number(total.toFixed(2))) : null;
+    return total ? this.formatInlineDuration(total) : null;
+  };
+
+  formatInlineDuration = (seconds) => {
+    const value = Number(seconds);
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+
+    if (value >= 60) {
+      const minutes = Math.floor(value / 60);
+      const remainder = (value - minutes * 60).toFixed(1).padStart(4, "0");
+      return `${minutes}:${remainder}`;
+    }
+
+    return Number(value.toFixed(1)).toString();
   };
 
   getLastSolvePanelData = (solve) => {
@@ -736,12 +751,11 @@ class App extends React.Component {
         { label: "Total", value: this.formatSolveResultLabel(solve) },
         { label: "Memo", value: this.convert_sec_to_format(solve.memo_time) },
         { label: "Exec", value: this.convert_sec_to_format(solve.exe_time) },
-        { label: "Edge Algs", value: String(groups.edges.length) },
-        { label: "Corner Algs", value: String(groups.corners.length + groups.parity.length) },
+        { label: "Algs", value: String(groups.edges.length + groups.corners.length + groups.parity.length) },
       ],
       lines: [
-        { label: "Edge Comms", value: edgeSummary },
-        { label: "Corner Comms", value: cornerSummary },
+        { label: "Edges", value: edgeSummary },
+        { label: "Corners", value: cornerSummary },
       ],
     };
   };
