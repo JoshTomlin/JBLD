@@ -248,7 +248,7 @@ textarea {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
-  padding: clamp(26px, 7vh, 52px) 0 8px;
+  padding: clamp(42px, 11vh, 86px) 0 8px;
 }
 
 .timer_status_wrap {
@@ -265,7 +265,7 @@ textarea {
 .timer_on_screen {
   color: var(--text);
   font-family: "digital-7", monospace;
-  font-size: clamp(5.1rem, 21vw, 7.4rem);
+  font-size: clamp(5.5rem, 23vw, 8.1rem);
   line-height: 0.92;
   letter-spacing: 0.02em;
   text-align: center;
@@ -1724,7 +1724,7 @@ textarea {
   }
 
   .timer_surface {
-    padding-top: 24px;
+    padding-top: 40px;
   }
 
   .last_solve_panel {

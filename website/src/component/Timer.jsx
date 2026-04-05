@@ -40,6 +40,18 @@ class Timer extends React.Component {
     return value;
   };
 
+  formatDisplayTime = () => {
+    const minutes = this.state.currentTimeMin;
+    const seconds = this.formatTime(this.state.currentTimeSec);
+    const hundredths = this.formatTime(this.state.currentTimeMs, "ms");
+
+    if (minutes > 0) {
+      return `${minutes}:${seconds}.${hundredths}`;
+    }
+
+    return `${seconds}.${hundredths}`;
+  };
+
   start = () => {
     if (!this.state.running) {
       this.setState({ start_time: Date.now() });
@@ -255,9 +267,7 @@ class Timer extends React.Component {
           </div>
         </div>
         <div className="timer_on_screen">
-          {this.formatTime(this.state.currentTimeMin)}:
-          {this.formatTime(this.state.currentTimeSec)}.
-          {this.formatTime(this.state.currentTimeMs, "ms")}
+          {this.formatDisplayTime()}
         </div>
         {this.props.footer ? <div className="timer_footer">{this.props.footer}</div> : null}
       </div>
