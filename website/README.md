@@ -15,6 +15,24 @@ If you have more ideas to improve/features feel free to suggest :)
 
 Thanks for [CSTIMER](https://github.com/cs0x7f/cstimer/blob/fc627f0970d8982c758200430bb60d7554f984b0/src/js/bluetooth.js) for the bluetooth implementation for smart cubes and Thanks to cubing.js project :)
 
+## Supabase cloud sync
+
+JBLD now supports local-first solve storage with optional Supabase sync.
+
+Setup:
+
+1. Copy `.env.example` to `.env.local`
+2. Fill in:
+   - `REACT_APP_SUPABASE_URL`
+   - `REACT_APP_SUPABASE_ANON_KEY`
+3. Run the SQL in `supabase_schema.sql` inside the Supabase SQL editor
+
+Behavior:
+
+- solves and sessions are still saved locally first
+- when the app is online, it merges local data with Supabase and uploads the merged set
+- if Supabase is not configured, JBLD continues to work fully locally
+
 ## Main features
 
 - reconstruct 3bld solves : commutator seperation, move count, timer per alg, letter pair, execution time, memo time, fluidness (execution time without pauses between algs), solve description

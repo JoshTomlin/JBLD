@@ -9,6 +9,12 @@ import { buildSolveAnalysis } from "./utils/bldParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
 import { computeSessionAggregateStats } from "./utils/solveAverages";
 import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
+import {
+  fetchSupabaseDataset,
+  fetchSupabaseSolveById,
+  isSupabaseConfigured,
+  syncSupabaseDataset,
+} from "./utils/supabaseSync";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -112,6 +118,9 @@ class App extends React.Component {
     window.addEventListener("beforeinstallprompt", this.handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", this.handleAppInstalled);
     this.probeRemoteParserAvailability();
+    this.syncSessionsWithCloud().catch((error) => {
+      console.warn("Cloud sync bootstrapping failed, using local cache", error);
+    });
   };
   componentWillUnmount = () => {
     window.removeEventListener("online", this.handleNetworkChange);
@@ -120,7 +129,13 @@ class App extends React.Component {
     window.removeEventListener("appinstalled", this.handleAppInstalled);
   };
   handleNetworkChange = () => {
-    this.setState({ isOffline: !navigator.onLine });
+    const isOffline = !navigator.onLine;
+    this.setState({ isOffline });
+    if (!isOffline) {
+      this.syncSessionsWithCloud().catch((error) => {
+        console.warn("Cloud sync after reconnect failed", error);
+      });
+    }
   };
   handleBeforeInstallPrompt = (event) => {
     event.preventDefault();
@@ -277,6 +292,10 @@ class App extends React.Component {
       ? `${window.location.protocol}//${window.location.hostname}:8082`
       : "";
 
+  hasCloudSync = () => isSupabaseConfigured();
+
+  buildSolveId = () => `solve-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   apiRequest = async (path, options = {}) => {
     const response = await fetch(`${this.getApiOrigin()}${path}`, {
       headers: {
@@ -296,6 +315,79 @@ class App extends React.Component {
     }
 
     return data;
+  };
+
+  mergeSessions = (localSessions, cloudSessions) => {
+    const bySessionId = new Map();
+
+    [...(Array.isArray(localSessions) ? localSessions : []), ...(Array.isArray(cloudSessions) ? cloudSessions : [])].forEach(
+      (session) => {
+        if (!session || !session.id) {
+          return;
+        }
+
+        const existing = bySessionId.get(session.id);
+        const solvesById = new Map();
+
+        [...(existing && Array.isArray(existing.solves) ? existing.solves : []), ...(Array.isArray(session.solves) ? session.solves : [])].forEach(
+          (solve) => {
+            if (!solve) {
+              return;
+            }
+
+            const solveId = solve.id || this.buildSolveId();
+            const current = solvesById.get(solveId);
+            const currentUpdated = current ? current.updatedAt || current.date || 0 : 0;
+            const nextUpdated = solve.updatedAt || solve.date || 0;
+
+            if (!current || nextUpdated >= currentUpdated) {
+              solvesById.set(solveId, { ...solve, id: solveId });
+            }
+          }
+        );
+
+        const existingUpdated = existing ? existing.updatedAt || existing.createdAt || 0 : 0;
+        const nextUpdated = session.updatedAt || session.createdAt || 0;
+        const baseSession = !existing || nextUpdated >= existingUpdated ? session : existing;
+
+        bySessionId.set(session.id, {
+          ...baseSession,
+          solves: [...solvesById.values()].sort((a, b) => (a.date || 0) - (b.date || 0)),
+          createdAt:
+            (existing && existing.createdAt) || session.createdAt || Date.now(),
+          updatedAt: Math.max(existingUpdated, nextUpdated) || Date.now(),
+        });
+      }
+    );
+
+    return [...bySessionId.values()].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  };
+
+  syncSessionsWithCloud = async (preferredActiveSessionId = null) => {
+    if (!this.hasCloudSync() || (typeof navigator !== "undefined" && !navigator.onLine)) {
+      return;
+    }
+
+    const userId = this.state.parse_settings && this.state.parse_settings.ID;
+    if (!userId) {
+      return;
+    }
+
+    const { sessions, activeSessionId } = this.ensureSessionStorage();
+    const cloudSessions = await fetchSupabaseDataset(userId);
+    const mergedSessions = this.mergeSessions(sessions, cloudSessions);
+    const nextActiveSessionId = preferredActiveSessionId || activeSessionId || (mergedSessions[0] && mergedSessions[0].id);
+
+    this.persistSessionStorage(mergedSessions, nextActiveSessionId);
+    this.setState(
+      {
+        sessions: mergedSessions,
+        activeSessionId: nextActiveSessionId,
+      },
+      this.initialStatsFromLocalstorage
+    );
+
+    await syncSupabaseDataset(userId, mergedSessions);
   };
 
   normalizeServerSolve = (solve) => ({
@@ -353,6 +445,11 @@ class App extends React.Component {
   };
 
   syncSessionsFromServer = async () => {
+    if (this.hasCloudSync()) {
+      await this.syncSessionsWithCloud();
+      return;
+    }
+
     if (this.state.remoteParserAvailable === false) {
       return;
     }
@@ -374,10 +471,18 @@ class App extends React.Component {
   };
 
   fetchSolveDetails = async (solveId) => {
+    const userId = this.state.parse_settings && this.state.parse_settings.ID;
+
+    if (this.hasCloudSync()) {
+      if (!userId || !solveId) {
+        return null;
+      }
+      return fetchSupabaseSolveById(userId, solveId);
+    }
+
     if (this.state.remoteParserAvailable === false) {
       return null;
     }
-    const userId = this.state.parse_settings && this.state.parse_settings.ID;
     if (!userId || !solveId) {
       return null;
     }
@@ -420,6 +525,10 @@ class App extends React.Component {
   };
 
   createSessionOnServer = async (name) => {
+    if (this.hasCloudSync()) {
+      return this.buildSessionRecord(name);
+    }
+
     if (this.state.remoteParserAvailable === false) {
       return null;
     }
@@ -506,6 +615,11 @@ class App extends React.Component {
           () => {
             this.initialStatsFromLocalstorage();
             this.handle_scramble();
+            if (this.hasCloudSync()) {
+              this.syncSessionsWithCloud(serverSession.id).catch((error) => {
+                console.warn("Cloud sync after session creation failed", error);
+              });
+            }
           }
         );
       })
@@ -810,7 +924,9 @@ class App extends React.Component {
     }
 
     return {
+      id: (data && data.id) || this.buildSolveId(),
       date: Date.now(),
+      updatedAt: Date.now(),
       time_solve:
         parsedMetrics.time_solve !== null && parsedMetrics.time_solve !== undefined
           ? parsedMetrics.time_solve
@@ -1411,9 +1527,20 @@ class App extends React.Component {
     const solveStats = this.buildSolveRecord(data, setting, parseError);
 
     this.updateActiveSessionSolves((currentSolves) => [...currentSolves, solveStats]);
+    if (this.hasCloudSync()) {
+      this.syncSessionsWithCloud(this.state.activeSessionId).catch((error) => {
+        console.warn("Cloud sync after solve save failed", error);
+      });
+    }
+    return solveStats;
   };
   safelyStoreSolveResult = (result, setting) => {
     try {
+      if (this.hasCloudSync()) {
+        this.addSolveToLocalStorage(result, setting);
+        return;
+      }
+
       if (result && result.session && result.saved_solve) {
         const normalizedSession = this.normalizeServerSession({
           ...result.session,
