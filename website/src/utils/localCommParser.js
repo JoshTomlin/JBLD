@@ -433,6 +433,28 @@ function changedPiecesForType(lastSolvedPieces, pieceLength, order) {
   );
 }
 
+function stickersForPiece(piece, stickers) {
+  return stickers.filter((sticker) => isSamePiece(sticker, piece));
+}
+
+function pickCornerTwistRepresentative(piece, stickers, lastSolvedPieces) {
+  const representative = pickRepresentativeSticker([piece], reidCornerOrder);
+
+  if (stickers.length !== 3) {
+    return representative;
+  }
+
+  const twistOffset = [1, 2].find((offset) =>
+    stickers.every((sticker) => lastSolvedPieces[sticker][0] === rotateLeft(sticker, offset))
+  );
+
+  if (twistOffset === 1) {
+    return rotateLeft(representative, 1);
+  }
+
+  return representative;
+}
+
 function detectBufferThreePieceCase(lastSolvedPieces, buffers) {
   const changedStickers = Object.keys(lastSolvedPieces);
   const hasEdges = changedStickers.some((sticker) => sticker.length === 2);
@@ -517,13 +539,21 @@ function detectNonBufferSpecialCase(lastSolvedPieces) {
     }
   }
 
-  if (cornerStickers.length === 4) {
+  if (cornerStickers.length === 4 || cornerStickers.length === 6) {
     const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(cornerStickers), reidCornerOrder);
 
     if (uniquePieces.length === 2) {
       return {
         comm: uniquePieces
-          .map((piece) => toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder)))
+          .map((piece) =>
+            toCanonicalStickerName(
+              pickCornerTwistRepresentative(
+                piece,
+                stickersForPiece(piece, cornerStickers),
+                lastSolvedPieces
+              )
+            )
+          )
           .concat("twist"),
         pieceType: { edge: false, corner: true, parity: false },
       };

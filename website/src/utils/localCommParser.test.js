@@ -205,6 +205,23 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UFR", "UBR", "twist"]);
   });
 
+  it("detects six-sticker corner twists as corner comms", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        URB: ["BUR", "URB"],
+        RBU: ["URB", "RBU"],
+        BUR: ["RBU", "BUR"],
+        DRF: ["RFD", "DRF"],
+        RFD: ["FDR", "RFD"],
+        FDR: ["DRF", "FDR"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: true, parity: false });
+    expect(comm).toEqual(["UBR", "RFD", "twist"]);
+  });
+
   it("does not invent floating comms when no buffer is involved", () => {
     const { comm, pieceType } = parseSolvedToComm(
       {
