@@ -424,6 +424,73 @@ function sortPiecesByOrder(pieces, order) {
   });
 }
 
+function changedPiecesForType(lastSolvedPieces, pieceLength, order) {
+  return sortPiecesByOrder(
+    uniquePiecesForStickers(
+      Object.keys(lastSolvedPieces).filter((sticker) => sticker.length === pieceLength)
+    ),
+    order
+  );
+}
+
+function detectBufferThreePieceCase(lastSolvedPieces, buffers) {
+  const changedStickers = Object.keys(lastSolvedPieces);
+  const hasEdges = changedStickers.some((sticker) => sticker.length === 2);
+  const hasCorners = changedStickers.some((sticker) => sticker.length === 3);
+
+  if (hasEdges && hasCorners) {
+    return null;
+  }
+
+  const buildCase = (pieces, buffer, order, pieceType) => {
+    if (pieces.length !== 3 || !isSamePieceInList(buffer, pieces)) {
+      return null;
+    }
+
+    return {
+      comm: [
+        buffer,
+        ...pieces
+          .filter((piece) => !isSamePiece(piece, buffer))
+          .map((piece) => toCanonicalStickerName(pickRepresentativeSticker([piece], order))),
+      ],
+      pieceType,
+    };
+  };
+
+  if (hasEdges) {
+    return buildCase(
+      changedPiecesForType(lastSolvedPieces, 2, reidEdgeOrder),
+      buffers.edgeBuffer,
+      reidEdgeOrder,
+      { edge: true, corner: false, parity: false }
+    );
+  }
+
+  if (hasCorners) {
+    return buildCase(
+      changedPiecesForType(lastSolvedPieces, 3, reidCornerOrder),
+      buffers.cornerBuffer,
+      reidCornerOrder,
+      { edge: false, corner: true, parity: false }
+    );
+  }
+
+  return null;
+}
+
+function commCoversSamePieces(comm, expectedComm) {
+  const commPieces = uniquePiecesForStickers(
+    comm.filter((token) => token !== "flip" && token !== "twist")
+  );
+  const expectedPieces = uniquePiecesForStickers(expectedComm);
+
+  return (
+    commPieces.length === expectedPieces.length &&
+    expectedPieces.every((piece) => isSamePieceInList(piece, commPieces))
+  );
+}
+
 function detectNonBufferSpecialCase(lastSolvedPieces) {
   const changedStickers = Object.keys(lastSolvedPieces);
   if (!changedStickers.length) {
@@ -522,12 +589,17 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
 
     while (currentLabel !== lastSolvedPieces[buffer][1] && guard < 20) {
       guard += 1;
+      let foundNext = false;
       for (const key of Object.keys(lastSolvedPieces)) {
         if (lastSolvedPieces[key][1] === currentLabel) {
           currentLabel = lastSolvedPieces[key][0];
           comm.push(key);
+          foundNext = true;
           break;
         }
+      }
+      if (!foundNext) {
+        break;
       }
     }
   };
@@ -546,6 +618,11 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
     pieceType.parity = true;
     pieceType.edge = false;
     pieceType.corner = false;
+  }
+
+  const bufferThreePieceCase = detectBufferThreePieceCase(lastSolvedPieces, buffers);
+  if (bufferThreePieceCase && !commCoversSamePieces(comm, bufferThreePieceCase.comm)) {
+    return bufferThreePieceCase;
   }
 
   return {

@@ -35,6 +35,7 @@ class App extends React.Component {
       gan: false,
       sessions: [],
       activeSessionId: null,
+      historySessionMenuOpen: false,
       url_stats: "",
       averages: {
         best: { time: 10000, solve: {} },
@@ -497,6 +498,7 @@ class App extends React.Component {
   openSolveDetails = (solve) => {
     this.setState({
       showLastSolveDetails: true,
+      historySessionMenuOpen: false,
       loadingSolveDetails: Boolean(solve && solve.id),
       selectedSolveDetails: solve || null,
       parsed_solve_txt: (solve && solve.txt_solve) || "No parsed solve text available yet.",
@@ -2021,6 +2023,26 @@ class App extends React.Component {
         hour: "numeric",
         minute: "2-digit",
       });
+    const formatHistoryDate = (dateValue) => {
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) {
+        return "--";
+      }
+
+      const parts = new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(date);
+      const getPart = (type) => {
+        const part = parts.find((entry) => entry.type === type);
+        return part ? part.value : "";
+      };
+
+      return `${getPart("day")} ${getPart("month")}, ${getPart("hour")}:${getPart("minute")}`;
+    };
     const chartPath =
       chartTimes.length > 1
         ? (() => {
@@ -2231,11 +2253,47 @@ class App extends React.Component {
     } else if (this.state.activeView === "history") {
       mainView = (
         <section className="history_screen view_panel">
-          <div className="section_header">
-            <div>
-              <div className="placeholder_title">History</div>
+          <div className="history_header">
+            <div className="history_session_picker">
+              <button
+                type="button"
+                className="history_session_button"
+                onClick={() =>
+                  this.setState((state) => ({
+                    historySessionMenuOpen: !state.historySessionMenuOpen,
+                  }))
+                }
+                aria-expanded={this.state.historySessionMenuOpen}
+              >
+                <span>{activeSession ? activeSession.name : "No active session"}</span>
+                <span className="history_session_chevron" aria-hidden="true"></span>
+              </button>
+              {this.state.historySessionMenuOpen && (
+                <div className="history_session_menu">
+                  {sessions.map((session) => {
+                    const summary = this.getSessionSummary(session);
+                    const isActive = activeSession && session.id === activeSession.id;
+
+                    return (
+                      <button
+                        key={session.id}
+                        type="button"
+                        className={`history_session_option ${isActive ? "history_session_option_active" : ""}`}
+                        onClick={() =>
+                          this.setState({ historySessionMenuOpen: false }, () =>
+                            this.activateSession(session.id)
+                          )
+                        }
+                      >
+                        <span>{session.name}</span>
+                        <small>{summary.totalSolves} solves</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div className="section_meta">{solveCountLabel}</div>
+            <div className="history_solve_count">{solveCountLabel}</div>
           </div>
           <div className="history_list">
             {recentSolves.length ? (
@@ -2246,27 +2304,19 @@ class App extends React.Component {
                   className="history_card history_card_button"
                   onClick={() => this.openSolveDetails(solve)}
                 >
-                  <div className="history_card_top">
-                    <div>
-                      <div className="history_card_title">Solve {sessionCount - index}</div>
-                      <div className="history_card_subtitle">{formatDate(solve.date)}</div>
+                  <div className="history_solve_row">
+                    <div className="history_card_title">
+                      Solve {sessionCount - index}
+                      {solve.DNF ? " (DNF)" : ""}
                     </div>
                     <div className="history_card_time">
-                      {this.formatSolveResultLabel(solve)}
+                      {this.convert_sec_to_format(solve.time_solve)}
                     </div>
                   </div>
-                  <div className="history_card_metrics">
-                    <div className="history_metric_chip">
-                      <span>Memo</span>
-                      <strong>{this.convert_sec_to_format(solve.memo_time)}</strong>
-                    </div>
-                    <div className="history_metric_chip">
-                      <span>Exec</span>
-                      <strong>{this.convert_sec_to_format(solve.exe_time)}</strong>
-                    </div>
-                    <div className="history_metric_chip">
-                      <span>Status</span>
-                      <strong>{solve.DNF ? "DNF" : "OK"}</strong>
+                  <div className="history_solve_row history_solve_row_meta">
+                    <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
+                    <div className="history_card_subtitle history_split_times">
+                      {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
                     </div>
                   </div>
                 </button>

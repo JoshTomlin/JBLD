@@ -146,6 +146,20 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UF", "UR", "UB"]);
   });
 
+  it("detects a pseudo-solved buffer case when three edge pieces changed", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UF: ["UR", "UF"],
+        UR: ["UB", "UL"],
+        UB: ["UL", "UB"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: true, corner: false, parity: false });
+    expect(comm).toEqual(["UF", "UR", "UB"]);
+  });
+
   it("marks combined edge and corner cycles as parity", () => {
     const { comm, pieceType } = parseSolvedToComm(
       {
