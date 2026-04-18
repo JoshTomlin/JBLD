@@ -718,13 +718,20 @@ class App extends React.Component {
   };
 
   compactRepeatedTurns = (algText) => {
-    if (!algText) {
+    const displayText = Array.isArray(algText)
+      ? algText.find((entry) => typeof entry === "string")
+      : algText;
+
+    if (!displayText || typeof displayText === "object") {
       return "";
     }
 
-    const tokens = String(algText).trim().split(/\s+/).filter(Boolean);
+    const tokens = String(displayText).trim().split(/\s+/).filter(Boolean);
     const compacted = [];
     const getTurnParts = (token) => {
+      if (!token) {
+        return null;
+      }
       const match = token.match(/^(.+?)(2|')?$/);
       if (!match || match[2] === "2") {
         return null;
@@ -1062,7 +1069,7 @@ class App extends React.Component {
       edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
       cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
       transitionSeconds,
-      link: solve.link || null,
+      link: this.withRecordedScrambleInCubedb(solve.link || null, solve.scramble || ""),
     };
   };
 
@@ -1152,6 +1159,7 @@ class App extends React.Component {
     const fallbackTotal = parseFloat(setting.TIME_SOLVE || 0);
     const fallbackMemo = parseFloat(setting.MEMO || 0);
     const fallbackExe = Math.max(fallbackTotal - fallbackMemo, 0);
+    const recordedScramble = setting.SCRAMBLE || "";
     let solveAnalysis = null;
     const providedCommStats = data && Array.isArray(data.commStats) ? data.commStats : null;
     const providedMoveTimeline = data && Array.isArray(data.moveTimeline) ? data.moveTimeline : null;
@@ -1184,7 +1192,10 @@ class App extends React.Component {
           ? parsedMetrics.exe_time
           : fallbackExe,
       txt_solve: solveText,
-      link: data && data.cubedb ? data.cubedb : null,
+      link: this.withRecordedScrambleInCubedb(
+        data && data.cubedb ? data.cubedb : null,
+        recordedScramble
+      ),
       fluidness:
         parsedMetrics.fluidness !== null && parsedMetrics.fluidness !== undefined
           ? parsedMetrics.fluidness
@@ -1192,12 +1203,33 @@ class App extends React.Component {
             ? data.fluidness
             : null,
       DNF: Boolean(parsedMetrics.isDnf),
-      scramble: setting.SCRAMBLE || "",
+      scramble: recordedScramble,
       solve: (data && data.solve) || (solveAnalysis && solveAnalysis.solve) || setting.SOLVE || "",
       comm_stats: providedCommStats || (solveAnalysis && solveAnalysis.commStats) || [],
       move_timeline: providedMoveTimeline || (solveAnalysis && solveAnalysis.moveTimeline) || [],
       parseError,
     };
+  };
+  withRecordedScrambleInCubedb = (link, recordedScramble) => {
+    if (!link || !recordedScramble) {
+      return link || null;
+    }
+
+    try {
+      const url = new URL(link);
+      if (!url.hostname.toLowerCase().includes("cubedb.net")) {
+        return link;
+      }
+
+      url.searchParams.set("scramble", recordedScramble);
+      return url.toString();
+    } catch (_error) {
+      const separator = link.includes("?") ? "&" : "?";
+      const encodedScramble = new URLSearchParams({ scramble: recordedScramble }).toString();
+      return link.includes("scramble=")
+        ? link.replace(/([?&]scramble=)[^&]*/i, `$1${encodedScramble.replace(/^scramble=/, "")}`)
+        : `${link}${separator}${encodedScramble}`;
+    }
   };
   runLocalParse = (setting, _reason = null) => {
     const localResult = buildLocalSolveResult(setting, this.convert_sec_to_format);
@@ -2083,7 +2115,12 @@ class App extends React.Component {
         return data;
       })
       .then((data) => {
-        result = data;
+        result = data && data.cubedb
+          ? {
+              ...data,
+              cubedb: this.withRecordedScrambleInCubedb(data.cubedb, setting.SCRAMBLE || ""),
+            }
+          : data;
         console.log("request to parsing server");
         console.log(requestOptions);
         if (result && result.save_error) {
