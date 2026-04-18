@@ -43,6 +43,12 @@ describe("solve details view data", () => {
     expect(app.compactRepeatedTurns(details.cornerRows[0].alg)).toBe("R2 U U'");
   });
 
+  it("converts smart-cube opposite face pairs into slice moves for display", () => {
+    const app = new App();
+
+    expect(app.compactRepeatedTurns("U2 L R' U2 R L'")).toBe("U2 M' B2 M");
+  });
+
   it("saves CubeDB links with the recorded cube scramble", () => {
     const app = new App();
     const recordedScramble = "U R F";
@@ -62,6 +68,7 @@ describe("solve details view data", () => {
     );
 
     expect(new URL(solve.link).searchParams.get("scramble")).toBe(recordedScramble);
+    expect(new URL(solve.link).searchParams.get("alg")).toBe("R U");
   });
 
   it("shows saved CubeDB links with the stored recorded scramble", () => {
@@ -73,11 +80,35 @@ describe("solve details view data", () => {
       exe_time: 1.5,
       scramble: "U R F",
       link: "https://www.cubedb.net/?puzzle=3&scramble=L+D+B&alg=R+U",
+      solve: "",
       comm_stats: [],
     };
 
     const details = app.getSolveDetailsViewData(solve, [solve]);
 
     expect(new URL(details.link).searchParams.get("scramble")).toBe("U R F");
+    expect(new URL(details.link).searchParams.get("alg")).toBe("R U");
+  });
+
+  it("uses parser success to mark saved DNFs and update accuracy", () => {
+    const app = new App();
+    const solve = app.buildSolveRecord(
+      {
+        txt: "12.00(3.00,9.00)",
+        success: false,
+        cubedb: "https://www.cubedb.net/?puzzle=3&scramble=U&alg=R",
+        commStats: [],
+        moveTimeline: [],
+      },
+      {
+        TIME_SOLVE: "12",
+        MEMO: "3",
+        SCRAMBLE: "U",
+        SOLVE: "R",
+      }
+    );
+
+    expect(solve.DNF).toBe(true);
+    expect(app.getSessionSummary({ solves: [solve] }).successText).toBe("0/1");
   });
 });

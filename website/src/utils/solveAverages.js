@@ -1,6 +1,10 @@
+function isDnfValue(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
 function getFiniteValues(solveStats, key) {
   return [...solveStats]
-    .filter(({ DNF, [key]: value }) => DNF === false && Number.isFinite(parseFloat(value)))
+    .filter(({ DNF, [key]: value }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(value)))
     .map(({ [key]: value }) => parseFloat(value));
 }
 
@@ -31,13 +35,13 @@ export function computeSessionAggregateStats(solveStats, { calcMo3, calcAverage,
   const len = solveStats.length;
   const latestSolve = solveStats[len - 1];
   const current =
-    latestSolve && latestSolve.DNF === true
+    latestSolve && isDnfValue(latestSolve.DNF)
       ? `DNF(${formatSeconds(latestSolve.time_solve)})`
       : latestSolve
         ? latestSolve.time_solve
         : "";
 
-  const successfulSolves = solveStats.filter(({ DNF }) => DNF === false);
+  const successfulSolves = solveStats.filter(({ DNF }) => !isDnfValue(DNF));
 
   if (!successfulSolves.length) {
     return {
@@ -66,4 +70,4 @@ export function computeSessionAggregateStats(solveStats, { calcMo3, calcAverage,
   };
 }
 
-export { averageValues };
+export { averageValues, isDnfValue };

@@ -34,7 +34,7 @@ const buildSolveTitle = ({ dateSolve, totalText, memoText, execText, fluidness, 
 };
 
 export const buildCubedbUrl = ({ scramble, solve, title, execTime, rotationPrefix }) => {
-  const algorithm = rotationPrefix ? `${rotationPrefix} // memo\n${solve || ""}` : solve || "";
+  const algorithm = solve || "";
   const params = new URLSearchParams({
     puzzle: "3",
     title,
@@ -128,6 +128,8 @@ export function buildLocalSolveResult(setting, formatSeconds) {
       rotationPrefix: commAnalysis.rotationPrefix,
     }),
     local_only: true,
+    success: commAnalysis.solved,
+    DNF: !commAnalysis.solved,
     fluidness,
     commStats: commAnalysis.commStats,
     moveTimeline,

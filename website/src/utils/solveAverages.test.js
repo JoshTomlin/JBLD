@@ -64,4 +64,30 @@ describe("solveAverages", () => {
     expect(result.fluid).toBe("");
     expect(result.success).toBe("0/1");
   });
+
+  it("treats persisted string DNFs as DNFs", () => {
+    const result = computeSessionAggregateStats(
+      [
+        {
+          DNF: "true",
+          time_solve: 12.34,
+          memo_time: 1.23,
+          exe_time: 11.11,
+          fluidness: null,
+        },
+        {
+          DNF: false,
+          time_solve: 10,
+          memo_time: 2,
+          exe_time: 8,
+          fluidness: 80,
+        },
+      ],
+      helpers
+    );
+
+    expect(result.current).toBe(10);
+    expect(result.aoAll).toBe(10);
+    expect(result.success).toBe("1/2");
+  });
 });

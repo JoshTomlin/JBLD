@@ -250,7 +250,7 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UBR", "UFL", "UBL"]);
   });
 
-  it("adds the orientation prefix to the local CubeDB link", () => {
+  it("keeps local CubeDB links in the recorded move frame", () => {
     const result = buildCubedbUrl({
       scramble: baseSetting.SCRAMBLE,
       solve: baseSetting.SOLVE,
@@ -259,7 +259,7 @@ describe("localCommParser", () => {
       rotationPrefix: "y",
     });
 
-    expect(decodeURIComponent(result).replace(/\+/g, " ")).toContain("alg=y // memo");
+    expect(decodeURIComponent(result).replace(/\+/g, " ")).toContain(`alg=${baseSetting.SOLVE}`);
   });
 
   it("scores identical sticker sequences as fully similar", () => {

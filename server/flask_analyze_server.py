@@ -101,6 +101,8 @@ def handle_parse_request():
 
         parsed_solve, cube = parse(post_data)
         response_payload = dict(parsed_solve)
+        response_payload["success"] = cube.success
+        response_payload["DNF"] = not cube.success
          
         # Logging must not break parse responses.
         try:

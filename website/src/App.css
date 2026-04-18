@@ -1958,8 +1958,8 @@ textarea {
   }
 
   .reconstruction_row {
-    grid-template-columns: 1fr;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
   }
 
   .cubedb_link_box {
@@ -1967,8 +1967,8 @@ textarea {
   }
 
   .reconstruction_row strong {
-    text-align: left;
-    white-space: normal;
+    text-align: right;
+    white-space: nowrap;
   }
 
   .history_overview,

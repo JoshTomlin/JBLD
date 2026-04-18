@@ -7,7 +7,7 @@ import Timer from "./component/Timer";
 import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
-import { computeSessionAggregateStats } from "./utils/solveAverages";
+import { computeSessionAggregateStats, isDnfValue } from "./utils/solveAverages";
 import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
 import {
   fetchSupabaseDataset,
@@ -394,6 +394,7 @@ class App extends React.Component {
   normalizeServerSolve = (solve) => ({
     ...solve,
     date: solve && solve.date ? new Date(solve.date).getTime() : Date.now(),
+    DNF: isDnfValue(solve && solve.DNF),
   });
 
   normalizeServerSession = (session) => ({
@@ -647,9 +648,9 @@ class App extends React.Component {
 
   getSessionSummary = (session) => {
     const solves = Array.isArray(session && session.solves) ? session.solves : [];
-    const completed = solves.filter(({ DNF }) => !DNF);
+    const completed = solves.filter(({ DNF }) => !isDnfValue(DNF));
     const validTimes = solves
-      .filter(({ DNF, time_solve }) => !DNF && Number.isFinite(parseFloat(time_solve)))
+      .filter(({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve)))
       .map(({ time_solve }) => parseFloat(time_solve));
 
     return {
@@ -675,6 +676,19 @@ class App extends React.Component {
       exe_time: timeMatches[2] ? this.convert_time_to_sec(timeMatches[2]) : null,
       fluidness: timeMatches[3] ? parseFloat(timeMatches[3]) : null,
     };
+  };
+
+  resolveSolveDnf = (data, parsedMetrics = {}) => {
+    if (data && data.DNF !== undefined) {
+      return isDnfValue(data.DNF);
+    }
+    if (data && data.dnf !== undefined) {
+      return isDnfValue(data.dnf);
+    }
+    if (data && data.success !== undefined) {
+      return !isDnfValue(data.success);
+    }
+    return Boolean(parsedMetrics.isDnf);
   };
 
   buildFallbackSolveText = (setting, parseError) => {
@@ -717,7 +731,7 @@ class App extends React.Component {
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
   };
 
-  compactRepeatedTurns = (algText) => {
+  normalizeDisplayAlgText = (algText) => {
     const displayText = Array.isArray(algText)
       ? algText.find((entry) => typeof entry === "string")
       : algText;
@@ -726,7 +740,94 @@ class App extends React.Component {
       return "";
     }
 
-    const tokens = String(displayText).trim().split(/\s+/).filter(Boolean);
+    return String(displayText).trim();
+  };
+
+  translateMoves = (tokens, mapping) =>
+    tokens.map((token) => {
+      const match = token.match(/^([A-Za-z]+)(2|')?$/);
+      if (!match) {
+        return token;
+      }
+
+      const mapped = mapping[match[1]];
+      return mapped ? `${mapped}${match[2] || ""}`.replace(/''/g, "") : token;
+    });
+
+  applyDisplayRotation = (tokens, rotation) => {
+    const baseRotation = rotation && rotation[0];
+    const maps = {
+      x: { U: "F", F: "D", D: "B", B: "U", E: "S'", S: "E" },
+      y: { R: "B", B: "L", L: "F", F: "R", M: "S", S: "M'" },
+      z: { R: "U", U: "L", L: "D", D: "R", M: "E", E: "M'" },
+    };
+
+    if (!baseRotation || !maps[baseRotation]) {
+      return tokens;
+    }
+
+    let next = tokens.slice();
+    const amount = rotation.endsWith("2") ? 2 : rotation.endsWith("'") ? 3 : 1;
+    for (let index = 0; index < amount; index += 1) {
+      next = this.translateMoves(next, maps[baseRotation]);
+    }
+    return next;
+  };
+
+  slicePairToRotation = (first, second) => {
+    const pair = [first, second].sort().join(" ");
+    const directPairs = {
+      "D U'": ["E'", "y'"],
+      "D' U": ["E", "y"],
+      "L' R": ["M", "x"],
+      "L R'": ["M'", "x'"],
+      "B' F": ["S'", "z"],
+      "B F'": ["S", "z'"],
+    };
+
+    return directPairs[pair] || null;
+  };
+
+  convertSmartCubeSlicesForDisplay = (algText) => {
+    const tokens = this.normalizeDisplayAlgText(algText).split(/\s+/).filter(Boolean);
+    const sliced = [];
+    let index = 0;
+
+    while (index < tokens.length) {
+      const slicePair =
+        index + 1 < tokens.length ? this.slicePairToRotation(tokens[index], tokens[index + 1]) : null;
+      if (slicePair) {
+        sliced.push(...slicePair);
+        index += 2;
+      } else {
+        sliced.push(tokens[index]);
+        index += 1;
+      }
+    }
+
+    const output = [];
+    let remainder = sliced.slice();
+    while (remainder.length) {
+      const token = remainder.shift();
+      if (["x", "x'", "x2", "y", "y'", "y2", "z", "z'", "z2"].includes(token)) {
+        remainder = this.applyDisplayRotation(remainder, token);
+      } else {
+        output.push(token);
+      }
+    }
+
+    return output.join(" ");
+  };
+
+  compactRepeatedTurns = (algText, { convertSlices = true } = {}) => {
+    const displayText = convertSlices
+      ? this.convertSmartCubeSlicesForDisplay(algText)
+      : this.normalizeDisplayAlgText(algText);
+    if (!displayText) {
+      return "";
+    }
+
+    const tokens = displayText.split(/\s+/).filter(Boolean);
     const compacted = [];
     const getTurnParts = (token) => {
       if (!token) {
@@ -762,6 +863,11 @@ class App extends React.Component {
     return compacted.join(" ");
   };
 
+  formatReconstructionAlg = (comm) =>
+    this.compactRepeatedTurns(comm && comm.alg, {
+      convertSlices: comm && comm.phase === "edge",
+    });
+
   groupCommBreakdown = (commStats = []) => {
     return commStats.reduce(
       (groups, comm) => {
@@ -789,7 +895,7 @@ class App extends React.Component {
     if (!solve) {
       return "--";
     }
-    if (solve.DNF) {
+    if (isDnfValue(solve.DNF)) {
       return `DNF (${this.convert_sec_to_format(solve.time_solve)})`;
     }
     return this.convert_sec_to_format(solve.time_solve);
@@ -1056,7 +1162,7 @@ class App extends React.Component {
         : null;
 
     return {
-      title: `Solve ${solveNumber}${solve.DNF ? " (DNF)" : ""}`,
+      title: `Solve ${solveNumber}${isDnfValue(solve.DNF) ? " (DNF)" : ""}`,
       date: this.formatDateLine(solve.date),
       metrics: [
         { label: "Total", value: this.formatSolveResultLabel(solve) },
@@ -1069,7 +1175,11 @@ class App extends React.Component {
       edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
       cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
       transitionSeconds,
-      link: this.withRecordedScrambleInCubedb(solve.link || null, solve.scramble || ""),
+      link: this.withRecordedScrambleInCubedb(
+        solve.link || null,
+        solve.scramble || "",
+        solve.solve || null
+      ),
     };
   };
 
@@ -1194,7 +1304,8 @@ class App extends React.Component {
       txt_solve: solveText,
       link: this.withRecordedScrambleInCubedb(
         data && data.cubedb ? data.cubedb : null,
-        recordedScramble
+        recordedScramble,
+        setting.SOLVE || null
       ),
       fluidness:
         parsedMetrics.fluidness !== null && parsedMetrics.fluidness !== undefined
@@ -1202,7 +1313,7 @@ class App extends React.Component {
           : data && data.fluidness !== undefined
             ? data.fluidness
             : null,
-      DNF: Boolean(parsedMetrics.isDnf),
+      DNF: this.resolveSolveDnf(data, parsedMetrics),
       scramble: recordedScramble,
       solve: (data && data.solve) || (solveAnalysis && solveAnalysis.solve) || setting.SOLVE || "",
       comm_stats: providedCommStats || (solveAnalysis && solveAnalysis.commStats) || [],
@@ -1210,7 +1321,7 @@ class App extends React.Component {
       parseError,
     };
   };
-  withRecordedScrambleInCubedb = (link, recordedScramble) => {
+  withRecordedScrambleInCubedb = (link, recordedScramble, recordedSolve = null) => {
     if (!link || !recordedScramble) {
       return link || null;
     }
@@ -1222,13 +1333,23 @@ class App extends React.Component {
       }
 
       url.searchParams.set("scramble", recordedScramble);
+      if (recordedSolve) {
+        url.searchParams.set("alg", recordedSolve);
+      }
       return url.toString();
     } catch (_error) {
       const separator = link.includes("?") ? "&" : "?";
       const encodedScramble = new URLSearchParams({ scramble: recordedScramble }).toString();
-      return link.includes("scramble=")
+      const withScramble = link.includes("scramble=")
         ? link.replace(/([?&]scramble=)[^&]*/i, `$1${encodedScramble.replace(/^scramble=/, "")}`)
         : `${link}${separator}${encodedScramble}`;
+      if (!recordedSolve) {
+        return withScramble;
+      }
+      const encodedSolve = new URLSearchParams({ alg: recordedSolve }).toString();
+      return withScramble.includes("alg=")
+        ? withScramble.replace(/([?&]alg=)[^&]*/i, `$1${encodedSolve.replace(/^alg=/, "")}`)
+        : `${withScramble}&${encodedSolve}`;
     }
   };
   runLocalParse = (setting, _reason = null) => {
@@ -1417,7 +1538,7 @@ class App extends React.Component {
 
   calc_average = (arr) => {
     let average;
-    let dnf_arr = arr.map(({ DNF }) => DNF);
+    let dnf_arr = arr.map(({ DNF }) => isDnfValue(DNF));
     let times_arr = arr
       .map(({ time_solve }) => time_solve)
       .map((x) => parseFloat(x));
@@ -1448,7 +1569,7 @@ class App extends React.Component {
     let len = arr.length;
     let mo3_arr = arr.slice(len - 3, len);
     for (var i = 0; i < 3; i++) {
-      if (mo3_arr[i]["DNF"] === true) {
+      if (isDnfValue(mo3_arr[i]["DNF"])) {
         mo3 = "DNF";
         return mo3;
       } else {
@@ -1545,7 +1666,7 @@ class App extends React.Component {
 
       nextSolves[num_solve] = {
         ...nextSolves[num_solve],
-        DNF: !nextSolves[num_solve].DNF,
+        DNF: !isDnfValue(nextSolves[num_solve].DNF),
       };
 
       return nextSolves;
@@ -1587,6 +1708,7 @@ class App extends React.Component {
         time_solve,
         txt_solve,
       } = solve; //destructuring
+      const isDnf = isDnfValue(DNF);
       return (
         <tr key={date}>
           <td>
@@ -1600,15 +1722,15 @@ class App extends React.Component {
             </a>
           </td>
           <td>
-            {DNF
+            {isDnf
               ? "DNF(" + this.convert_sec_to_format(time_solve) + ")"
               : this.convert_sec_to_format(time_solve)}{" "}
           </td>
           <td>{this.convert_sec_to_format(memo_time)}</td>
           {/* <td>{exe_time}</td> */}
           <td>
-            {!DNF ? fluidness : ""}
-            {fluidness && !DNF ? "%" : ""}
+            {!isDnf ? fluidness : ""}
+            {fluidness && !isDnf ? "%" : ""}
           </td>
           <td>
             <a href={link} target="_blank" title={txt_solve}>
@@ -1706,7 +1828,7 @@ class App extends React.Component {
       console.log(solve_stats[solve_stats.length - 1]);
       if (
         solve_stats[solve_stats.length - 1] != "" &&
-        solve_stats[solve_stats.length - 1]["DNF"] !== true
+        !isDnfValue(solve_stats[solve_stats.length - 1]["DNF"])
       ) {
         if (
           solve_stats[solve_stats.length - 1]["time_solve"] <
@@ -1740,7 +1862,7 @@ class App extends React.Component {
       if (i + 1 <= len) {
         cur["best"] = solve_stats[i]["time_solve"];
         console.log(solve_stats[i]);
-        if (cur["best"] < best["best"]["time"] && !solve_stats[i]["DNF"]) {
+        if (cur["best"] < best["best"]["time"] && !isDnfValue(solve_stats[i]["DNF"])) {
           best["best"]["time"] = parseFloat(cur["best"]);
           best["best"]["num"] = i;
           best["best"]["solve"] = solve_stats[i];
@@ -2118,7 +2240,11 @@ class App extends React.Component {
         result = data && data.cubedb
           ? {
               ...data,
-              cubedb: this.withRecordedScrambleInCubedb(data.cubedb, setting.SCRAMBLE || ""),
+              cubedb: this.withRecordedScrambleInCubedb(
+                data.cubedb,
+                setting.SCRAMBLE || "",
+                setting.SOLVE || null
+              ),
             }
           : data;
         console.log("request to parsing server");
@@ -2263,10 +2389,10 @@ class App extends React.Component {
     const activeSessionSummary = this.getSessionSummary(activeSession);
     const recentSolves = [...this.state.solves_stats].slice().reverse();
     const chartSolves = recentSolves
-      .filter(({ DNF, time_solve }) => !DNF && Number.isFinite(parseFloat(time_solve)))
+      .filter(({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve)))
       .slice(0, 20);
     const chartTimes = chartSolves.map(({ time_solve }) => parseFloat(time_solve));
-    const dnfCount = recentSolves.filter(({ DNF }) => DNF).length;
+    const dnfCount = recentSolves.filter(({ DNF }) => isDnfValue(DNF)).length;
     const completedCount = recentSolves.length - dnfCount;
     const latestSolve = recentSolves[0] || null;
     const memoText = latestSolve ? this.convert_sec_to_format(latestSolve.memo_time) : "--";
@@ -2274,8 +2400,8 @@ class App extends React.Component {
     const latestFive = recentSolves.slice(0, 5);
     const trendLabel =
       latestFive.length >= 2 &&
-      !latestFive[0].DNF &&
-      !latestFive[latestFive.length - 1].DNF &&
+      !isDnfValue(latestFive[0].DNF) &&
+      !isDnfValue(latestFive[latestFive.length - 1].DNF) &&
       Number.isFinite(parseFloat(latestFive[0].time_solve)) &&
       Number.isFinite(parseFloat(latestFive[latestFive.length - 1].time_solve))
         ? parseFloat(latestFive[0].time_solve) <= parseFloat(latestFive[latestFive.length - 1].time_solve)
@@ -2283,7 +2409,7 @@ class App extends React.Component {
           : "Needs review"
         : "Building data";
     const bestSingle = recentSolves
-      .filter(({ DNF, time_solve }) => !DNF && Number.isFinite(parseFloat(time_solve)))
+      .filter(({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve)))
       .reduce((best, solve) => {
         const next = parseFloat(solve.time_solve);
         if (best === null || next < best) {
@@ -2589,7 +2715,7 @@ class App extends React.Component {
                   <div className="history_solve_row">
                     <div className="history_card_title">
                       Solve {sessionCount - index}
-                      {solve.DNF ? " (DNF)" : ""}
+                      {isDnfValue(solve.DNF) ? " (DNF)" : ""}
                     </div>
                     <div className="history_card_time">
                       {this.convert_sec_to_format(solve.time_solve)}
@@ -3172,7 +3298,7 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Edges:</div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
                           <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{this.compactRepeatedTurns(comm.alg) || "--"}</span>
+                            <span>{this.formatReconstructionAlg(comm) || "--"}</span>
                             <strong>
                               {comm.label || "--"}
                               {Number.isFinite(comm.duration)
@@ -3193,7 +3319,7 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Corners:</div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{this.compactRepeatedTurns(comm.alg) || "--"}</span>
+                            <span>{this.formatReconstructionAlg(comm) || "--"}</span>
                             <strong>
                               {comm.label || "--"}
                               {Number.isFinite(comm.duration)
