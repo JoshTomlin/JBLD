@@ -796,6 +796,38 @@ function phaseFromPieceType(pieceType) {
   return "unknown";
 }
 
+export function isSingleCommParse(parsed) {
+  const comm = Array.isArray(parsed?.comm) ? parsed.comm : [];
+  if (!comm.length) {
+    return false;
+  }
+
+  const phase = phaseFromPieceType(parsed?.pieceType || {});
+  if (phase === "edge" || phase === "corner") {
+    return comm.length <= 3;
+  }
+
+  if (phase === "parity") {
+    return comm.length <= 4;
+  }
+
+  return false;
+}
+
+function shouldRecordCommParse(parsed, spanLength, highConfidenceEndpoint = true) {
+  if (!isSingleCommParse(parsed) || (parsed.comm.length > 3 && spanLength < 8)) {
+    return false;
+  }
+
+  const phase = phaseFromPieceType(parsed?.pieceType || {});
+  const isSpecial = parsed.comm.includes("flip") || parsed.comm.includes("twist");
+  if (!highConfidenceEndpoint && (phase === "edge" || phase === "corner") && !isSpecial) {
+    return parsed.comm.length >= 3;
+  }
+
+  return true;
+}
+
 function applyMove(cube, moveToken) {
   cube.applyMove(new Move(normalizeMoveToken(moveToken)));
 }
@@ -815,6 +847,7 @@ export function buildLocalCommAnalysis(setting) {
   })();
   const parseToLetterPair = setting.PARSE_TO_LETTER_PAIR !== false;
   const diffThreshold = Number(setting.DIFF_BETWEEN_ALGS || defaultDiffThreshold);
+  const exploratoryDiffThreshold = Math.min(diffThreshold, 0.7);
   const { scrambleTokens, solveTokens, rotationPrefix } = normalizeForOrientation(
     setting.SCRAMBLE || "",
     setting.SOLVE || "",
@@ -858,12 +891,15 @@ export function buildLocalCommAnalysis(setting) {
       diff,
     });
 
-    if (diff > diffThreshold && count - maxPiecePlace >= 4 && diff !== 1) {
-      const spanLength = count - maxPiecePlace;
+    const spanLength = count - maxPiecePlace;
+    const highConfidenceEndpoint = diff > diffThreshold;
+    const longExploratoryEndpoint = diff > exploratoryDiffThreshold && spanLength >= 8;
+
+    if ((highConfidenceEndpoint || longExploratoryEndpoint) && spanLength >= 4 && diff !== 1) {
       const lastSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
       const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
 
-      if (parsed.comm.length && !(parsed.comm.length > 3 && spanLength < 8)) {
+      if (shouldRecordCommParse(parsed, spanLength, highConfidenceEndpoint)) {
         pieceType = parsed.pieceType;
         const phase = phaseFromPieceType(pieceType);
         const commentDisplay = buildCommentDisplay(
@@ -904,7 +940,7 @@ export function buildLocalCommAnalysis(setting) {
     const trailingSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
     const trailingParsed = parseSolvedToComm(trailingSolvedPieces, buffers);
 
-    if (trailingParsed.comm.length) {
+    if (shouldRecordCommParse(trailingParsed, currentAlg.length)) {
       const phase = phaseFromPieceType(trailingParsed.pieceType);
       const commentDisplay = buildCommentDisplay(
         trailingParsed.comm,

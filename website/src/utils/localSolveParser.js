@@ -33,8 +33,67 @@ const buildSolveTitle = ({ dateSolve, totalText, memoText, execText, fluidness, 
   return parts.join(" ");
 };
 
+const rotationMaps = {
+  x: { U: "F", F: "D", D: "B", B: "U", E: "S'", S: "E" },
+  y: { R: "B", B: "L", L: "F", F: "R", M: "S", S: "M'" },
+  z: { R: "U", U: "L", L: "D", D: "R", M: "E", E: "M'" },
+};
+
+const inverseRotationMap = {
+  x: "x'",
+  "x'": "x",
+  x2: "x2",
+  y: "y'",
+  "y'": "y",
+  y2: "y2",
+  z: "z'",
+  "z'": "z",
+  z2: "z2",
+};
+
+function translateMoves(tokens, mapping) {
+  return tokens.map((token) => {
+    const match = token.match(/^([A-Za-z]+)(2|')?$/);
+    if (!match) {
+      return token;
+    }
+
+    const mapped = mapping[match[1]];
+    return mapped ? `${mapped}${match[2] || ""}`.replace(/''/g, "") : token;
+  });
+}
+
+function applyRotation(tokens, rotation) {
+  const baseRotation = rotation && rotation[0];
+  if (!baseRotation || !rotationMaps[baseRotation]) {
+    return tokens.slice();
+  }
+
+  let next = tokens.slice();
+  const amount = rotation.endsWith("2") ? 2 : rotation.endsWith("'") ? 3 : 1;
+  for (let index = 0; index < amount; index += 1) {
+    next = translateMoves(next, rotationMaps[baseRotation]);
+  }
+  return next;
+}
+
+function orientSolveForCubedb(solve, rotationPrefix) {
+  const rotations = splitMoves(rotationPrefix || "");
+  const solveTokens = splitMoves(solve || "");
+  if (!rotations.length || !solveTokens.length) {
+    return solve || "";
+  }
+
+  const transformedSolve = rotations
+    .map((rotation) => inverseRotationMap[rotation] || rotation)
+    .reverse()
+    .reduce((tokens, rotation) => applyRotation(tokens, rotation), solveTokens);
+
+  return `${rotations.join(" ")}\n${transformedSolve.join(" ")}`;
+}
+
 export const buildCubedbUrl = ({ scramble, solve, title, execTime, rotationPrefix }) => {
-  const algorithm = solve || "";
+  const algorithm = orientSolveForCubedb(solve || "", rotationPrefix);
   const params = new URLSearchParams({
     puzzle: "3",
     title,
@@ -99,6 +158,33 @@ export function buildLocalSolveResult(setting, formatSeconds) {
       time_offset: index < timeOffsets.length ? timeOffsets[index] : null,
     };
   });
+  let previousEndIndex = 0;
+  const commStats = commAnalysis.commStats.map((comm) => {
+    const startIndex = Number(comm.move_start_index);
+    const endIndex = Number(comm.move_end_index);
+    const startOffset = Number.isFinite(startIndex) ? timeOffsets[startIndex - 1] : null;
+    const endOffset = Number.isFinite(endIndex) ? timeOffsets[endIndex - 1] : null;
+    const previousEndOffset =
+      previousEndIndex > 0 ? timeOffsets[previousEndIndex - 1] : 0;
+    const recogTime =
+      Number.isFinite(startOffset) && Number.isFinite(previousEndOffset)
+        ? Math.max(startOffset - previousEndOffset, 0)
+        : null;
+    const execTimeForComm =
+      Number.isFinite(startOffset) && Number.isFinite(endOffset)
+        ? Math.max(endOffset - startOffset, 0)
+        : null;
+
+    if (Number.isFinite(endIndex)) {
+      previousEndIndex = endIndex;
+    }
+
+    return {
+      ...comm,
+      recog_time: recogTime,
+      exec_time: execTimeForComm,
+    };
+  });
   const localSummary = [
     `${title}`,
     "",
@@ -111,8 +197,8 @@ export function buildLocalSolveResult(setting, formatSeconds) {
     "",
     "Solve:",
     ...(commAnalysis.rotationPrefix ? [`${commAnalysis.rotationPrefix} // memo`] : []),
-    ...(commAnalysis.commStats.length
-      ? commAnalysis.commStats.map(
+    ...(commStats.length
+      ? commStats.map(
           (comm) => `${comm.alg} // ${comm.parse_text || comm.phase}`
         )
       : [setting.SOLVE || ""]),
@@ -131,7 +217,7 @@ export function buildLocalSolveResult(setting, formatSeconds) {
     success: commAnalysis.solved,
     DNF: !commAnalysis.solved,
     fluidness,
-    commStats: commAnalysis.commStats,
+    commStats,
     moveTimeline,
     solve: setting.SOLVE || "",
     stats: {

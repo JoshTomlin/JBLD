@@ -64,11 +64,24 @@ describe("solve details view data", () => {
         MEMO: "0.5",
         SCRAMBLE: recordedScramble,
         SOLVE: "R U",
+        CUBE_OREINTATION: "white-green",
       }
     );
 
     expect(new URL(solve.link).searchParams.get("scramble")).toBe(recordedScramble);
     expect(new URL(solve.link).searchParams.get("alg")).toBe("R U");
+  });
+
+  it("adds the cube orientation to CubeDB while keeping physical moves aligned", () => {
+    const app = new App();
+    const link = app.withRecordedScrambleInCubedb(
+      "https://www.cubedb.net/?puzzle=3&scramble=L+D+B&alg=R+U",
+      "U R F",
+      "U R",
+      "yellow-green"
+    );
+
+    expect(new URL(link).searchParams.get("alg")).toBe("z2\nD L");
   });
 
   it("shows saved CubeDB links with the stored recorded scramble", () => {
@@ -110,5 +123,55 @@ describe("solve details view data", () => {
 
     expect(solve.DNF).toBe(true);
     expect(app.getSessionSummary({ solves: [solve] }).successText).toBe("0/1");
+  });
+
+  it("calculates recognition and exec times for each reconstruction row", () => {
+    const app = new App();
+    const solve = {
+      date: Date.now(),
+      time_solve: 10,
+      memo_time: 2,
+      exe_time: 8,
+      comm_stats: [
+        {
+          comm_index: 1,
+          phase: "edge",
+          parse_text: "AU",
+          alg: "U2 M U2 M'",
+          alg_length: 4,
+          move_start_index: 2,
+          move_end_index: 5,
+        },
+        {
+          comm_index: 2,
+          phase: "edge",
+          parse_text: "BP",
+          alg: "R U R'",
+          alg_length: 3,
+          move_start_index: 7,
+          move_end_index: 9,
+        },
+      ],
+      move_timeline: [
+        { time_offset: 0 },
+        { time_offset: 1.2 },
+        { time_offset: 1.7 },
+        { time_offset: 2.4 },
+        { time_offset: 3.5 },
+        { time_offset: 4.1 },
+        { time_offset: 5.3 },
+        { time_offset: 5.8 },
+        { time_offset: 6.4 },
+      ],
+    };
+
+    const details = app.getSolveDetailsViewData(solve, [solve]);
+
+    expect(details.edgeRows[0].recogDuration).toBe(1.2);
+    expect(details.edgeRows[0].execDuration).toBe(2.3);
+    expect(details.edgeRows[1].recogDuration).toBeCloseTo(1.8);
+    expect(details.edgeRows[1].execDuration).toBeCloseTo(1.1);
+    expect(app.formatReconstructionLine(details.edgeRows[0])).toBe("AU U2 M U2 M'");
+    expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("1.2 | 2.3");
   });
 });

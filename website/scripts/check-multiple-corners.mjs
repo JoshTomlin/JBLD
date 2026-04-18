@@ -9,6 +9,7 @@ function run(name, solve){
  console.log("highs", analysis.solveStates.filter(s=>s.diff>.87).map(s=>({count:s.count,move:s.move,diff:s.diff,edges:s.solvedEdges,corners:s.solvedCorners})));
 }
 const BP="D' R' D R U R' D' R D R' D' R U' R' D R";
+const LH="D R U R' D R U' R' D D";
 const CB="U R' D R D' R' D R U' R' D' R D R' D' R";
 const Tperm="R U R' U' R' F R2 U' R' U' R U R' F'";
 const Aperm="x R' U R' D2 R U' R' D2 R2 x'";
@@ -21,3 +22,5 @@ run('A+A', `${Aperm} ${Aperm}`);
 run('Niklas+Niklas', `${Niklas} ${Niklas}`);
 run('BP+T', `${BP} ${Tperm}`);
 run('T+BP', `${Tperm} ${BP}`);
+run('BP+LH', `${BP} ${LH}`);
+run('LH+BP', `${LH} ${BP}`);

@@ -868,6 +868,22 @@ class App extends React.Component {
       convertSlices: comm && comm.phase === "edge",
     });
 
+  formatReconstructionLine = (comm) =>
+    [comm && comm.label, this.formatReconstructionAlg(comm)]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+  formatCommTimingPair = (comm) => {
+    const recog = comm && Number.isFinite(comm.recogDuration)
+      ? this.formatInlineDuration(comm.recogDuration)
+      : "--";
+    const exec = comm && Number.isFinite(comm.execDuration)
+      ? this.formatInlineDuration(comm.execDuration)
+      : "--";
+    return `${recog} | ${exec}`;
+  };
+
   groupCommBreakdown = (commStats = []) => {
     return commStats.reduce(
       (groups, comm) => {
@@ -1067,6 +1083,43 @@ class App extends React.Component {
     return Math.max(endOffset - startOffset, 0);
   };
 
+  getCommTimingSeconds = (solve, comm, previousEndIndex = 0) => {
+    const offsets = this.getTimedMoveOffsets(solve);
+    const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
+    const providedRecog =
+      comm && comm.recog_time !== null && comm.recog_time !== undefined && Number.isFinite(Number(comm.recog_time))
+        ? Number(comm.recog_time)
+        : null;
+    const providedExec =
+      comm && comm.exec_time !== null && comm.exec_time !== undefined && Number.isFinite(Number(comm.exec_time))
+        ? Number(comm.exec_time)
+        : comm && comm.alg_time !== null && comm.alg_time !== undefined && Number.isFinite(Number(comm.alg_time))
+          ? Number(comm.alg_time)
+          : null;
+
+    if (!offsets.length || boundary.start === null || boundary.end === null) {
+      return {
+        recog: providedRecog,
+        exec: providedExec,
+      };
+    }
+
+    const startOffset = offsets[boundary.start - 1];
+    const endOffset = offsets[boundary.end - 1];
+    const previousEndOffset = previousEndIndex > 0 ? offsets[previousEndIndex - 1] : 0;
+
+    return {
+      recog:
+        Number.isFinite(startOffset) && Number.isFinite(previousEndOffset)
+          ? Math.max(startOffset - previousEndOffset, 0)
+          : providedRecog,
+      exec:
+        Number.isFinite(startOffset) && Number.isFinite(endOffset)
+          ? Math.max(endOffset - startOffset, 0)
+          : providedExec,
+    };
+  };
+
   formatCommSummaryToken = (comm) => {
     const token = this.formatCommToken(comm);
     if (!token) {
@@ -1134,7 +1187,7 @@ class App extends React.Component {
     let previousEndIndex = 0;
     const reconstructionRows = commStats.map((comm) => {
       const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
-      const duration = this.getCommDurationSeconds(solve, comm, previousEndIndex);
+      const timing = this.getCommTimingSeconds(solve, comm, previousEndIndex);
       if (boundary.end !== null) {
         previousEndIndex = boundary.end;
       }
@@ -1142,7 +1195,8 @@ class App extends React.Component {
       return {
         ...comm,
         label: this.formatCommSummaryToken(comm),
-        duration,
+        recogDuration: timing.recog,
+        execDuration: timing.exec,
       };
     });
 
@@ -1178,7 +1232,8 @@ class App extends React.Component {
       link: this.withRecordedScrambleInCubedb(
         solve.link || null,
         solve.scramble || "",
-        solve.solve || null
+        solve.solve || null,
+        solve.cube_orientation || this.state.parse_settings.CUBE_OREINTATION
       ),
     };
   };
@@ -1305,7 +1360,8 @@ class App extends React.Component {
       link: this.withRecordedScrambleInCubedb(
         data && data.cubedb ? data.cubedb : null,
         recordedScramble,
-        setting.SOLVE || null
+        setting.SOLVE || null,
+        setting.CUBE_OREINTATION || null
       ),
       fluidness:
         parsedMetrics.fluidness !== null && parsedMetrics.fluidness !== undefined
@@ -1316,15 +1372,78 @@ class App extends React.Component {
       DNF: this.resolveSolveDnf(data, parsedMetrics),
       scramble: recordedScramble,
       solve: (data && data.solve) || (solveAnalysis && solveAnalysis.solve) || setting.SOLVE || "",
+      cube_orientation: setting.CUBE_OREINTATION || null,
       comm_stats: providedCommStats || (solveAnalysis && solveAnalysis.commStats) || [],
       move_timeline: providedMoveTimeline || (solveAnalysis && solveAnalysis.moveTimeline) || [],
       parseError,
     };
   };
-  withRecordedScrambleInCubedb = (link, recordedScramble, recordedSolve = null) => {
+  getOrientationRotationPrefix = (orientation) => {
+    const orientationDict = {
+      "white-green": "",
+      "white-blue": "y2",
+      "white-orange": "y'",
+      "white-red": "y",
+      "green-white": "y2 x'",
+      "green-yellow": "x",
+      "green-orange": "x y'",
+      "green-red": "x y",
+      "yellow-green": "z2",
+      "yellow-blue": "x2",
+      "yellow-orange": "z2 y",
+      "yellow-red": "x2 y",
+      "blue-white": "x'",
+      "blue-yellow": "x' y2",
+      "blue-orange": "x' y'",
+      "blue-red": "x' y",
+      "orange-white": "z y",
+      "orange-green": "z",
+      "orange-yellow": "z y'",
+      "orange-blue": "y2 z'",
+      "red-white": "z' y'",
+      "red-green": "z'",
+      "red-yellow": "z' y",
+      "red-blue": "y2 z'",
+    };
+
+    return orientationDict[orientation] || "";
+  };
+
+  orientSolveForCubedb = (recordedSolve, orientation) => {
+    const rotationPrefix = this.getOrientationRotationPrefix(orientation);
+    if (!recordedSolve || !rotationPrefix) {
+      return recordedSolve || "";
+    }
+
+    const inverseRotationMap = {
+      x: "x'",
+      "x'": "x",
+      x2: "x2",
+      y: "y'",
+      "y'": "y",
+      y2: "y2",
+      z: "z'",
+      "z'": "z",
+      z2: "z2",
+    };
+    const rotations = rotationPrefix.split(/\s+/).filter(Boolean);
+    const solveTokens = recordedSolve.split(/\s+/).filter(Boolean);
+    const transformedSolve = rotations
+      .map((rotation) => inverseRotationMap[rotation] || rotation)
+      .reverse()
+      .reduce((tokens, rotation) => this.applyDisplayRotation(tokens, rotation), solveTokens);
+
+    return `${rotations.join(" ")}\n${transformedSolve.join(" ")}`;
+  };
+
+  withRecordedScrambleInCubedb = (link, recordedScramble, recordedSolve = null, orientation = null) => {
     if (!link || !recordedScramble) {
       return link || null;
     }
+
+    const orientedSolve = recordedSolve
+      ? this.orientSolveForCubedb(recordedSolve, orientation)
+      : null;
 
     try {
       const url = new URL(link);
@@ -1333,8 +1452,8 @@ class App extends React.Component {
       }
 
       url.searchParams.set("scramble", recordedScramble);
-      if (recordedSolve) {
-        url.searchParams.set("alg", recordedSolve);
+      if (orientedSolve) {
+        url.searchParams.set("alg", orientedSolve);
       }
       return url.toString();
     } catch (_error) {
@@ -1343,10 +1462,10 @@ class App extends React.Component {
       const withScramble = link.includes("scramble=")
         ? link.replace(/([?&]scramble=)[^&]*/i, `$1${encodedScramble.replace(/^scramble=/, "")}`)
         : `${link}${separator}${encodedScramble}`;
-      if (!recordedSolve) {
+      if (!orientedSolve) {
         return withScramble;
       }
-      const encodedSolve = new URLSearchParams({ alg: recordedSolve }).toString();
+      const encodedSolve = new URLSearchParams({ alg: orientedSolve }).toString();
       return withScramble.includes("alg=")
         ? withScramble.replace(/([?&]alg=)[^&]*/i, `$1${encodedSolve.replace(/^alg=/, "")}`)
         : `${withScramble}&${encodedSolve}`;
@@ -2243,7 +2362,8 @@ class App extends React.Component {
               cubedb: this.withRecordedScrambleInCubedb(
                 data.cubedb,
                 setting.SCRAMBLE || "",
-                setting.SOLVE || null
+                setting.SOLVE || null,
+                setting.CUBE_OREINTATION || null
               ),
             }
           : data;
@@ -3298,13 +3418,8 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Edges:</div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
                           <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{this.formatReconstructionAlg(comm) || "--"}</span>
-                            <strong>
-                              {comm.label || "--"}
-                              {Number.isFinite(comm.duration)
-                                ? ` (${this.formatInlineDuration(comm.duration)})`
-                                : ""}
-                            </strong>
+                            <span>{this.formatReconstructionLine(comm) || "--"}</span>
+                            <strong>{this.formatCommTimingPair(comm)}</strong>
                           </div>
                         ))}
                       </React.Fragment>
@@ -3319,13 +3434,8 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Corners:</div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{this.formatReconstructionAlg(comm) || "--"}</span>
-                            <strong>
-                              {comm.label || "--"}
-                              {Number.isFinite(comm.duration)
-                                ? ` (${this.formatInlineDuration(comm.duration)})`
-                                : ""}
-                            </strong>
+                            <span>{this.formatReconstructionLine(comm) || "--"}</span>
+                            <strong>{this.formatCommTimingPair(comm)}</strong>
                           </div>
                         ))}
                       </React.Fragment>

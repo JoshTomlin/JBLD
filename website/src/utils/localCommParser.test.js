@@ -56,6 +56,7 @@ jest.mock("./localCommParser", () => {
 
 const {
   getOrientationData,
+  isSingleCommParse,
   parseSolvedToComm,
   similarityRatio,
   toCanonicalStickerName,
@@ -250,16 +251,46 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UBR", "UFL", "UBL"]);
   });
 
-  it("keeps local CubeDB links in the recorded move frame", () => {
+  it("rejects blended normal corner chains as single comm parses", () => {
+    expect(
+      isSingleCommParse({
+        comm: ["UFR", "UBR", "RFD", "FDL", "LDB"],
+        pieceType: { edge: false, corner: true, parity: false },
+      })
+    ).toBe(false);
+
+    expect(
+      isSingleCommParse({
+        comm: ["UFR", "UBR", "RFD"],
+        pieceType: { edge: false, corner: true, parity: false },
+      })
+    ).toBe(true);
+
+    expect(
+      isSingleCommParse({
+        comm: ["UBR", "RFD", "twist"],
+        pieceType: { edge: false, corner: true, parity: false },
+      })
+    ).toBe(true);
+
+    expect(
+      isSingleCommParse({
+        comm: ["UFR", "UBR", "DFR", "DFL", "DLB", "twist"],
+        pieceType: { edge: false, corner: true, parity: false },
+      })
+    ).toBe(false);
+  });
+
+  it("orients local CubeDB links while preserving physical move alignment", () => {
     const result = buildCubedbUrl({
       scramble: baseSetting.SCRAMBLE,
       solve: baseSetting.SOLVE,
       title: "test solve",
       execTime: 2.07,
-      rotationPrefix: "y",
+      rotationPrefix: "z2",
     });
 
-    expect(decodeURIComponent(result).replace(/\+/g, " ")).toContain(`alg=${baseSetting.SOLVE}`);
+    expect(new URL(result).searchParams.get("alg")).toBe("z2\nU L D' L' U' L D L'");
   });
 
   it("scores identical sticker sequences as fully similar", () => {
