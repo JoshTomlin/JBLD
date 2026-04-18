@@ -824,6 +824,210 @@ class App extends React.Component {
     return total ? this.formatInlineDuration(total) : null;
   };
 
+  getTimedMoveOffsets = (solve) =>
+    Array.isArray(solve && solve.move_timeline)
+      ? solve.move_timeline
+          .map((move) => (Number.isFinite(move.time_offset) ? move.time_offset : null))
+          .filter((value) => value !== null)
+      : [];
+
+  getCommBoundary = (comm, fallbackStart) => {
+    const start = Number(comm && comm.move_start_index);
+    const end = Number(comm && comm.move_end_index);
+    const length = Number(comm && (comm.alg_length || comm.moveCount));
+    const resolvedEnd = Number.isFinite(end) && end > 0
+      ? end
+      : Number.isFinite(fallbackStart) && Number.isFinite(length)
+        ? fallbackStart + length - 1
+        : null;
+    const resolvedStart = Number.isFinite(start) && start > 0
+      ? start
+      : Number.isFinite(resolvedEnd) && Number.isFinite(length)
+        ? Math.max(resolvedEnd - length + 1, 1)
+        : fallbackStart;
+
+    return {
+      start: Number.isFinite(resolvedStart) ? resolvedStart : null,
+      end: Number.isFinite(resolvedEnd) ? resolvedEnd : null,
+    };
+  };
+
+  getCommSpanSeconds = (solve, comms) => {
+    const offsets = this.getTimedMoveOffsets(solve);
+    if (!offsets.length || !Array.isArray(comms) || !comms.length) {
+      return null;
+    }
+
+    let fallbackStart = 1;
+    const boundaries = comms
+      .map((comm) => {
+        const boundary = this.getCommBoundary(comm, fallbackStart);
+        if (boundary.end !== null) {
+          fallbackStart = boundary.end + 1;
+        }
+        return boundary;
+      })
+      .filter(({ start, end }) => start !== null && end !== null);
+
+    if (!boundaries.length) {
+      return null;
+    }
+
+    const startIndex = Math.min(...boundaries.map(({ start }) => start));
+    const endIndex = Math.max(...boundaries.map(({ end }) => end));
+    const startOffset = offsets[Math.max(startIndex - 1, 0)];
+    const endOffset = offsets[Math.max(endIndex - 1, 0)];
+
+    if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset)) {
+      return null;
+    }
+
+    return Math.max(endOffset - startOffset, 0);
+  };
+
+  getCommDurationSeconds = (solve, comm, previousEndIndex = 0) => {
+    if (comm && comm.exec_time !== null && comm.exec_time !== undefined && Number.isFinite(Number(comm.exec_time))) {
+      return Number(comm.exec_time);
+    }
+    if (comm && comm.alg_time !== null && comm.alg_time !== undefined && Number.isFinite(Number(comm.alg_time))) {
+      return Number(comm.alg_time);
+    }
+
+    const offsets = this.getTimedMoveOffsets(solve);
+    if (!offsets.length) {
+      return null;
+    }
+
+    const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
+    if (boundary.end === null) {
+      return null;
+    }
+
+    const startOffset =
+      boundary.start !== null && boundary.start > 1
+        ? offsets[boundary.start - 2]
+        : 0;
+    const endOffset = offsets[boundary.end - 1];
+
+    if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset)) {
+      return null;
+    }
+
+    return Math.max(endOffset - startOffset, 0);
+  };
+
+  formatCommSummaryToken = (comm) => {
+    const token = this.formatCommToken(comm);
+    if (!token) {
+      return "";
+    }
+
+    return token
+      .replace(/\s+rotation$/i, "")
+      .replace(/\s+twist$/i, "-Twist")
+      .replace(/\s+flip$/i, "-Flip")
+      .replace(/\s+parity$/i, "-Parity");
+  };
+
+  formatDateLine = (dateValue) => {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return "--";
+    }
+
+    return date.toLocaleString([], {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  getSolveDisplayNumber = (solve, solves) => {
+    if (!solve || !Array.isArray(solves) || !solves.length) {
+      return "--";
+    }
+
+    const index = solves.findIndex(
+      (entry) =>
+        (solve.id && entry.id === solve.id) ||
+        (solve.date && entry.date === solve.date)
+    );
+
+    return index >= 0 ? index + 1 : "--";
+  };
+
+  getSolveDetailsViewData = (solve, solves) => {
+    if (!solve) {
+      return null;
+    }
+
+    const commStats = Array.isArray(solve.comm_stats) ? solve.comm_stats : [];
+    const edgeComms = commStats.filter((comm) => comm.phase === "edge");
+    const cornerComms = commStats.filter((comm) => comm.phase === "corner");
+    const parityComms = commStats.filter((comm) => comm.phase === "parity");
+    const cornerSummaryComms = [...cornerComms, ...parityComms];
+    const edgeSpan = this.getCommSpanSeconds(solve, edgeComms);
+    const cornerSpan = this.getCommSpanSeconds(solve, cornerSummaryComms);
+    const solveNumber = this.getSolveDisplayNumber(solve, solves);
+    const formatSummary = (comms, span) => {
+      if (!comms.length) {
+        return "--";
+      }
+
+      const tokens = comms.map(this.formatCommSummaryToken).filter(Boolean).join(" ");
+      return `${tokens}${Number.isFinite(span) ? ` (${this.formatInlineDuration(span)})` : ""}`;
+    };
+
+    let previousEndIndex = 0;
+    const reconstructionRows = commStats.map((comm) => {
+      const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
+      const duration = this.getCommDurationSeconds(solve, comm, previousEndIndex);
+      if (boundary.end !== null) {
+        previousEndIndex = boundary.end;
+      }
+
+      return {
+        ...comm,
+        label: this.formatCommSummaryToken(comm),
+        duration,
+      };
+    });
+
+    const lastEdge = edgeComms[edgeComms.length - 1];
+    const firstCorner = cornerSummaryComms[0];
+    const lastEdgeBoundary = lastEdge ? this.getCommBoundary(lastEdge, null) : null;
+    const firstCornerBoundary = firstCorner ? this.getCommBoundary(firstCorner, null) : null;
+    const offsets = this.getTimedMoveOffsets(solve);
+    const transitionSeconds =
+      lastEdgeBoundary &&
+      firstCornerBoundary &&
+      lastEdgeBoundary.end !== null &&
+      firstCornerBoundary.start !== null &&
+      offsets[lastEdgeBoundary.end - 1] !== undefined &&
+      offsets[firstCornerBoundary.start - 1] !== undefined
+        ? Math.max(offsets[firstCornerBoundary.start - 1] - offsets[lastEdgeBoundary.end - 1], 0)
+        : null;
+
+    return {
+      title: `Solve ${solveNumber}${solve.DNF ? " (DNF)" : ""}`,
+      date: this.formatDateLine(solve.date),
+      metrics: [
+        { label: "Total", value: this.formatSolveResultLabel(solve) },
+        { label: "Memo", value: this.convert_sec_to_format(solve.memo_time) },
+        { label: "Exec", value: this.convert_sec_to_format(solve.exe_time) },
+        { label: "Algs", value: String(commStats.length) },
+      ],
+      edgeSummary: formatSummary(edgeComms, edgeSpan),
+      cornerSummary: formatSummary(cornerSummaryComms, cornerSpan),
+      edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
+      cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
+      transitionSeconds,
+      link: solve.link || null,
+    };
+  };
+
   formatInlineDuration = (seconds) => {
     const value = Number(seconds);
     if (!Number.isFinite(value)) {
@@ -1610,7 +1814,9 @@ class App extends React.Component {
       .join(" ")
       .toString()
       .replace(/  +/g, " ");
-    parse_setting_new["SCRAMBLE"] = extractedScramble || this.state.scramble || "";
+    const hasRecordedCubeMoves = Array.isArray(moves) && moves.length > 0;
+    parse_setting_new["PLANNED_SCRAMBLE"] = this.state.scramble || "";
+    parse_setting_new["SCRAMBLE"] = extractedScramble || (hasRecordedCubeMoves ? "" : this.state.scramble || "");
     parse_setting_new["SOLVE"] = solve
       .join(" ")
       .toString()
@@ -2097,8 +2303,9 @@ class App extends React.Component {
       },
     };
     const currentView = viewConfig[this.state.activeView] || viewConfig.solve;
-    const selectedCommGroups = this.groupCommBreakdown(
-      (this.state.selectedSolveDetails && this.state.selectedSolveDetails.comm_stats) || []
+    const selectedSolveDetailsData = this.getSolveDetailsViewData(
+      this.state.selectedSolveDetails,
+      activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : []
     );
     const lastSolvePanelData = this.getLastSolvePanelData(latestSolve);
     const timerDisplayMs = this.getTimerDisplayMs(latestSolve);
@@ -2834,110 +3041,104 @@ class App extends React.Component {
             }
           >
             <div className="solve_modal" onClick={(event) => event.stopPropagation()}>
-              <div className="solve_modal_header">
-                <div>
-                  <div className="section_label">Solve details</div>
-                  <div className="solve_modal_title">Full reconstruction</div>
-                </div>
-                <button
-                  type="button"
-                  className="solve_modal_close"
-                  aria-label="Close solve details"
-                  onClick={() =>
-                    this.setState({
-                      showLastSolveDetails: false,
-                      loadingSolveDetails: false,
-                      selectedSolveDetails: null,
-                    })
-                  }
-                >
-                  ×
-                </button>
-              </div>
-              {this.state.selectedSolveDetails ? (
-                <div className="solve_modal_body">
-                  <div className="history_card_metrics">
-                    <div className="history_metric_chip">
-                      <span>Total</span>
-                      <strong>{this.formatSolveResultLabel(this.state.selectedSolveDetails)}</strong>
+              <button
+                type="button"
+                className="solve_modal_close solve_modal_close_corner"
+                aria-label="Close solve details"
+                onClick={() =>
+                  this.setState({
+                    showLastSolveDetails: false,
+                    loadingSolveDetails: false,
+                    selectedSolveDetails: null,
+                  })
+                }
+              >
+                x
+              </button>
+              {selectedSolveDetailsData ? (
+                <React.Fragment>
+                  <div className="solve_details_header">
+                    <div>
+                      <div className="solve_modal_title">{selectedSolveDetailsData.title}</div>
+                      <div className="solve_details_date">{selectedSolveDetailsData.date}</div>
                     </div>
-                    <div className="history_metric_chip">
-                      <span>Memo</span>
-                      <strong>{this.convert_sec_to_format(this.state.selectedSolveDetails.memo_time)}</strong>
+                    {selectedSolveDetailsData.link ? (
+                      <a
+                        className="cubedb_link_box"
+                        href={selectedSolveDetailsData.link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        CubeDB
+                      </a>
+                    ) : (
+                      <div className="cubedb_link_box cubedb_link_box_disabled">CubeDB</div>
+                    )}
+                  </div>
+                  <div className="solve_details_metrics">
+                    {selectedSolveDetailsData.metrics.map((metric) => (
+                      <div key={metric.label} className="solve_details_metric">
+                        <span>{metric.label}</span>
+                        <strong>{metric.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="solve_details_summary">
+                    <div className="comm_summary_line">
+                      <strong>Edges:</strong> {selectedSolveDetailsData.edgeSummary}
                     </div>
-                    <div className="history_metric_chip">
-                      <span>Exec</span>
-                      <strong>{this.convert_sec_to_format(this.state.selectedSolveDetails.exe_time)}</strong>
-                    </div>
-                    <div className="history_metric_chip">
-                      <span>Flow</span>
-                      <strong>
-                        {this.state.selectedSolveDetails.fluidness
-                          ? `${this.state.selectedSolveDetails.fluidness}%`
-                          : "--"}
-                      </strong>
+                    <div className="comm_summary_line">
+                      <strong>Corners:</strong> {selectedSolveDetailsData.cornerSummary}
                     </div>
                   </div>
-                  {this.state.selectedSolveDetails.comm_stats &&
-                  this.state.selectedSolveDetails.comm_stats.length ? (
-                    <div className="session_recent_block">
-                      <div className="chart_card_header">
-                        <div className="chart_card_title">Comm Breakdown</div>
-                        <div className="section_meta">
-                          {this.state.selectedSolveDetails.comm_stats.length} events
-                        </div>
-                      </div>
-                      <div className="solve_modal_body solve_modal_body_compact">
-                        {selectedCommGroups.edges.length ? (
-                          <div className="comm_summary_line">
-                            <strong>Edges:</strong> {selectedCommGroups.edges.join(", ")}
-                          </div>
-                        ) : null}
-                        {selectedCommGroups.corners.length ? (
-                          <div className="comm_summary_line">
-                            <strong>Corners:</strong> {selectedCommGroups.corners.join(", ")}
-                          </div>
-                        ) : null}
-                        {selectedCommGroups.parity.length ? (
-                          <div className="comm_summary_line">
-                            <strong>Parity:</strong> {selectedCommGroups.parity.join(", ")}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-                  {this.state.selectedSolveDetails.move_timeline &&
-                  this.state.selectedSolveDetails.move_timeline.length ? (
-                    <div className="session_recent_block">
-                      <div className="chart_card_header">
-                        <div className="chart_card_title">Move Timeline</div>
-                        <div className="section_meta">
-                          {this.state.selectedSolveDetails.move_timeline.length} moves
-                        </div>
-                      </div>
-                      <div className="session_recent_list">
-                        {this.state.selectedSolveDetails.move_timeline.slice(0, 40).map((move) => (
-                          <div key={move.id || move.index} className="session_recent_row">
-                            <span>#{move.index}</span>
-                            <strong>{move.notation || "--"}</strong>
-                            <span>
-                              {move.time_offset !== null && move.time_offset !== undefined
-                                ? `${move.time_offset.toFixed(2)}s`
-                                : "--"}
-                            </span>
+                  <div className="solve_reconstruction_box">
+                    {selectedSolveDetailsData.edgeRows.length ? (
+                      <React.Fragment>
+                        <div className="reconstruction_phase_title">Edges:</div>
+                        {selectedSolveDetailsData.edgeRows.map((comm, index) => (
+                          <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
+                            <span>{comm.alg || "--"}</span>
+                            <strong>
+                              {comm.label || "--"}
+                              {Number.isFinite(comm.duration)
+                                ? ` (${this.formatInlineDuration(comm.duration)})`
+                                : ""}
+                            </strong>
                           </div>
                         ))}
+                      </React.Fragment>
+                    ) : null}
+                    {Number.isFinite(selectedSolveDetailsData.transitionSeconds) ? (
+                      <div className="reconstruction_transition">
+                        Transition: {this.formatInlineDuration(selectedSolveDetailsData.transitionSeconds)}
                       </div>
-                    </div>
-                  ) : null}
-                </div>
+                    ) : null}
+                    {selectedSolveDetailsData.cornerRows.length ? (
+                      <React.Fragment>
+                        <div className="reconstruction_phase_title">Corners:</div>
+                        {selectedSolveDetailsData.cornerRows.map((comm, index) => (
+                          <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
+                            <span>{comm.alg || "--"}</span>
+                            <strong>
+                              {comm.label || "--"}
+                              {Number.isFinite(comm.duration)
+                                ? ` (${this.formatInlineDuration(comm.duration)})`
+                                : ""}
+                            </strong>
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    ) : null}
+                    {!selectedSolveDetailsData.edgeRows.length &&
+                    !selectedSolveDetailsData.cornerRows.length ? (
+                      <div className="empty_chart_state">No comm reconstruction available yet.</div>
+                    ) : null}
+                  </div>
+                </React.Fragment>
               ) : null}
               {this.state.loadingSolveDetails ? (
                 <div className="solve_modal_body">Loading server details...</div>
               ) : null}
-              <pre className="solve_modal_body">
-                {this.state.parsed_solve_txt || "No parsed solve text available yet."}
-              </pre>
             </div>
           </div>
         ) : null}

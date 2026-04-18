@@ -56,9 +56,17 @@ export function buildLocalSolveResult(setting, formatSeconds) {
   const solveMoves = splitMoves(setting.SOLVE || "");
   const moveTimestamps = normalizeTimeArray(setting.SOLVE_TIME_MOVES);
   const firstMoveTimestamp = moveTimestamps.length ? moveTimestamps[0] : null;
-  const timeOffsets = moveTimestamps.map((value) =>
-    firstMoveTimestamp === null ? null : Number(((value - firstMoveTimestamp) / 1000).toFixed(2))
-  );
+  const moveTimesAreTimestamps =
+    firstMoveTimestamp !== null && Math.abs(firstMoveTimestamp) > 1000000;
+  const timeOffsets = moveTimestamps.map((value) => {
+    if (firstMoveTimestamp === null) {
+      return null;
+    }
+
+    return moveTimesAreTimestamps
+      ? Number(((value - firstMoveTimestamp) / 1000).toFixed(2))
+      : Number((value - firstMoveTimestamp).toFixed(2));
+  });
   const fluidness =
     execTime > 0 && timeOffsets.length
       ? Number(
