@@ -1323,6 +1323,17 @@ textarea {
   padding: 18px;
 }
 
+.solve_modal_backdrop_top {
+  align-items: flex-start;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.solve_modal_backdrop_top::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .solve_modal,
 .menu_overlay,
 .settings_overlay {
@@ -1341,6 +1352,12 @@ textarea {
   position: relative;
   width: min(100%, 620px);
   padding-top: 22px;
+}
+
+.solve_modal_backdrop_top .solve_modal {
+  max-height: none;
+  margin-top: 8px;
+  margin-bottom: 18px;
 }
 
 .settings_overlay {
@@ -1364,17 +1381,25 @@ textarea {
 
 .solve_modal_close_corner {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
+  top: 4px;
+  right: 6px;
+  width: auto;
+  height: auto;
   min-height: 0;
-  padding: 0;
-  border-radius: 4px;
-  font-size: 0.82rem;
+  padding: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.68rem;
   line-height: 1;
-  display: grid;
-  place-items: center;
+  display: block;
+}
+
+.solve_modal_close_corner:hover,
+.solve_modal_close_corner:focus-visible {
+  background: transparent;
+  color: var(--text-soft);
 }
 
 .solve_details_header {
@@ -1420,6 +1445,12 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.solve_details_metrics::-webkit-scrollbar {
+  display: none;
 }
 
 .solve_details_metric {
@@ -1879,6 +1910,10 @@ textarea {
     align-items: flex-end;
   }
 
+  .solve_modal_backdrop_top {
+    align-items: flex-start;
+  }
+
   .menu_overlay {
     align-self: center;
   }
@@ -1922,18 +1957,13 @@ textarea {
     gap: 8px;
   }
 
-  .solve_details_header,
   .reconstruction_row {
     grid-template-columns: 1fr;
     align-items: stretch;
   }
 
   .cubedb_link_box {
-    justify-self: start;
-  }
-
-  .solve_details_metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-self: end;
   }
 
   .reconstruction_row strong {

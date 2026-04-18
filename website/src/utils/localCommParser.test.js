@@ -236,6 +236,20 @@ describe("localCommParser", () => {
     expect(comm).toEqual([]);
   });
 
+  it("detects clean floating corner three-cycles", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UBR: ["UFL", "UBR"],
+        UBL: ["UBR", "UBL"],
+        UFL: ["UBL", "UFL"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: true, parity: false });
+    expect(comm).toEqual(["UBR", "UFL", "UBL"]);
+  });
+
   it("adds the orientation prefix to the local CubeDB link", () => {
     const result = buildCubedbUrl({
       scramble: baseSetting.SCRAMBLE,

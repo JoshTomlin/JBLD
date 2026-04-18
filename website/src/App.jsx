@@ -717,6 +717,44 @@ class App extends React.Component {
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
   };
 
+  compactRepeatedTurns = (algText) => {
+    if (!algText) {
+      return "";
+    }
+
+    const tokens = String(algText).trim().split(/\s+/).filter(Boolean);
+    const compacted = [];
+    const getTurnParts = (token) => {
+      const match = token.match(/^(.+?)(2|')?$/);
+      if (!match || match[2] === "2") {
+        return null;
+      }
+      return {
+        base: match[1],
+        suffix: match[2] || "",
+      };
+    };
+
+    for (let index = 0; index < tokens.length; index += 1) {
+      const current = getTurnParts(tokens[index]);
+      const next = getTurnParts(tokens[index + 1]);
+
+      if (
+        current &&
+        next &&
+        current.base === next.base &&
+        current.suffix === next.suffix
+      ) {
+        compacted.push(`${current.base}2`);
+        index += 1;
+      } else {
+        compacted.push(tokens[index]);
+      }
+    }
+
+    return compacted.join(" ");
+  };
+
   groupCommBreakdown = (commStats = []) => {
     return commStats.reduce(
       (groups, comm) => {
@@ -3031,7 +3069,7 @@ class App extends React.Component {
 
         {this.state.showLastSolveDetails ? (
           <div
-            className="solve_modal_backdrop"
+            className="solve_modal_backdrop solve_modal_backdrop_top"
             onClick={() =>
               this.setState({
                 showLastSolveDetails: false,
@@ -3097,7 +3135,7 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Edges:</div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
                           <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{comm.alg || "--"}</span>
+                            <span>{this.compactRepeatedTurns(comm.alg) || "--"}</span>
                             <strong>
                               {comm.label || "--"}
                               {Number.isFinite(comm.duration)
@@ -3118,7 +3156,7 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Corners:</div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{comm.alg || "--"}</span>
+                            <span>{this.compactRepeatedTurns(comm.alg) || "--"}</span>
                             <strong>
                               {comm.label || "--"}
                               {Number.isFinite(comm.duration)
@@ -3135,9 +3173,6 @@ class App extends React.Component {
                     ) : null}
                   </div>
                 </React.Fragment>
-              ) : null}
-              {this.state.loadingSolveDetails ? (
-                <div className="solve_modal_body">Loading server details...</div>
               ) : null}
             </div>
           </div>
