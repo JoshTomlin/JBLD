@@ -83,9 +83,13 @@ textarea {
   height: 100%;
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--bg);
   overflow: hidden;
+}
+
+.app_frame_solve {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 .app_header,
@@ -1382,9 +1386,10 @@ textarea {
 .solve_modal_close_corner {
   position: absolute;
   top: 4px;
-  right: 6px;
-  width: auto;
-  height: auto;
+  right: 4px;
+  width: 18px;
+  min-width: 0;
+  height: 18px;
   min-height: 0;
   padding: 2px;
   border: 0;
@@ -1393,7 +1398,8 @@ textarea {
   color: var(--text-faint);
   font-size: 0.68rem;
   line-height: 1;
-  display: block;
+  display: grid;
+  place-items: center;
 }
 
 .solve_modal_close_corner:hover,
@@ -1478,18 +1484,12 @@ textarea {
   font-weight: 700;
 }
 
-.solve_details_summary,
 .solve_reconstruction_box,
 .solve_details_scramble_box {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.035);
   color: var(--text-soft);
-}
-
-.solve_details_summary {
-  padding: 12px;
-  font-size: 0.9rem;
 }
 
 .solve_reconstruction_box {
@@ -1532,17 +1532,18 @@ textarea {
   font-weight: 700;
 }
 
+.reconstruction_phase_detail {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
 .reconstruction_row strong {
   color: var(--text-soft);
   font-weight: 700;
   text-align: right;
   white-space: nowrap;
-}
-
-.reconstruction_transition {
-  color: var(--text-dim);
-  font-size: 0.86rem;
-  padding: 4px 0;
 }
 
 .section_label {

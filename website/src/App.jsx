@@ -3248,7 +3248,7 @@ class App extends React.Component {
           <Helmet id="background_page"></Helmet>
         </div>
         <div className="app_shell">
-          <div className="app_frame">
+          <div className={`app_frame ${this.state.activeView === "solve" ? "app_frame_solve" : ""}`}>
             <header className="app_header">
               <button
                 type="button"
@@ -3510,14 +3510,6 @@ class App extends React.Component {
                       </div>
                     ))}
                   </div>
-                  <div className="solve_details_summary">
-                    <div className="comm_summary_line">
-                      <strong>Edges:</strong> {selectedSolveDetailsData.edgeSummary}
-                    </div>
-                    <div className="comm_summary_line">
-                      <strong>Corners:</strong> {selectedSolveDetailsData.cornerSummary}
-                    </div>
-                  </div>
                   <div className="solve_reconstruction_box">
                     {selectedSolveDetailsData.edgeRows.length ? (
                       <React.Fragment>
@@ -3535,14 +3527,17 @@ class App extends React.Component {
                         ))}
                       </React.Fragment>
                     ) : null}
-                    {Number.isFinite(selectedSolveDetailsData.transitionSeconds) ? (
-                      <div className="reconstruction_transition">
-                        Transition: {this.formatInlineDuration(selectedSolveDetailsData.transitionSeconds)}
-                      </div>
-                    ) : null}
                     {selectedSolveDetailsData.cornerRows.length ? (
                       <React.Fragment>
-                        <div className="reconstruction_phase_title">Corners</div>
+                        <div className="reconstruction_phase_title">
+                          Corners
+                          {Number.isFinite(selectedSolveDetailsData.transitionSeconds) ? (
+                            <span className="reconstruction_phase_detail">
+                              {" "}
+                              ({this.formatInlineDuration(selectedSolveDetailsData.transitionSeconds)} transition)
+                            </span>
+                          ) : null}
+                        </div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
                             <span>
