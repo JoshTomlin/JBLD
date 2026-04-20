@@ -212,6 +212,7 @@ class App extends React.Component {
 
   buildSessionRecord = (name, solves = []) => {
     const timestamp = Date.now();
+
     return {
       id: `session-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
       name,
@@ -712,23 +713,35 @@ class App extends React.Component {
     }
 
     if (comm.parse_text) {
-      return comm.parse_text;
+      return this.formatSpecialCommText(comm.parse_text);
     }
 
     if (comm.phase === "parity" || comm.special_type === "parity") {
       const parityTarget = comm.parity_target || comm.target_b || comm.target_a;
-      return parityTarget ? `${parityTarget} Parity` : "Parity";
+      return parityTarget ? `${parityTarget}-Parity` : "Parity";
     }
 
     if (comm.special_type === "flip") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} flip`.trim();
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Flip`.trim();
     }
 
     if (comm.special_type === "rotation" || comm.special_type === "twist") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} rotation`.trim();
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Twist`.trim();
     }
 
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
+  };
+
+  formatSpecialCommText = (text) => {
+    if (!text) {
+      return text;
+    }
+
+    return String(text)
+      .trim()
+      .replace(/\s+(rotation|twist)$/i, "-Twist")
+      .replace(/\s+flip$/i, "-Flip")
+      .replace(/\s+parity$/i, "-Parity");
   };
 
   normalizeDisplayAlgText = (algText) => {
@@ -869,7 +882,10 @@ class App extends React.Component {
     });
 
   formatReconstructionLine = (comm) =>
-    [comm && comm.label, this.formatReconstructionAlg(comm)]
+    [
+      this.formatReconstructionAlg(comm),
+      comm && comm.label ? `(${comm.label})` : null,
+    ]
       .filter(Boolean)
       .join(" ")
       .trim();
@@ -911,9 +927,6 @@ class App extends React.Component {
     if (!solve) {
       return "--";
     }
-    if (isDnfValue(solve.DNF)) {
-      return `DNF (${this.convert_sec_to_format(solve.time_solve)})`;
-    }
     return this.convert_sec_to_format(solve.time_solve);
   };
 
@@ -939,13 +952,13 @@ class App extends React.Component {
     const lines = [];
 
     if (groups.edges.length) {
-      lines.push({ label: "Edges", value: groups.edges.join(", ") });
+      lines.push({ label: "Edges", value: groups.edges.join(" ") });
     }
     if (groups.corners.length) {
-      lines.push({ label: "Corners", value: groups.corners.join(", ") });
+      lines.push({ label: "Corners", value: groups.corners.join(" ") });
     }
     if (groups.parity.length) {
-      lines.push({ label: "Parity", value: groups.parity.join(", ") });
+      lines.push({ label: "Parity", value: groups.parity.join(" ") });
     }
 
     return lines;
@@ -1120,17 +1133,37 @@ class App extends React.Component {
     };
   };
 
+  enrichCommStatsWithTiming = (commStats = [], moveTimeline = []) => {
+    if (!Array.isArray(commStats) || !commStats.length) {
+      return [];
+    }
+
+    const timingSolve = { move_timeline: Array.isArray(moveTimeline) ? moveTimeline : [] };
+    let previousEndIndex = 0;
+
+    return commStats.map((comm) => {
+      const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
+      const timing = this.getCommTimingSeconds(timingSolve, comm, previousEndIndex);
+
+      if (boundary.end !== null) {
+        previousEndIndex = boundary.end;
+      }
+
+      return {
+        ...comm,
+        recog_time: Number.isFinite(timing.recog) ? timing.recog : comm.recog_time,
+        exec_time: Number.isFinite(timing.exec) ? timing.exec : comm.exec_time,
+      };
+    });
+  };
+
   formatCommSummaryToken = (comm) => {
     const token = this.formatCommToken(comm);
     if (!token) {
       return "";
     }
 
-    return token
-      .replace(/\s+rotation$/i, "")
-      .replace(/\s+twist$/i, "-Twist")
-      .replace(/\s+flip$/i, "-Flip")
-      .replace(/\s+parity$/i, "-Parity");
+    return this.formatSpecialCommText(token);
   };
 
   formatDateLine = (dateValue) => {
@@ -1229,6 +1262,7 @@ class App extends React.Component {
       edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
       cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
       transitionSeconds,
+      scramble: solve.scramble || "",
       link: this.withRecordedScrambleInCubedb(
         solve.link || null,
         solve.scramble || "",
@@ -1269,11 +1303,11 @@ class App extends React.Component {
     const cornerTime = this.formatCommElapsedTime(solve, cornerComms);
     const uncertain = Boolean(solve.parseError);
     const edgeSummary = groups.edges.length
-      ? `${groups.edges.join(", ")}${edgeTime ? ` (${edgeTime})` : ""}${uncertain ? " ?" : ""}`
+      ? `${groups.edges.join(" ")}${edgeTime ? ` (${edgeTime})` : ""}${uncertain ? " ?" : ""}`
       : "--";
     const cornerTokens = [...groups.corners, ...groups.parity];
     const cornerSummary = cornerTokens.length
-      ? `${cornerTokens.join(", ")}${cornerTime ? ` (${cornerTime})` : ""}${uncertain ? " ?" : ""}`
+      ? `${cornerTokens.join(" ")}${cornerTime ? ` (${cornerTime})` : ""}${uncertain ? " ?" : ""}`
       : "--";
 
     return {
@@ -1340,6 +1374,12 @@ class App extends React.Component {
       }
     }
 
+    const moveTimeline = providedMoveTimeline || (solveAnalysis && solveAnalysis.moveTimeline) || [];
+    const commStats = this.enrichCommStatsWithTiming(
+      providedCommStats || (solveAnalysis && solveAnalysis.commStats) || [],
+      moveTimeline
+    );
+
     return {
       id: (data && data.id) || this.buildSolveId(),
       date: Date.now(),
@@ -1373,8 +1413,8 @@ class App extends React.Component {
       scramble: recordedScramble,
       solve: (data && data.solve) || (solveAnalysis && solveAnalysis.solve) || setting.SOLVE || "",
       cube_orientation: setting.CUBE_OREINTATION || null,
-      comm_stats: providedCommStats || (solveAnalysis && solveAnalysis.commStats) || [],
-      move_timeline: providedMoveTimeline || (solveAnalysis && solveAnalysis.moveTimeline) || [],
+      comm_stats: commStats,
+      move_timeline: moveTimeline,
       parseError,
     };
   };
@@ -3415,7 +3455,7 @@ class App extends React.Component {
                   <div className="solve_reconstruction_box">
                     {selectedSolveDetailsData.edgeRows.length ? (
                       <React.Fragment>
-                        <div className="reconstruction_phase_title">Edges:</div>
+                        <div className="reconstruction_phase_title">Edges</div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
                           <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
                             <span>{this.formatReconstructionLine(comm) || "--"}</span>
@@ -3431,7 +3471,7 @@ class App extends React.Component {
                     ) : null}
                     {selectedSolveDetailsData.cornerRows.length ? (
                       <React.Fragment>
-                        <div className="reconstruction_phase_title">Corners:</div>
+                        <div className="reconstruction_phase_title">Corners</div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
                             <span>{this.formatReconstructionLine(comm) || "--"}</span>
@@ -3444,6 +3484,12 @@ class App extends React.Component {
                     !selectedSolveDetailsData.cornerRows.length ? (
                       <div className="empty_chart_state">No comm reconstruction available yet.</div>
                     ) : null}
+                  </div>
+                  <div className="solve_details_scramble_box">
+                    <div className="reconstruction_phase_title">Scramble</div>
+                    <div className="solve_details_scramble_text">
+                      {selectedSolveDetailsData.scramble || "--"}
+                    </div>
                   </div>
                 </React.Fragment>
               ) : null}

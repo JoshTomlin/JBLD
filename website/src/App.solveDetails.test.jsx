@@ -171,7 +171,58 @@ describe("solve details view data", () => {
     expect(details.edgeRows[0].execDuration).toBe(2.3);
     expect(details.edgeRows[1].recogDuration).toBeCloseTo(1.8);
     expect(details.edgeRows[1].execDuration).toBeCloseTo(1.1);
-    expect(app.formatReconstructionLine(details.edgeRows[0])).toBe("AU U2 M U2 M'");
+    expect(app.formatReconstructionLine(details.edgeRows[0])).toBe("U2 M U2 M' (AU)");
     expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("1.2 | 2.3");
+  });
+
+  it("formats comm lists with spaces and hyphenated special cases", () => {
+    const app = new App();
+    const groups = app.groupCommBreakdown([
+      { phase: "edge", parse_text: "AU" },
+      { phase: "edge", parse_text: "DB flip" },
+      { phase: "corner", parse_text: "PB rotation" },
+      { phase: "parity", parse_text: "A Parity" },
+    ]);
+
+    expect(groups.edges.join(" ")).toBe("AU DB-Flip");
+    expect(groups.corners.join(" ")).toBe("PB-Twist");
+    expect(groups.parity.join(" ")).toBe("A-Parity");
+  });
+
+  it("stores recognition and exec times on saved comm stats", () => {
+    const app = new App();
+    const solve = app.buildSolveRecord(
+      {
+        txt: "10.00(2.00,8.00)",
+        cubedb: "https://www.cubedb.net/?puzzle=3&scramble=U&alg=R",
+        commStats: [
+          {
+            comm_index: 1,
+            phase: "edge",
+            parse_text: "AU",
+            alg: "U2 M U2 M'",
+            alg_length: 4,
+            move_start_index: 2,
+            move_end_index: 5,
+          },
+        ],
+        moveTimeline: [
+          { time_offset: 0 },
+          { time_offset: 1.2 },
+          { time_offset: 1.7 },
+          { time_offset: 2.4 },
+          { time_offset: 3.5 },
+        ],
+      },
+      {
+        TIME_SOLVE: "10",
+        MEMO: "2",
+        SCRAMBLE: "U",
+        SOLVE: "R U",
+      }
+    );
+
+    expect(solve.comm_stats[0].recog_time).toBe(1.2);
+    expect(solve.comm_stats[0].exec_time).toBe(2.3);
   });
 });

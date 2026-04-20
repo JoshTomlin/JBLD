@@ -1460,6 +1460,8 @@ textarea {
   background: rgba(7, 17, 38, 0.9);
   display: grid;
   gap: 5px;
+  justify-items: center;
+  text-align: center;
 }
 
 .solve_details_metric span,
@@ -1477,7 +1479,8 @@ textarea {
 }
 
 .solve_details_summary,
-.solve_reconstruction_box {
+.solve_reconstruction_box,
+.solve_details_scramble_box {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.035);
@@ -1495,6 +1498,19 @@ textarea {
   padding: 12px;
   display: grid;
   gap: 9px;
+}
+
+.solve_details_scramble_box {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.solve_details_scramble_text {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .reconstruction_row {
