@@ -9,14 +9,18 @@ const reidCornerOrder = "UFR URB UBL ULF DRF DFL DLB DBR".split(" ");
 const centerOrder = "U L F R B D".split(" ");
 const canonicalStickerNames = {
   UFR: "UFR",
+  URF: "UFR",
   URB: "UBR",
   UBL: "UBL",
   ULF: "UFL",
   RFU: "RFU",
+  RUF: "RFU",
   RBU: "RBU",
   RUB: "RBU",
   RFD: "RFD",
   RDF: "RFD",
+  RBD: "RBD",
+  RDB: "RBD",
   BUR: "BUR",
   BRU: "BUR",
   BUL: "BUL",
@@ -260,33 +264,33 @@ function toReidStruct(state) {
   return output;
 }
 
-function buildInverseStickerMap(state) {
+function buildSlotStickerMap(state) {
   const reid = toReidStruct(state);
-  const inverseMap = {};
+  const slotMap = {};
 
   reidEdgeOrder.forEach((slotName, index) => {
     const piece = reid[0][index];
-    inverseMap[piece] = slotName;
-    inverseMap[rotateLeft(piece, 1)] = rotateLeft(slotName, 1);
+    slotMap[slotName] = piece;
+    slotMap[rotateLeft(slotName, 1)] = rotateLeft(piece, 1);
   });
 
   reidCornerOrder.forEach((slotName, index) => {
     const piece = reid[1][index];
-    inverseMap[piece] = slotName;
-    inverseMap[rotateLeft(piece, 1)] = rotateLeft(slotName, 1);
-    inverseMap[rotateLeft(piece, 2)] = rotateLeft(slotName, 2);
+    slotMap[slotName] = piece;
+    slotMap[rotateLeft(slotName, 1)] = rotateLeft(piece, 1);
+    slotMap[rotateLeft(slotName, 2)] = rotateLeft(piece, 2);
   });
 
   centerOrder.forEach((center) => {
-    inverseMap[center] = center;
+    slotMap[center] = center;
   });
 
-  return inverseMap;
+  return slotMap;
 }
 
-function stateToInverseTokens(state) {
-  const inverseMap = buildInverseStickerMap(state);
-  return stickerIdentityOrder.map((label) => inverseMap[label] || label);
+function stateToSlotTokens(state) {
+  const slotMap = buildSlotStickerMap(state);
+  return stickerIdentityOrder.map((label) => slotMap[label] || label);
 }
 
 function countSolvedEdges(state) {
@@ -917,18 +921,19 @@ export function buildLocalCommAnalysis(setting) {
   const cube = new KPuzzle(cubeDefinition);
   scrambleTokens.forEach((move) => applyMove(cube, move));
 
-  let referenceTokens = stateToInverseTokens(cube.state);
+  let referenceTokens = stateToSlotTokens(cube.state);
   let segmentStartIndex = 0;
   let currentAlg = [];
   const prefixAlg = [];
   const comms = [];
   const solveStates = [];
+  const debugDeltas = [];
   let count = 0;
 
   while (count < solveTokens.length && rotationMoves.has(solveTokens[count])) {
     prefixAlg.push(solveTokens[count]);
     applyMove(cube, solveTokens[count]);
-    referenceTokens = stateToInverseTokens(cube.state);
+    referenceTokens = stateToSlotTokens(cube.state);
     count += 1;
     segmentStartIndex = count;
   }
@@ -938,7 +943,7 @@ export function buildLocalCommAnalysis(setting) {
     currentAlg.push(move);
     applyMove(cube, move);
     count = index + 1;
-    const currentTokens = stateToInverseTokens(cube.state);
+    const currentTokens = stateToSlotTokens(cube.state);
     const diff = similarityRatio(referenceTokens, currentTokens);
     const solvedEdges = countSolvedEdges(cube.state);
     const solvedCorners = countSolvedCorners(cube.state);
@@ -954,6 +959,15 @@ export function buildLocalCommAnalysis(setting) {
     const lastSolvedPieces = diffSolvedState(referenceTokens, currentTokens);
     const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
     const spanLength = count - segmentStartIndex;
+    if (setting.DEBUG_COMM_DELTAS) {
+      debugDeltas.push({
+        count,
+        spanLength,
+        changed: lastSolvedPieces,
+        parsed,
+        pieceSummary: changedPieceSummary(lastSolvedPieces),
+      });
+    }
 
     if (
       spanLength >= 4 &&
@@ -989,5 +1003,6 @@ export function buildLocalCommAnalysis(setting) {
     parsed: comms.length > 0,
     solved: countSolvedEdges(cube.state) === 12 && countSolvedCorners(cube.state) === 8,
     solveStates,
+    debugDeltas: setting.DEBUG_COMM_DELTAS ? debugDeltas : undefined,
   };
 }
