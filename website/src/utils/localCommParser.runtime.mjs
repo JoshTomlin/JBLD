@@ -505,13 +505,24 @@ function detectFloatingCornerThreePieceCase(lastSolvedPieces, buffers) {
   const changedStickers = Object.keys(lastSolvedPieces);
   const cornerStickers = changedStickers.filter((sticker) => sticker.length === 3);
 
-  if (cornerStickers.length !== 3 || cornerStickers.length !== changedStickers.length) {
+  if (cornerStickers.length !== changedStickers.length) {
     return null;
   }
 
   const pieces = changedPiecesForType(lastSolvedPieces, 3, reidCornerOrder);
   if (pieces.length !== 3 || isSamePieceInList(buffers.cornerBuffer, pieces)) {
     return null;
+  }
+
+  const representativeComm = pieces.map((piece) =>
+    toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder))
+  );
+
+  if (cornerStickers.length !== 3) {
+    return {
+      comm: representativeComm,
+      pieceType: { edge: false, corner: true, parity: false },
+    };
   }
 
   if (pieces.some((piece) => stickersForPiece(piece, cornerStickers).length !== 1)) {
@@ -814,18 +825,72 @@ export function isSingleCommParse(parsed) {
   return false;
 }
 
-function shouldRecordCommParse(parsed, spanLength, highConfidenceEndpoint = true) {
+function shouldRecordCommParse(parsed, spanLength) {
   if (!isSingleCommParse(parsed) || (parsed.comm.length > 3 && spanLength < 8)) {
     return false;
   }
 
-  const phase = phaseFromPieceType(parsed?.pieceType || {});
-  const isSpecial = parsed.comm.includes("flip") || parsed.comm.includes("twist");
-  if (!highConfidenceEndpoint && (phase === "edge" || phase === "corner") && !isSpecial) {
-    return parsed.comm.length >= 3;
+  return true;
+}
+
+function buildCommStat({
+  parsed,
+  algTokens,
+  moveStartIndex,
+  moveEndIndex,
+  commIndex,
+  parseToLetterPair,
+  letterPairs,
+  buffers,
+}) {
+  const phase = phaseFromPieceType(parsed.pieceType);
+  const commentDisplay = buildCommentDisplay(
+    parsed.comm,
+    parsed.pieceType,
+    parseToLetterPair,
+    letterPairs,
+    buffers
+  );
+
+  return {
+    comm_index: commIndex,
+    phase,
+    piece_type: phase,
+    buffer_target: commentDisplay.bufferTarget,
+    target_a: commentDisplay.targetA,
+    target_b: commentDisplay.targetB,
+    special_type: commentDisplay.specialType,
+    alg: algTokens.join(" "),
+    alg_length: algTokens.length,
+    move_start_index: moveStartIndex,
+    move_end_index: moveEndIndex,
+    parse_text: commentDisplay.parseText,
+    raw_comm: parsed.comm,
+  };
+}
+
+function scoreCommCandidate(candidate) {
+  const phase = phaseFromPieceType(candidate.parsed.pieceType);
+  const isSpecial =
+    candidate.parsed.comm.includes("flip") || candidate.parsed.comm.includes("twist");
+  let score = 100 + candidate.diff * 20;
+
+  if (candidate.highConfidenceEndpoint) {
+    score += 40;
+  } else {
+    score += 8;
   }
 
-  return true;
+  if (isSpecial) {
+    score += 4;
+  }
+
+  if ((phase === "edge" || phase === "corner") && candidate.parsed.comm.length === 2) {
+    score -= candidate.highConfidenceEndpoint ? 0 : 20;
+  }
+
+  score -= Math.max(0, candidate.spanLength - 22) * 1.5;
+  return score;
 }
 
 function applyMove(cube, moveToken) {
@@ -858,30 +923,38 @@ export function buildLocalCommAnalysis(setting) {
   scrambleTokens.forEach((move) => applyMove(cube, move));
 
   let currentMaxTokens = stateToInverseTokens(cube.state);
-  let pieceType = null;
-  let maxPiecePlace = 0;
-  let countMovesFromStart = 0;
-  let currentAlg = [];
-  const comms = [];
+  const prefixAlg = [];
   const solveStates = [];
   let count = 0;
 
   while (count < solveTokens.length && rotationMoves.has(solveTokens[count])) {
-    currentAlg.push(solveTokens[count]);
+    prefixAlg.push(solveTokens[count]);
     applyMove(cube, solveTokens[count]);
     currentMaxTokens = stateToInverseTokens(cube.state);
     count += 1;
   }
 
+  const segmentStartCount = count;
+  const timeline = [
+    {
+      count: segmentStartCount,
+      tokens: currentMaxTokens,
+    },
+  ];
+
   for (let index = count; index < solveTokens.length; index += 1) {
     const move = solveTokens[index];
-    currentAlg.push(move);
     applyMove(cube, move);
-    count += 1;
+    count = index + 1;
     const currentTokens = stateToInverseTokens(cube.state);
     const diff = similarityRatio(currentMaxTokens, currentTokens);
     const solvedEdges = countSolvedEdges(cube.state);
     const solvedCorners = countSolvedCorners(cube.state);
+
+    timeline.push({
+      count,
+      tokens: currentTokens,
+    });
 
     solveStates.push({
       move,
@@ -890,84 +963,130 @@ export function buildLocalCommAnalysis(setting) {
       solvedCorners,
       diff,
     });
+  }
 
-    const spanLength = count - maxPiecePlace;
-    const highConfidenceEndpoint = diff > diffThreshold;
-    const longExploratoryEndpoint = diff > exploratoryDiffThreshold && spanLength >= 8;
+  const maxCommSpan = 40;
+  const candidatesByEnd = Array.from({ length: timeline.length }, () => []);
+  const debugCandidates = [];
 
-    if ((highConfidenceEndpoint || longExploratoryEndpoint) && spanLength >= 4 && diff !== 1) {
-      const lastSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
+  for (let start = 0; start < timeline.length - 1; start += 1) {
+    const maxEnd = Math.min(timeline.length - 1, start + maxCommSpan);
+    for (let end = start + 4; end <= maxEnd; end += 1) {
+      const spanLength = end - start;
+      const diff = similarityRatio(timeline[start].tokens, timeline[end].tokens);
+      const highConfidenceEndpoint = diff > diffThreshold;
+      const longExploratoryEndpoint = diff > exploratoryDiffThreshold && spanLength >= 8;
+
+      if (!highConfidenceEndpoint && !longExploratoryEndpoint) {
+        continue;
+      }
+
+      const lastSolvedPieces = diffSolvedState(timeline[start].tokens, timeline[end].tokens);
       const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
-
-      if (shouldRecordCommParse(parsed, spanLength, highConfidenceEndpoint)) {
-        pieceType = parsed.pieceType;
-        const phase = phaseFromPieceType(pieceType);
-        const commentDisplay = buildCommentDisplay(
-          parsed.comm,
-          pieceType,
-          parseToLetterPair,
-          letterPairs,
-          buffers
-        );
-        const algLength = currentAlg.length;
-        countMovesFromStart += algLength;
-
-        comms.push({
-          comm_index: comms.length + 1,
-          phase,
-          piece_type: phase,
-          buffer_target: commentDisplay.bufferTarget,
-          target_a: commentDisplay.targetA,
-          target_b: commentDisplay.targetB,
-          special_type: commentDisplay.specialType,
-          alg: currentAlg.join(" "),
-          alg_length: algLength,
-          move_start_index: countMovesFromStart - algLength + 1,
-          move_end_index: countMovesFromStart,
-          parse_text: commentDisplay.parseText,
-          raw_comm: parsed.comm,
+      if (setting.DEBUG_COMM_CANDIDATES) {
+        debugCandidates.push({
+          start: timeline[start].count,
+          end: timeline[end].count,
+          spanLength,
+          diff,
+          highConfidenceEndpoint,
+          comm: parsed.comm,
+          phase: phaseFromPieceType(parsed.pieceType),
+          changed: Object.keys(lastSolvedPieces),
+          rejected: !shouldRecordCommParse(parsed, spanLength),
         });
+      }
 
-        currentAlg = [];
-        currentMaxTokens = currentTokens;
-        maxPiecePlace = count;
+      if (shouldRecordCommParse(parsed, spanLength)) {
+        const candidate = {
+          start,
+          end,
+          spanLength,
+          diff,
+          highConfidenceEndpoint,
+          parsed,
+        };
+        if (setting.DEBUG_COMM_CANDIDATES) {
+          debugCandidates.push({
+            start: timeline[start].count,
+            end: timeline[end].count,
+            spanLength,
+            diff,
+            highConfidenceEndpoint,
+            comm: parsed.comm,
+            phase: phaseFromPieceType(parsed.pieceType),
+            changed: Object.keys(lastSolvedPieces),
+          });
+        }
+        candidatesByEnd[end].push({
+          ...candidate,
+          score: scoreCommCandidate(candidate),
+        });
       }
     }
   }
 
-  if (currentAlg.length) {
-    const currentTokens = stateToInverseTokens(cube.state);
-    const trailingSolvedPieces = diffSolvedState(currentMaxTokens, currentTokens);
-    const trailingParsed = parseSolvedToComm(trailingSolvedPieces, buffers);
+  const bestPaths = Array.from({ length: timeline.length }, () => null);
+  bestPaths[0] = { score: 0, path: [] };
 
-    if (shouldRecordCommParse(trailingParsed, currentAlg.length)) {
-      const phase = phaseFromPieceType(trailingParsed.pieceType);
-      const commentDisplay = buildCommentDisplay(
-        trailingParsed.comm,
-        trailingParsed.pieceType,
-        parseToLetterPair,
-        letterPairs,
-        buffers
-      );
-      const algLength = currentAlg.length;
-      countMovesFromStart += algLength;
-      comms.push({
-        comm_index: comms.length + 1,
-        phase,
-        piece_type: phase,
-        buffer_target: commentDisplay.bufferTarget,
-        target_a: commentDisplay.targetA,
-        target_b: commentDisplay.targetB,
-        special_type: commentDisplay.specialType,
-        alg: currentAlg.join(" "),
-        alg_length: algLength,
-        move_start_index: countMovesFromStart - algLength + 1,
-        move_end_index: countMovesFromStart,
-        parse_text: commentDisplay.parseText,
-        raw_comm: trailingParsed.comm,
-      });
-    }
+  for (let end = 1; end < timeline.length; end += 1) {
+    candidatesByEnd[end].forEach((candidate) => {
+      const previous = bestPaths[candidate.start];
+      if (!previous) {
+        return;
+      }
+
+      const score = previous.score + candidate.score;
+      if (!bestPaths[end] || score > bestPaths[end].score) {
+        bestPaths[end] = {
+          score,
+          path: previous.path.concat(candidate),
+        };
+      }
+    });
   }
+
+  const bestCompletePath = bestPaths[timeline.length - 1];
+  const bestPartialPath = bestPaths.reduce((best, path, index) => {
+    if (!path || !path.path.length) {
+      return best;
+    }
+
+    if (!best) {
+      return { ...path, index };
+    }
+
+    const coverage = index / (timeline.length - 1 || 1);
+    const bestCoverage = best.index / (timeline.length - 1 || 1);
+    if (coverage > bestCoverage || (coverage === bestCoverage && path.score > best.score)) {
+      return { ...path, index };
+    }
+
+    return best;
+  }, null);
+  const chosenPath = (bestCompletePath || bestPartialPath)?.path || [];
+  const comms = chosenPath.map((candidate, index) => {
+    const moveStart = timeline[candidate.start].count + 1;
+    const moveEnd = timeline[candidate.end].count;
+    let algTokens = solveTokens.slice(moveStart - 1, moveEnd);
+    let moveStartIndex = moveStart;
+
+    if (index === 0 && prefixAlg.length) {
+      algTokens = prefixAlg.concat(algTokens);
+      moveStartIndex = 1;
+    }
+
+    return buildCommStat({
+      parsed: candidate.parsed,
+      algTokens,
+      moveStartIndex,
+      moveEndIndex: moveEnd,
+      commIndex: index + 1,
+      parseToLetterPair,
+      letterPairs,
+      buffers,
+    });
+  });
 
   return {
     rotationPrefix,
@@ -975,5 +1094,6 @@ export function buildLocalCommAnalysis(setting) {
     parsed: comms.length > 0,
     solved: countSolvedEdges(cube.state) === 12 && countSolvedCorners(cube.state) === 8,
     solveStates,
+    debugCandidates: setting.DEBUG_COMM_CANDIDATES ? debugCandidates : undefined,
   };
 }

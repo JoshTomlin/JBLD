@@ -24,3 +24,5 @@ run('BP+T', `${BP} ${Tperm}`);
 run('T+BP', `${Tperm} ${BP}`);
 run('BP+LH', `${BP} ${LH}`);
 run('LH+BP', `${LH} ${BP}`);
+run('BP+LH+CB', `${BP} ${LH} ${CB}`);
+run('Niklas+BP+LH', `${Niklas} ${BP} ${LH}`);
