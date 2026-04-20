@@ -50,8 +50,6 @@ const canonicalStickerNames = {
   LFD: "LFD",
   LDF: "LFD",
 };
-const defaultDiffThreshold = 0.87;
-
 const orientationDict = {
   "white-green": "",
   "white-blue": "y2",
@@ -833,6 +831,29 @@ function shouldRecordCommParse(parsed, spanLength) {
   return true;
 }
 
+function changedPieceSummary(lastSolvedPieces) {
+  const changedStickers = Object.keys(lastSolvedPieces);
+  const edges = uniquePiecesForStickers(changedStickers.filter((sticker) => sticker.length === 2));
+  const corners = uniquePiecesForStickers(changedStickers.filter((sticker) => sticker.length === 3));
+
+  return {
+    edges,
+    corners,
+    total: edges.length + corners.length,
+    hasMixedPieces: edges.length > 0 && corners.length > 0,
+  };
+}
+
+function isThreePieceCycleDelta(lastSolvedPieces) {
+  const summary = changedPieceSummary(lastSolvedPieces);
+  return summary.total === 3 && !summary.hasMixedPieces;
+}
+
+function isSpecialCommParse(parsed) {
+  const comm = Array.isArray(parsed?.comm) ? parsed.comm : [];
+  return comm.includes("flip") || comm.includes("twist");
+}
+
 function buildCommStat({
   parsed,
   algTokens,
@@ -869,30 +890,6 @@ function buildCommStat({
   };
 }
 
-function scoreCommCandidate(candidate) {
-  const phase = phaseFromPieceType(candidate.parsed.pieceType);
-  const isSpecial =
-    candidate.parsed.comm.includes("flip") || candidate.parsed.comm.includes("twist");
-  let score = 100 + candidate.diff * 20;
-
-  if (candidate.highConfidenceEndpoint) {
-    score += 40;
-  } else {
-    score += 8;
-  }
-
-  if (isSpecial) {
-    score += 4;
-  }
-
-  if ((phase === "edge" || phase === "corner") && candidate.parsed.comm.length === 2) {
-    score -= candidate.highConfidenceEndpoint ? 0 : 20;
-  }
-
-  score -= Math.max(0, candidate.spanLength - 22) * 1.5;
-  return score;
-}
-
 function applyMove(cube, moveToken) {
   cube.applyMove(new Move(normalizeMoveToken(moveToken)));
 }
@@ -911,8 +908,6 @@ export function buildLocalCommAnalysis(setting) {
     }
   })();
   const parseToLetterPair = setting.PARSE_TO_LETTER_PAIR !== false;
-  const diffThreshold = Number(setting.DIFF_BETWEEN_ALGS || defaultDiffThreshold);
-  const exploratoryDiffThreshold = Math.min(diffThreshold, 0.7);
   const { scrambleTokens, solveTokens, rotationPrefix } = normalizeForOrientation(
     setting.SCRAMBLE || "",
     setting.SOLVE || "",
@@ -922,39 +917,31 @@ export function buildLocalCommAnalysis(setting) {
   const cube = new KPuzzle(cubeDefinition);
   scrambleTokens.forEach((move) => applyMove(cube, move));
 
-  let currentMaxTokens = stateToInverseTokens(cube.state);
+  let referenceTokens = stateToInverseTokens(cube.state);
+  let segmentStartIndex = 0;
+  let currentAlg = [];
   const prefixAlg = [];
+  const comms = [];
   const solveStates = [];
   let count = 0;
 
   while (count < solveTokens.length && rotationMoves.has(solveTokens[count])) {
     prefixAlg.push(solveTokens[count]);
     applyMove(cube, solveTokens[count]);
-    currentMaxTokens = stateToInverseTokens(cube.state);
+    referenceTokens = stateToInverseTokens(cube.state);
     count += 1;
+    segmentStartIndex = count;
   }
-
-  const segmentStartCount = count;
-  const timeline = [
-    {
-      count: segmentStartCount,
-      tokens: currentMaxTokens,
-    },
-  ];
 
   for (let index = count; index < solveTokens.length; index += 1) {
     const move = solveTokens[index];
+    currentAlg.push(move);
     applyMove(cube, move);
     count = index + 1;
     const currentTokens = stateToInverseTokens(cube.state);
-    const diff = similarityRatio(currentMaxTokens, currentTokens);
+    const diff = similarityRatio(referenceTokens, currentTokens);
     const solvedEdges = countSolvedEdges(cube.state);
     const solvedCorners = countSolvedCorners(cube.state);
-
-    timeline.push({
-      count,
-      tokens: currentTokens,
-    });
 
     solveStates.push({
       move,
@@ -963,130 +950,38 @@ export function buildLocalCommAnalysis(setting) {
       solvedCorners,
       diff,
     });
-  }
 
-  const maxCommSpan = 40;
-  const candidatesByEnd = Array.from({ length: timeline.length }, () => []);
-  const debugCandidates = [];
+    const lastSolvedPieces = diffSolvedState(referenceTokens, currentTokens);
+    const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
+    const spanLength = count - segmentStartIndex;
 
-  for (let start = 0; start < timeline.length - 1; start += 1) {
-    const maxEnd = Math.min(timeline.length - 1, start + maxCommSpan);
-    for (let end = start + 4; end <= maxEnd; end += 1) {
-      const spanLength = end - start;
-      const diff = similarityRatio(timeline[start].tokens, timeline[end].tokens);
-      const highConfidenceEndpoint = diff > diffThreshold;
-      const longExploratoryEndpoint = diff > exploratoryDiffThreshold && spanLength >= 8;
+    if (
+      spanLength >= 4 &&
+      (isThreePieceCycleDelta(lastSolvedPieces) || isSpecialCommParse(parsed)) &&
+      shouldRecordCommParse(parsed, spanLength)
+    ) {
+      const algTokens = comms.length === 0 && prefixAlg.length
+        ? prefixAlg.concat(currentAlg)
+        : currentAlg;
 
-      if (!highConfidenceEndpoint && !longExploratoryEndpoint) {
-        continue;
-      }
-
-      const lastSolvedPieces = diffSolvedState(timeline[start].tokens, timeline[end].tokens);
-      const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
-      if (setting.DEBUG_COMM_CANDIDATES) {
-        debugCandidates.push({
-          start: timeline[start].count,
-          end: timeline[end].count,
-          spanLength,
-          diff,
-          highConfidenceEndpoint,
-          comm: parsed.comm,
-          phase: phaseFromPieceType(parsed.pieceType),
-          changed: Object.keys(lastSolvedPieces),
-          rejected: !shouldRecordCommParse(parsed, spanLength),
-        });
-      }
-
-      if (shouldRecordCommParse(parsed, spanLength)) {
-        const candidate = {
-          start,
-          end,
-          spanLength,
-          diff,
-          highConfidenceEndpoint,
+      comms.push(
+        buildCommStat({
           parsed,
-        };
-        if (setting.DEBUG_COMM_CANDIDATES) {
-          debugCandidates.push({
-            start: timeline[start].count,
-            end: timeline[end].count,
-            spanLength,
-            diff,
-            highConfidenceEndpoint,
-            comm: parsed.comm,
-            phase: phaseFromPieceType(parsed.pieceType),
-            changed: Object.keys(lastSolvedPieces),
-          });
-        }
-        candidatesByEnd[end].push({
-          ...candidate,
-          score: scoreCommCandidate(candidate),
-        });
-      }
+          algTokens,
+          moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : segmentStartIndex + 1,
+          moveEndIndex: count,
+          commIndex: comms.length + 1,
+          parseToLetterPair,
+          letterPairs,
+          buffers,
+        })
+      );
+
+      referenceTokens = currentTokens;
+      segmentStartIndex = count;
+      currentAlg = [];
     }
   }
-
-  const bestPaths = Array.from({ length: timeline.length }, () => null);
-  bestPaths[0] = { score: 0, path: [] };
-
-  for (let end = 1; end < timeline.length; end += 1) {
-    candidatesByEnd[end].forEach((candidate) => {
-      const previous = bestPaths[candidate.start];
-      if (!previous) {
-        return;
-      }
-
-      const score = previous.score + candidate.score;
-      if (!bestPaths[end] || score > bestPaths[end].score) {
-        bestPaths[end] = {
-          score,
-          path: previous.path.concat(candidate),
-        };
-      }
-    });
-  }
-
-  const bestCompletePath = bestPaths[timeline.length - 1];
-  const bestPartialPath = bestPaths.reduce((best, path, index) => {
-    if (!path || !path.path.length) {
-      return best;
-    }
-
-    if (!best) {
-      return { ...path, index };
-    }
-
-    const coverage = index / (timeline.length - 1 || 1);
-    const bestCoverage = best.index / (timeline.length - 1 || 1);
-    if (coverage > bestCoverage || (coverage === bestCoverage && path.score > best.score)) {
-      return { ...path, index };
-    }
-
-    return best;
-  }, null);
-  const chosenPath = (bestCompletePath || bestPartialPath)?.path || [];
-  const comms = chosenPath.map((candidate, index) => {
-    const moveStart = timeline[candidate.start].count + 1;
-    const moveEnd = timeline[candidate.end].count;
-    let algTokens = solveTokens.slice(moveStart - 1, moveEnd);
-    let moveStartIndex = moveStart;
-
-    if (index === 0 && prefixAlg.length) {
-      algTokens = prefixAlg.concat(algTokens);
-      moveStartIndex = 1;
-    }
-
-    return buildCommStat({
-      parsed: candidate.parsed,
-      algTokens,
-      moveStartIndex,
-      moveEndIndex: moveEnd,
-      commIndex: index + 1,
-      parseToLetterPair,
-      letterPairs,
-      buffers,
-    });
-  });
 
   return {
     rotationPrefix,
@@ -1094,6 +989,5 @@ export function buildLocalCommAnalysis(setting) {
     parsed: comms.length > 0,
     solved: countSolvedEdges(cube.state) === 12 && countSolvedCorners(cube.state) === 8,
     solveStates,
-    debugCandidates: setting.DEBUG_COMM_CANDIDATES ? debugCandidates : undefined,
   };
 }
