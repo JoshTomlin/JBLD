@@ -175,7 +175,7 @@ describe("solve details view data", () => {
     expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("1.2 | 2.3");
   });
 
-  it("formats comm lists with spaces and hyphenated special cases", () => {
+  it("formats comm lists with commas and hyphenated special cases", () => {
     const app = new App();
     const groups = app.groupCommBreakdown([
       { phase: "edge", parse_text: "AU" },
@@ -184,9 +184,9 @@ describe("solve details view data", () => {
       { phase: "parity", parse_text: "A Parity" },
     ]);
 
-    expect(groups.edges.join(" ")).toBe("AU DB-FLIP");
-    expect(groups.corners.join(" ")).toBe("PB-TWST");
-    expect(groups.parity.join(" ")).toBe("A-PRTY");
+    expect(groups.edges.join(", ")).toBe("AU, DB-Flip");
+    expect(groups.corners.join(", ")).toBe("PB-Twist");
+    expect(groups.parity.join(", ")).toBe("A-Parity");
   });
 
   it("stores recognition and exec times on saved comm stats", () => {
@@ -224,5 +224,44 @@ describe("solve details view data", () => {
 
     expect(solve.comm_stats[0].recog_time).toBe(1.2);
     expect(solve.comm_stats[0].exec_time).toBe(2.3);
+  });
+
+  it("uses numeric string move offsets for comm timings", () => {
+    const app = new App();
+    const solve = {
+      date: Date.now(),
+      time_solve: 10,
+      memo_time: 2,
+      exe_time: 8,
+      comm_stats: [
+        {
+          comm_index: 1,
+          phase: "edge",
+          parse_text: "AU",
+          alg: "U2 M U2 M'",
+          alg_length: 4,
+          move_start_index: 2,
+          move_end_index: 5,
+        },
+      ],
+      move_timeline: [
+        { time_offset: "0" },
+        { time_offset: "1.2" },
+        { time_offset: "1.7" },
+        { time_offset: "2.4" },
+        { time_offset: "3.5" },
+      ],
+    };
+
+    const details = app.getSolveDetailsViewData(solve, [solve]);
+
+    expect(details.edgeRows[0].recogDuration).toBe(1.2);
+    expect(details.edgeRows[0].execDuration).toBe(2.3);
+  });
+
+  it("simplifies scramble text for solve details", () => {
+    const app = new App();
+
+    expect(app.formatScrambleForDetails("R R U U' L L")).toBe("R2 L2");
   });
 });

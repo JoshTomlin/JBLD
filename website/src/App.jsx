@@ -718,15 +718,15 @@ class App extends React.Component {
 
     if (comm.phase === "parity" || comm.special_type === "parity") {
       const parityTarget = comm.parity_target || comm.target_b || comm.target_a;
-      return parityTarget ? `${parityTarget}-PRTY` : "PRTY";
+      return parityTarget ? `${parityTarget}-Parity` : "Parity";
     }
 
     if (comm.special_type === "flip") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-FLIP`.trim();
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Flip`.trim();
     }
 
     if (comm.special_type === "rotation" || comm.special_type === "twist") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-TWST`.trim();
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Twist`.trim();
     }
 
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
@@ -739,12 +739,12 @@ class App extends React.Component {
 
     return String(text)
       .trim()
-      .replace(/\s+(rotation|twist)$/i, "-TWST")
-      .replace(/\s+flip$/i, "-FLIP")
-      .replace(/\s+parity$/i, "-PRTY")
-      .replace(/-(rotation|twist)$/i, "-TWST")
-      .replace(/-flip$/i, "-FLIP")
-      .replace(/-parity$/i, "-PRTY");
+      .replace(/\s+(rotation|twist)$/i, "-Twist")
+      .replace(/\s+flip$/i, "-Flip")
+      .replace(/\s+parity$/i, "-Parity")
+      .replace(/-(rotation|twist)$/i, "-Twist")
+      .replace(/-flip$/i, "-Flip")
+      .replace(/-parity$/i, "-Parity");
   };
 
   normalizeDisplayAlgText = (algText) => {
@@ -879,6 +879,63 @@ class App extends React.Component {
     return compacted.join(" ");
   };
 
+  simplifyTurnSequence = (algText) => {
+    const displayText = this.normalizeDisplayAlgText(algText);
+    if (!displayText) {
+      return "";
+    }
+
+    const amountForSuffix = (suffix) => {
+      if (suffix === "2") {
+        return 2;
+      }
+      if (suffix === "'") {
+        return 3;
+      }
+      return 1;
+    };
+    const suffixForAmount = (amount) => {
+      if (amount === 1) {
+        return "";
+      }
+      if (amount === 2) {
+        return "2";
+      }
+      if (amount === 3) {
+        return "'";
+      }
+      return null;
+    };
+    const parseTurn = (token) => {
+      if (!token) {
+        return null;
+      }
+      const match = token.match(/^(.+?)(2|')?$/);
+      return match ? { base: match[1], amount: amountForSuffix(match[2] || "") } : null;
+    };
+    const output = [];
+
+    displayText.split(/\s+/).filter(Boolean).forEach((token) => {
+      const current = parseTurn(token);
+      const previousToken = output[output.length - 1];
+      const previous = parseTurn(previousToken);
+
+      if (!current || !previous || current.base !== previous.base) {
+        output.push(token);
+        return;
+      }
+
+      const combinedAmount = (previous.amount + current.amount) % 4;
+      output.pop();
+      const suffix = suffixForAmount(combinedAmount);
+      if (suffix !== null) {
+        output.push(`${current.base}${suffix}`);
+      }
+    });
+
+    return output.join(" ");
+  };
+
   formatReconstructionAlg = (comm) =>
     this.compactRepeatedTurns(comm && comm.alg, {
       convertSlices: comm && comm.phase === "edge",
@@ -892,6 +949,9 @@ class App extends React.Component {
       .filter(Boolean)
       .join(" ")
       .trim();
+
+  formatScrambleForDetails = (scramble) =>
+    this.simplifyTurnSequence(scramble) || "--";
 
   formatCommTimingPair = (comm) => {
     const recog = comm && Number.isFinite(comm.recogDuration)
@@ -955,13 +1015,13 @@ class App extends React.Component {
     const lines = [];
 
     if (groups.edges.length) {
-      lines.push({ label: "Edges", value: groups.edges.join(" ") });
+      lines.push({ label: "Edges", value: groups.edges.join(", ") });
     }
     if (groups.corners.length) {
-      lines.push({ label: "Corners", value: groups.corners.join(" ") });
+      lines.push({ label: "Corners", value: groups.corners.join(", ") });
     }
     if (groups.parity.length) {
-      lines.push({ label: "Parity", value: groups.parity.join(" ") });
+      lines.push({ label: "Parity", value: groups.parity.join(", ") });
     }
 
     return lines;
@@ -1010,7 +1070,10 @@ class App extends React.Component {
   getTimedMoveOffsets = (solve) =>
     Array.isArray(solve && solve.move_timeline)
       ? solve.move_timeline
-          .map((move) => (Number.isFinite(move.time_offset) ? move.time_offset : null))
+          .map((move) => {
+            const offset = Number(move && move.time_offset);
+            return Number.isFinite(offset) ? offset : null;
+          })
           .filter((value) => value !== null)
       : [];
 
@@ -1216,7 +1279,7 @@ class App extends React.Component {
         return "--";
       }
 
-      const tokens = comms.map(this.formatCommSummaryToken).filter(Boolean).join(" ");
+      const tokens = comms.map(this.formatCommSummaryToken).filter(Boolean).join(", ");
       return `${tokens}${Number.isFinite(span) ? ` (${this.formatInlineDuration(span)})` : ""}`;
     };
 
@@ -1265,7 +1328,7 @@ class App extends React.Component {
       edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
       cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
       transitionSeconds,
-      scramble: solve.scramble || "",
+      scramble: this.formatScrambleForDetails(solve.scramble || ""),
       link: this.withRecordedScrambleInCubedb(
         solve.link || null,
         solve.scramble || "",
@@ -1306,11 +1369,11 @@ class App extends React.Component {
     const cornerTime = this.formatCommElapsedTime(solve, cornerComms);
     const uncertain = Boolean(solve.parseError);
     const edgeSummary = groups.edges.length
-      ? `${groups.edges.join(" ")}${edgeTime ? ` (${edgeTime})` : ""}${uncertain ? " ?" : ""}`
+      ? `${groups.edges.join(", ")}${edgeTime ? ` (${edgeTime})` : ""}${uncertain ? " ?" : ""}`
       : "--";
     const cornerTokens = [...groups.corners, ...groups.parity];
     const cornerSummary = cornerTokens.length
-      ? `${cornerTokens.join(" ")}${cornerTime ? ` (${cornerTime})` : ""}${uncertain ? " ?" : ""}`
+      ? `${cornerTokens.join(", ")}${cornerTime ? ` (${cornerTime})` : ""}${uncertain ? " ?" : ""}`
       : "--";
 
     return {
@@ -3461,7 +3524,12 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Edges</div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
                           <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{this.formatReconstructionLine(comm) || "--"}</span>
+                            <span>
+                              {this.formatReconstructionAlg(comm) || "--"}
+                              {comm.label ? (
+                                <span className="reconstruction_comm_label"> ({comm.label})</span>
+                              ) : null}
+                            </span>
                             <strong>{this.formatCommTimingPair(comm)}</strong>
                           </div>
                         ))}
@@ -3477,7 +3545,12 @@ class App extends React.Component {
                         <div className="reconstruction_phase_title">Corners</div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>{this.formatReconstructionLine(comm) || "--"}</span>
+                            <span>
+                              {this.formatReconstructionAlg(comm) || "--"}
+                              {comm.label ? (
+                                <span className="reconstruction_comm_label"> ({comm.label})</span>
+                              ) : null}
+                            </span>
                             <strong>{this.formatCommTimingPair(comm)}</strong>
                           </div>
                         ))}

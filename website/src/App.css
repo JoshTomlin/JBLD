@@ -1527,6 +1527,11 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.reconstruction_comm_label {
+  color: #93c5fd;
+  font-weight: 700;
+}
+
 .reconstruction_row strong {
   color: var(--text-soft);
   font-weight: 700;
