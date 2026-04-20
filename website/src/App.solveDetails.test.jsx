@@ -175,6 +175,44 @@ describe("solve details view data", () => {
     expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("1.2 | 2.3");
   });
 
+  it("keeps unparsed DNF move tails in solve details", () => {
+    const app = new App();
+    const solve = {
+      date: Date.now(),
+      time_solve: 10,
+      memo_time: 2,
+      exe_time: 8,
+      DNF: true,
+      comm_stats: [
+        {
+          comm_index: 1,
+          phase: "unknown",
+          piece_type: "unknown",
+          parse_text: "?",
+          alg: "R U R' U' F",
+          alg_length: 5,
+          move_start_index: 1,
+          move_end_index: 5,
+        },
+      ],
+      move_timeline: [
+        { time_offset: 0 },
+        { time_offset: 0.5 },
+        { time_offset: 1.1 },
+        { time_offset: 1.8 },
+        { time_offset: 2.6 },
+      ],
+    };
+
+    const details = app.getSolveDetailsViewData(solve, [solve]);
+
+    expect(details.unknownRows).toHaveLength(1);
+    expect(details.edgeRows).toHaveLength(0);
+    expect(details.cornerRows).toHaveLength(0);
+    expect(app.formatReconstructionLine(details.unknownRows[0])).toBe("R U R' U' F (?)");
+    expect(app.formatCommTimingPair(details.unknownRows[0])).toBe("0 | 2.6");
+  });
+
   it("formats comm lists with commas and hyphenated special cases", () => {
     const app = new App();
     const groups = app.groupCommBreakdown([

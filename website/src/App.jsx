@@ -1327,6 +1327,7 @@ class App extends React.Component {
       cornerSummary: formatSummary(cornerSummaryComms, cornerSpan),
       edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
       cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
+      unknownRows: reconstructionRows.filter((comm) => comm.phase === "unknown"),
       transitionSeconds,
       scramble: this.formatScrambleForDetails(solve.scramble || ""),
       link: this.withRecordedScrambleInCubedb(
@@ -3551,8 +3552,25 @@ class App extends React.Component {
                         ))}
                       </React.Fragment>
                     ) : null}
+                    {selectedSolveDetailsData.unknownRows.length ? (
+                      <React.Fragment>
+                        <div className="reconstruction_phase_title">Unparsed</div>
+                        {selectedSolveDetailsData.unknownRows.map((comm, index) => (
+                          <div key={`unknown-${comm.comm_index || index}`} className="reconstruction_row">
+                            <span>
+                              {this.formatReconstructionAlg(comm) || "--"}
+                              {comm.label ? (
+                                <span className="reconstruction_comm_label"> ({comm.label})</span>
+                              ) : null}
+                            </span>
+                            <strong>{this.formatCommTimingPair(comm)}</strong>
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    ) : null}
                     {!selectedSolveDetailsData.edgeRows.length &&
-                    !selectedSolveDetailsData.cornerRows.length ? (
+                    !selectedSolveDetailsData.cornerRows.length &&
+                    !selectedSolveDetailsData.unknownRows.length ? (
                       <div className="empty_chart_state">No comm reconstruction available yet.</div>
                     ) : null}
                   </div>

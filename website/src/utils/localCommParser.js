@@ -934,6 +934,87 @@ function buildCommStat({
   };
 }
 
+function buildUnknownCommStat({ algTokens, moveStartIndex, moveEndIndex, commIndex }) {
+  return {
+    comm_index: commIndex,
+    phase: "unknown",
+    piece_type: "unknown",
+    buffer_target: null,
+    target_a: null,
+    target_b: null,
+    special_type: null,
+    alg: algTokens.join(" "),
+    alg_length: algTokens.length,
+    move_start_index: moveStartIndex,
+    move_end_index: moveEndIndex,
+    parse_text: "?",
+    raw_comm: ["?"],
+  };
+}
+
+function appendUnknownCommStat(comms, { algTokens, moveStartIndex, moveEndIndex }) {
+  if (!algTokens.length) {
+    return;
+  }
+
+  const previous = comms[comms.length - 1];
+  if (
+    previous &&
+    previous.phase === "unknown" &&
+    Number(previous.move_end_index) + 1 === moveStartIndex
+  ) {
+    previous.alg = [previous.alg, algTokens.join(" ")].filter(Boolean).join(" ");
+    previous.alg_length = splitMoves(previous.alg).length;
+    previous.move_end_index = moveEndIndex;
+    return;
+  }
+
+  comms.push(
+    buildUnknownCommStat({
+      algTokens,
+      moveStartIndex,
+      moveEndIndex,
+      commIndex: comms.length + 1,
+    })
+  );
+}
+
+function shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength) {
+  return (
+    spanLength >= 4 &&
+    (
+      isThreePieceCycleDelta(lastSolvedPieces) ||
+      isSpecialCommParse(parsed) ||
+      (isParityDelta(lastSolvedPieces) && isParityCommParse(parsed))
+    ) &&
+    shouldRecordCommParse(parsed, spanLength)
+  );
+}
+
+function evaluateCommSegment({
+  startOffset,
+  referenceTokens,
+  segmentStateTokens,
+  currentTokens,
+  count,
+  segmentStartIndex,
+  buffers,
+}) {
+  const candidateReference = startOffset === 0
+    ? referenceTokens
+    : segmentStateTokens[startOffset - 1];
+  const lastSolvedPieces = diffSolvedState(candidateReference, currentTokens);
+  const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
+  const spanLength = count - (segmentStartIndex + startOffset);
+
+  return {
+    lastSolvedPieces,
+    parsed,
+    spanLength,
+    accepted: shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength),
+  };
+}
+
 function applyMove(cube, moveToken) {
   cube.applyMove(new Move(normalizeMoveToken(moveToken)));
 }
@@ -964,6 +1045,7 @@ export function buildLocalCommAnalysis(setting) {
   let referenceTokens = stateToSlotTokens(cube.state);
   let segmentStartIndex = 0;
   let currentAlg = [];
+  let segmentStateTokens = [];
   const prefixAlg = [];
   const comms = [];
   const solveStates = [];
@@ -984,6 +1066,7 @@ export function buildLocalCommAnalysis(setting) {
     applyMove(cube, move);
     count = index + 1;
     const currentTokens = stateToSlotTokens(cube.state);
+    segmentStateTokens.push(currentTokens);
     const diff = similarityRatio(referenceTokens, currentTokens);
     const solvedEdges = countSolvedEdges(cube.state);
     const solvedCorners = countSolvedCorners(cube.state);
@@ -996,37 +1079,65 @@ export function buildLocalCommAnalysis(setting) {
       diff,
     });
 
-    const lastSolvedPieces = diffSolvedState(referenceTokens, currentTokens);
-    const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
-    const spanLength = count - segmentStartIndex;
+    const primarySegment = evaluateCommSegment({
+      startOffset: 0,
+      referenceTokens,
+      segmentStateTokens,
+      currentTokens,
+      count,
+      segmentStartIndex,
+      buffers,
+    });
     if (setting.DEBUG_COMM_DELTAS) {
       debugDeltas.push({
         count,
-        spanLength,
-        changed: lastSolvedPieces,
-        parsed,
-        pieceSummary: changedPieceSummary(lastSolvedPieces),
+        spanLength: primarySegment.spanLength,
+        changed: primarySegment.lastSolvedPieces,
+        parsed: primarySegment.parsed,
+        pieceSummary: changedPieceSummary(primarySegment.lastSolvedPieces),
       });
     }
 
-    if (
-      spanLength >= 4 &&
-      (
-        isThreePieceCycleDelta(lastSolvedPieces) ||
-        isSpecialCommParse(parsed) ||
-        (isParityDelta(lastSolvedPieces) && isParityCommParse(parsed))
-      ) &&
-      shouldRecordCommParse(parsed, spanLength)
-    ) {
+    let acceptedOffset = primarySegment.accepted ? 0 : null;
+    let acceptedSegment = primarySegment.accepted ? primarySegment : null;
+
+    if (acceptedOffset === null && currentAlg.length > 4) {
+      for (let offset = 1; offset <= currentAlg.length - 4; offset += 1) {
+        const candidateSegment = evaluateCommSegment({
+          startOffset: offset,
+          referenceTokens,
+          segmentStateTokens,
+          currentTokens,
+          count,
+          segmentStartIndex,
+          buffers,
+        });
+        if (candidateSegment.accepted) {
+          acceptedOffset = offset;
+          acceptedSegment = candidateSegment;
+          break;
+        }
+      }
+    }
+
+    if (acceptedSegment) {
+      if (acceptedOffset > 0) {
+        appendUnknownCommStat(comms, {
+          algTokens: currentAlg.slice(0, acceptedOffset),
+          moveStartIndex: segmentStartIndex + 1,
+          moveEndIndex: segmentStartIndex + acceptedOffset,
+        });
+      }
+
       const algTokens = comms.length === 0 && prefixAlg.length
-        ? prefixAlg.concat(currentAlg)
-        : currentAlg;
+        ? prefixAlg.concat(currentAlg.slice(acceptedOffset))
+        : currentAlg.slice(acceptedOffset);
 
       comms.push(
         buildCommStat({
-          parsed,
+          parsed: acceptedSegment.parsed,
           algTokens,
-          moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : segmentStartIndex + 1,
+          moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : segmentStartIndex + acceptedOffset + 1,
           moveEndIndex: count,
           commIndex: comms.length + 1,
           parseToLetterPair,
@@ -1038,13 +1149,26 @@ export function buildLocalCommAnalysis(setting) {
       referenceTokens = currentTokens;
       segmentStartIndex = count;
       currentAlg = [];
+      segmentStateTokens = [];
     }
+  }
+
+  if (currentAlg.length) {
+    const algTokens = comms.length === 0 && prefixAlg.length
+      ? prefixAlg.concat(currentAlg)
+      : currentAlg;
+
+    appendUnknownCommStat(comms, {
+      algTokens,
+      moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : segmentStartIndex + 1,
+      moveEndIndex: count,
+    });
   }
 
   return {
     rotationPrefix,
     commStats: comms,
-    parsed: comms.length > 0,
+    parsed: comms.some((comm) => comm.phase !== "unknown"),
     solved: countSolvedEdges(cube.state) === 12 && countSolvedCorners(cube.state) === 8,
     solveStates,
     debugDeltas: setting.DEBUG_COMM_DELTAS ? debugDeltas : undefined,
