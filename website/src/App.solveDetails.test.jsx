@@ -184,9 +184,9 @@ describe("solve details view data", () => {
       { phase: "parity", parse_text: "A Parity" },
     ]);
 
-    expect(groups.edges.join(" ")).toBe("AU DB-Flip");
-    expect(groups.corners.join(" ")).toBe("PB-Twist");
-    expect(groups.parity.join(" ")).toBe("A-Parity");
+    expect(groups.edges.join(" ")).toBe("AU DB-FLIP");
+    expect(groups.corners.join(" ")).toBe("PB-TWST");
+    expect(groups.parity.join(" ")).toBe("A-PRTY");
   });
 
   it("stores recognition and exec times on saved comm stats", () => {

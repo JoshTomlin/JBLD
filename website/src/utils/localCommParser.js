@@ -409,6 +409,26 @@ function pickRepresentativeSticker(stickers, order) {
   return order.find((candidate) => stickers.some((sticker) => isSamePiece(sticker, candidate))) || stickers[0] || null;
 }
 
+function orientedStickersForPiece(piece) {
+  return [piece, rotateLeft(piece, 1), rotateLeft(piece, 2)];
+}
+
+function pickCornerTwistLabelSticker(piece) {
+  return (
+    orientedStickersForPiece(piece).find((sticker) => sticker[0] === "U" || sticker[0] === "D") ||
+    pickRepresentativeSticker([piece], reidCornerOrder)
+  );
+}
+
+function pickEdgeFlipLabelSticker(piece) {
+  const stickers = [piece, rotateLeft(piece, 1)];
+  return (
+    stickers.find((sticker) => sticker[0] === "U" || sticker[0] === "D") ||
+    stickers.find((sticker) => sticker[0] === "F" || sticker[0] === "B") ||
+    pickRepresentativeSticker([piece], reidEdgeOrder)
+  );
+}
+
 function uniquePiecesForStickers(stickers) {
   return stickers.reduce((pieces, sticker) => {
     if (!isSamePieceInList(sticker, pieces)) {
@@ -439,21 +459,8 @@ function stickersForPiece(piece, stickers) {
   return stickers.filter((sticker) => isSamePiece(sticker, piece));
 }
 
-function pickCornerTwistRepresentative(piece, stickers, lastSolvedPieces) {
-  const representative = pickRepresentativeSticker([piece], reidCornerOrder);
-
-  if (stickers.length !== 3) {
-    return representative;
-  }
-
-  const twistOffset = [1, 2].find((offset) =>
-    stickers.every((sticker) => lastSolvedPieces[sticker][0] === rotateLeft(sticker, offset))
-  );
-
-  if (twistOffset === 1) {
-    return rotateLeft(representative, 1);
-  }
-
+function pickCornerTwistRepresentative(piece) {
+  const representative = pickCornerTwistLabelSticker(piece);
   return representative;
 }
 
@@ -602,7 +609,7 @@ function detectNonBufferSpecialCase(lastSolvedPieces) {
     if (uniquePieces.length === 2) {
       return {
         comm: uniquePieces
-          .map((piece) => toCanonicalStickerName(pickRepresentativeSticker([piece], reidEdgeOrder)))
+          .map((piece) => toCanonicalStickerName(pickEdgeFlipLabelSticker(piece)))
           .concat("flip"),
         pieceType: { edge: true, corner: false, parity: false },
       };
@@ -631,6 +638,25 @@ function detectNonBufferSpecialCase(lastSolvedPieces) {
   }
 
   return null;
+}
+
+function detectParityCase(lastSolvedPieces) {
+  const summary = changedPieceSummary(lastSolvedPieces);
+  if (summary.edges.length !== 2 || summary.corners.length !== 2) {
+    return null;
+  }
+
+  return {
+    comm: [
+      ...sortPiecesByOrder(summary.edges, reidEdgeOrder).map((piece) =>
+        toCanonicalStickerName(pickRepresentativeSticker([piece], reidEdgeOrder))
+      ),
+      ...sortPiecesByOrder(summary.corners, reidCornerOrder).map((piece) =>
+        toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder))
+      ),
+    ],
+    pieceType: { edge: false, corner: false, parity: true },
+  };
 }
 
 function parseCommList(comm, lastSolvedPieces) {
@@ -674,6 +700,11 @@ function buildParityLabel(tokens, bufferToken, letterPairs = {}) {
 
 export function parseSolvedToComm(lastSolvedPieces, buffers) {
   const { edgeBuffer, cornerBuffer } = buffers;
+  const parityCase = detectParityCase(lastSolvedPieces);
+  if (parityCase) {
+    return parityCase;
+  }
+
   const nonBufferSpecialCase = detectNonBufferSpecialCase(lastSolvedPieces);
   if (nonBufferSpecialCase) {
     return nonBufferSpecialCase;
@@ -853,9 +884,18 @@ function isThreePieceCycleDelta(lastSolvedPieces) {
   return summary.total === 3 && !summary.hasMixedPieces;
 }
 
+function isParityDelta(lastSolvedPieces) {
+  const summary = changedPieceSummary(lastSolvedPieces);
+  return summary.edges.length === 2 && summary.corners.length === 2;
+}
+
 function isSpecialCommParse(parsed) {
   const comm = Array.isArray(parsed?.comm) ? parsed.comm : [];
   return comm.includes("flip") || comm.includes("twist");
+}
+
+function isParityCommParse(parsed) {
+  return Boolean(parsed?.pieceType?.parity);
 }
 
 function buildCommStat({
@@ -971,7 +1011,11 @@ export function buildLocalCommAnalysis(setting) {
 
     if (
       spanLength >= 4 &&
-      (isThreePieceCycleDelta(lastSolvedPieces) || isSpecialCommParse(parsed)) &&
+      (
+        isThreePieceCycleDelta(lastSolvedPieces) ||
+        isSpecialCommParse(parsed) ||
+        (isParityDelta(lastSolvedPieces) && isParityCommParse(parsed))
+      ) &&
       shouldRecordCommParse(parsed, spanLength)
     ) {
       const algTokens = comms.length === 0 && prefixAlg.length

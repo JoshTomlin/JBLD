@@ -220,7 +220,28 @@ describe("localCommParser", () => {
     );
 
     expect(pieceType).toEqual({ edge: false, corner: true, parity: false });
-    expect(comm).toEqual(["UBR", "RFD", "twist"]);
+    expect(comm).toEqual(["UBR", "DFR", "twist"]);
+  });
+
+  it("recognizes a J-perm style two-edge two-corner parity case", () => {
+    const { comm, pieceType } = parseSolvedToComm(
+      {
+        UR: ["UL", "UR"],
+        RU: ["LU", "RU"],
+        UL: ["UR", "UL"],
+        LU: ["RU", "LU"],
+        UFR: ["UBR", "UFR"],
+        FRU: ["BRU", "FRU"],
+        RUF: ["RUB", "RUF"],
+        UBR: ["UFR", "UBR"],
+        RBU: ["FRU", "RBU"],
+        BUR: ["RUF", "BUR"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: false, parity: true });
+    expect(comm).toEqual(["UR", "UL", "UFR", "UBR"]);
   });
 
   it("does not invent floating comms when no buffer is involved", () => {

@@ -718,15 +718,15 @@ class App extends React.Component {
 
     if (comm.phase === "parity" || comm.special_type === "parity") {
       const parityTarget = comm.parity_target || comm.target_b || comm.target_a;
-      return parityTarget ? `${parityTarget}-Parity` : "Parity";
+      return parityTarget ? `${parityTarget}-PRTY` : "PRTY";
     }
 
     if (comm.special_type === "flip") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Flip`.trim();
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-FLIP`.trim();
     }
 
     if (comm.special_type === "rotation" || comm.special_type === "twist") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Twist`.trim();
+      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-TWST`.trim();
     }
 
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
@@ -739,9 +739,12 @@ class App extends React.Component {
 
     return String(text)
       .trim()
-      .replace(/\s+(rotation|twist)$/i, "-Twist")
-      .replace(/\s+flip$/i, "-Flip")
-      .replace(/\s+parity$/i, "-Parity");
+      .replace(/\s+(rotation|twist)$/i, "-TWST")
+      .replace(/\s+flip$/i, "-FLIP")
+      .replace(/\s+parity$/i, "-PRTY")
+      .replace(/-(rotation|twist)$/i, "-TWST")
+      .replace(/-flip$/i, "-FLIP")
+      .replace(/-parity$/i, "-PRTY");
   };
 
   normalizeDisplayAlgText = (algText) => {
