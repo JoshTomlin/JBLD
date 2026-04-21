@@ -141,6 +141,18 @@ describe("localCommParser", () => {
     expect(normalized.solveTokens).toEqual(["U2", "M'", "B2", "M"]);
   });
 
+  it("preserves explicit slice moves in scrambles", () => {
+    const normalized = normalizeForOrientation("M' R", "", "white-green");
+
+    expect(normalized.scrambleTokens).toEqual(["M'", "R"]);
+  });
+
+  it("canonicalizes explicit wide moves instead of rotating them away", () => {
+    const normalized = normalizeForOrientation("", "Rw U Rw'", "white-green");
+
+    expect(normalized.solveTokens).toEqual(["r", "U", "r'"]);
+  });
+
   it("reconstructs a buffer-led edge cycle from changed sticker states", () => {
     const { comm, pieceType } = parseSolvedToComm(
       {

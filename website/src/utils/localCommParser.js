@@ -173,6 +173,44 @@ function normalizeMoveToken(move) {
   return move.replace(/’/g, "'");
 }
 
+function canonicalizeWideMoveToken(move) {
+  const normalized = normalizeMoveToken(move);
+  const match = normalized.match(/^(\d+)?([URFDLBurfdlb])(w?)(2|')?$/);
+  if (!match) {
+    return normalized;
+  }
+
+  const [, layers, face, wideMarker, suffix = ""] = match;
+  if (layers && layers !== "2") {
+    return normalized;
+  }
+
+  if (wideMarker || face === face.toLowerCase()) {
+    return `${face.toLowerCase()}${suffix}`;
+  }
+
+  return normalized;
+}
+
+function canonicalizeMoveTokens(tokens) {
+  return tokens.map(canonicalizeWideMoveToken);
+}
+
+function hasExplicitWideOrSliceMoves(tokens) {
+  return tokens.some((token) => {
+    const normalized = normalizeMoveToken(token);
+    if (!normalized) {
+      return false;
+    }
+
+    if (/^[MESmes]/.test(normalized)) {
+      return true;
+    }
+
+    return /^[urfdlb]/.test(normalized);
+  });
+}
+
 function translateAlgorithm(tokens, translation) {
   return tokens
     .join(" ")
@@ -271,14 +309,13 @@ export function getOrientationData(orientation = "yellow-green") {
 
 export function normalizeForOrientation(scramble, solve, orientation = "yellow-green") {
   const { rotationPrefix, normalizationRotations } = getOrientationData(orientation);
-  const scrambleTokens = splitMoves(scramble);
-  const solveTokens = splitMoves(solve);
-  const normalizedScramble = normalizeSmartCubeSlicePairs(
-    parseRotationFromAlg([...normalizationRotations, ...scrambleTokens])
-  );
-  const normalizedSolve = normalizeSmartCubeSlicePairs(
-    parseRotationFromAlg([...normalizationRotations, ...solveTokens])
-  );
+  const scrambleTokens = canonicalizeMoveTokens(splitMoves(scramble));
+  const solveTokens = canonicalizeMoveTokens(splitMoves(solve));
+  const normalizedScramble = parseRotationFromAlg([...normalizationRotations, ...scrambleTokens]);
+  const normalizedSolveBase = parseRotationFromAlg([...normalizationRotations, ...solveTokens]);
+  const normalizedSolve = hasExplicitWideOrSliceMoves(solveTokens)
+    ? normalizedSolveBase
+    : normalizeSmartCubeSlicePairs(normalizedSolveBase);
 
   return {
     scrambleTokens: normalizedScramble,
