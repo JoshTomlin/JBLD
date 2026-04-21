@@ -963,15 +963,46 @@ class App extends React.Component {
     return `${recog} | ${exec}`;
   };
 
+  assignReconstructionDisplayPhases = (rows = []) => {
+    const nextKnownDisplayPhases = new Array(rows.length).fill(null);
+    let nextKnown = null;
+
+    for (let index = rows.length - 1; index >= 0; index -= 1) {
+      const row = rows[index];
+      if (row.phase === "edge") {
+        nextKnown = "edge";
+      } else if (row.phase === "corner" || row.phase === "parity") {
+        nextKnown = "corner";
+      }
+      nextKnownDisplayPhases[index] = nextKnown;
+    }
+
+    let currentDisplayPhase = nextKnownDisplayPhases[0] || "edge";
+    return rows.map((row, index) => {
+      if (row.phase === "edge") {
+        currentDisplayPhase = "edge";
+      } else if (row.phase === "corner" || row.phase === "parity") {
+        currentDisplayPhase = "corner";
+      } else if (row.phase === "unknown") {
+        currentDisplayPhase = currentDisplayPhase || nextKnownDisplayPhases[index] || "edge";
+      }
+
+      return {
+        ...row,
+        displayPhase: currentDisplayPhase || nextKnownDisplayPhases[index] || "edge",
+      };
+    });
+  };
+
   groupCommBreakdown = (commStats = []) => {
-    return commStats.reduce(
+    return this.assignReconstructionDisplayPhases(commStats).reduce(
       (groups, comm) => {
         const token = this.formatCommToken(comm);
-        if (comm.phase === "edge") {
+        if (comm.phase === "edge" || (comm.phase === "unknown" && comm.displayPhase === "edge")) {
           if (token) {
             groups.edges.push(token);
           }
-        } else if (comm.phase === "corner") {
+        } else if (comm.phase === "corner" || (comm.phase === "unknown" && comm.displayPhase === "corner")) {
           if (token) {
             groups.corners.push(token);
           }
@@ -1284,7 +1315,7 @@ class App extends React.Component {
     };
 
     let previousEndIndex = 0;
-    const reconstructionRows = commStats.map((comm) => {
+    const timedRows = commStats.map((comm) => {
       const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
       const timing = this.getCommTimingSeconds(solve, comm, previousEndIndex);
       if (boundary.end !== null) {
@@ -1298,6 +1329,7 @@ class App extends React.Component {
         execDuration: timing.exec,
       };
     });
+    const reconstructionRows = this.assignReconstructionDisplayPhases(timedRows);
 
     const lastEdge = edgeComms[edgeComms.length - 1];
     const firstCorner = cornerSummaryComms[0];
@@ -1325,9 +1357,8 @@ class App extends React.Component {
       ],
       edgeSummary: formatSummary(edgeComms, edgeSpan),
       cornerSummary: formatSummary(cornerSummaryComms, cornerSpan),
-      edgeRows: reconstructionRows.filter((comm) => comm.phase === "edge"),
-      cornerRows: reconstructionRows.filter((comm) => comm.phase === "corner" || comm.phase === "parity"),
-      unknownRows: reconstructionRows.filter((comm) => comm.phase === "unknown"),
+      edgeRows: reconstructionRows.filter((comm) => comm.displayPhase === "edge"),
+      cornerRows: reconstructionRows.filter((comm) => comm.displayPhase === "corner"),
       transitionSeconds,
       scramble: this.formatScrambleForDetails(solve.scramble || ""),
       link: this.withRecordedScrambleInCubedb(
@@ -3516,7 +3547,10 @@ class App extends React.Component {
                       <React.Fragment>
                         <div className="reconstruction_phase_title">Edges</div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
-                          <div key={`edge-${comm.comm_index || index}`} className="reconstruction_row">
+                          <div
+                            key={`edge-${comm.comm_index || index}`}
+                            className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
+                          >
                             <span>
                               {this.formatReconstructionAlg(comm) || "--"}
                               {comm.label ? (
@@ -3540,23 +3574,10 @@ class App extends React.Component {
                           ) : null}
                         </div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
-                          <div key={`corner-${comm.comm_index || index}`} className="reconstruction_row">
-                            <span>
-                              {this.formatReconstructionAlg(comm) || "--"}
-                              {comm.label ? (
-                                <span className="reconstruction_comm_label"> ({comm.label})</span>
-                              ) : null}
-                            </span>
-                            <strong>{this.formatCommTimingPair(comm)}</strong>
-                          </div>
-                        ))}
-                      </React.Fragment>
-                    ) : null}
-                    {selectedSolveDetailsData.unknownRows.length ? (
-                      <React.Fragment>
-                        <div className="reconstruction_phase_title">Unparsed</div>
-                        {selectedSolveDetailsData.unknownRows.map((comm, index) => (
-                          <div key={`unknown-${comm.comm_index || index}`} className="reconstruction_row">
+                          <div
+                            key={`corner-${comm.comm_index || index}`}
+                            className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
+                          >
                             <span>
                               {this.formatReconstructionAlg(comm) || "--"}
                               {comm.label ? (
@@ -3569,8 +3590,7 @@ class App extends React.Component {
                       </React.Fragment>
                     ) : null}
                     {!selectedSolveDetailsData.edgeRows.length &&
-                    !selectedSolveDetailsData.cornerRows.length &&
-                    !selectedSolveDetailsData.unknownRows.length ? (
+                    !selectedSolveDetailsData.cornerRows.length ? (
                       <div className="empty_chart_state">No comm reconstruction available yet.</div>
                     ) : null}
                   </div>

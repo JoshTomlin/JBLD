@@ -1522,9 +1522,18 @@ textarea {
   font-size: 0.88rem;
 }
 
+.reconstruction_row_unknown {
+  color: #fca5a5;
+}
+
 .reconstruction_row span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.reconstruction_row_unknown .reconstruction_comm_label,
+.reconstruction_row_unknown strong {
+  color: #f87171;
 }
 
 .reconstruction_comm_label {

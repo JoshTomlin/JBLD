@@ -175,7 +175,7 @@ describe("solve details view data", () => {
     expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("1.2 | 2.3");
   });
 
-  it("keeps unparsed DNF move tails in solve details", () => {
+  it("keeps unparsed DNF move tails inside the active reconstruction phase", () => {
     const app = new App();
     const solve = {
       date: Date.now(),
@@ -206,11 +206,60 @@ describe("solve details view data", () => {
 
     const details = app.getSolveDetailsViewData(solve, [solve]);
 
-    expect(details.unknownRows).toHaveLength(1);
-    expect(details.edgeRows).toHaveLength(0);
+    expect(details.edgeRows).toHaveLength(1);
     expect(details.cornerRows).toHaveLength(0);
-    expect(app.formatReconstructionLine(details.unknownRows[0])).toBe("R U R' U' F (?)");
-    expect(app.formatCommTimingPair(details.unknownRows[0])).toBe("0 | 2.6");
+    expect(details.edgeRows[0].displayPhase).toBe("edge");
+    expect(app.formatReconstructionLine(details.edgeRows[0])).toBe("R U R' U' F (?)");
+    expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("0 | 2.6");
+  });
+
+  it("keeps unknown rows in order before the next corner comm", () => {
+    const app = new App();
+    const solve = {
+      date: Date.now(),
+      time_solve: 10,
+      memo_time: 2,
+      exe_time: 8,
+      comm_stats: [
+        {
+          comm_index: 1,
+          phase: "edge",
+          parse_text: "AU",
+          alg: "U2 M U2 M'",
+          alg_length: 4,
+          move_start_index: 1,
+          move_end_index: 4,
+        },
+        {
+          comm_index: 2,
+          phase: "unknown",
+          piece_type: "unknown",
+          parse_text: "?",
+          alg: "R U",
+          alg_length: 2,
+          move_start_index: 5,
+          move_end_index: 6,
+        },
+        {
+          comm_index: 3,
+          phase: "corner",
+          parse_text: "BP",
+          alg: "R D R'",
+          alg_length: 3,
+          move_start_index: 7,
+          move_end_index: 9,
+        },
+      ],
+      move_timeline: [],
+    };
+
+    const details = app.getSolveDetailsViewData(solve, [solve]);
+
+    expect(details.edgeRows).toHaveLength(2);
+    expect(details.cornerRows).toHaveLength(1);
+    expect(details.edgeRows[1].phase).toBe("unknown");
+    expect(details.edgeRows[1].displayPhase).toBe("edge");
+    expect(app.formatReconstructionLine(details.edgeRows[1])).toBe("R U (?)");
   });
 
   it("formats comm lists with commas and hyphenated special cases", () => {
@@ -218,13 +267,34 @@ describe("solve details view data", () => {
     const groups = app.groupCommBreakdown([
       { phase: "edge", parse_text: "AU" },
       { phase: "edge", parse_text: "DB flip" },
+      { phase: "unknown", parse_text: "?" },
       { phase: "corner", parse_text: "PB rotation" },
       { phase: "parity", parse_text: "A Parity" },
     ]);
 
-    expect(groups.edges.join(", ")).toBe("AU, DB-Flip");
+    expect(groups.edges.join(", ")).toBe("AU, DB-Flip, ?");
     expect(groups.corners.join(", ")).toBe("PB-Twist");
     expect(groups.parity.join(", ")).toBe("A-Parity");
+  });
+
+  it("shows unknown comms as question marks in the last solve summary", () => {
+    const app = new App();
+    const solve = {
+      time_solve: 20,
+      memo_time: 5,
+      exe_time: 15,
+      comm_stats: [
+        { phase: "edge", parse_text: "AU", move_start_index: 1, move_end_index: 4 },
+        { phase: "unknown", parse_text: "?", move_start_index: 5, move_end_index: 6 },
+        { phase: "corner", parse_text: "BP", move_start_index: 7, move_end_index: 10 },
+      ],
+      move_timeline: [],
+    };
+
+    const panel = app.getLastSolvePanelData(solve);
+
+    expect(panel.lines[0].value).toBe("AU, ?");
+    expect(panel.lines[1].value).toBe("BP");
   });
 
   it("stores recognition and exec times on saved comm stats", () => {
