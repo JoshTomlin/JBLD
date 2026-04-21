@@ -57,11 +57,13 @@ jest.mock("./localCommParser", () => {
 const {
   getOrientationData,
   isSingleCommParse,
+  normalizeForOrientation,
   parseSolvedToComm,
   similarityRatio,
   toCanonicalStickerName,
 } = require("./localCommParser");
-const { buildCubedbUrl } = require("./localSolveParser");
+const mockedLocalCommParser = require("./localCommParser");
+const { buildCubedbUrl, buildLocalSolveResult } = require("./localSolveParser");
 
 const baseSetting = {
   DATE_SOLVE: "4/3/2026, 06:03 PM",
@@ -131,6 +133,12 @@ describe("localCommParser", () => {
   it("returns the correct CubeDB rotation prefix for the chosen orientation", () => {
     expect(getOrientationData("white-red").rotationPrefix).toBe("y");
     expect(getOrientationData("blue-white").rotationPrefix).toBe("x'");
+  });
+
+  it("normalizes smart-cube opposite face pairs before parsing comms", () => {
+    const normalized = normalizeForOrientation("", "U2 L R' U2 R L'", "white-green");
+
+    expect(normalized.solveTokens).toEqual(["U2", "M'", "B2", "M"]);
   });
 
   it("reconstructs a buffer-led edge cycle from changed sticker states", () => {
@@ -312,6 +320,44 @@ describe("localCommParser", () => {
     });
 
     expect(new URL(result).searchParams.get("alg")).toBe("z2\nU L D' L' U' L D L'");
+  });
+
+  it("parses JSON-string move offsets and preserves per-comm timing", () => {
+    mockedLocalCommParser.buildLocalCommAnalysis.mockReturnValue({
+      rotationPrefix: "y",
+      commStats: [
+        {
+          comm_index: 1,
+          phase: "edge",
+          piece_type: "edge",
+          buffer_target: "C",
+          target_a: "B",
+          target_b: "A",
+          special_type: null,
+          alg: "R U R' U'",
+          alg_length: 4,
+          move_start_index: 1,
+          move_end_index: 4,
+          parse_text: "BA",
+        },
+      ],
+      parsed: true,
+      solved: true,
+      solveStates: [],
+    });
+
+    const result = buildLocalSolveResult(
+      {
+        ...baseSetting,
+        SOLVE: "R U R' U'",
+        SOLVE_TIME_MOVES: JSON.stringify([0, 1.2, 1.7, 2.4]),
+      },
+      (seconds) => String(seconds)
+    );
+
+    expect(result.moveTimeline.map((move) => move.time_offset)).toEqual([0, 1.2, 1.7, 2.4]);
+    expect(result.commStats[0].recog_time).toBe(0);
+    expect(result.commStats[0].exec_time).toBe(2.4);
   });
 
   it("scores identical sticker sequences as fully similar", () => {

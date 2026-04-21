@@ -8,6 +8,17 @@ const splitMoves = (algText = "") =>
     .filter(Boolean);
 
 const normalizeTimeArray = (rawTimes) => {
+  if (typeof rawTimes === "string" && rawTimes.trim()) {
+    try {
+      return normalizeTimeArray(JSON.parse(rawTimes));
+    } catch (_error) {
+      return rawTimes
+        .split(",")
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+    }
+  }
+
   if (!Array.isArray(rawTimes)) {
     return [];
   }

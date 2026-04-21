@@ -213,6 +213,50 @@ function parseRotationFromAlg(tokens) {
   return normalized;
 }
 
+function slicePairToRotation(first, second) {
+  const pair = [first, second].sort().join(" ");
+  const directPairs = {
+    "D U'": ["E'", "y'"],
+    "D' U": ["E", "y"],
+    "L' R": ["M", "x"],
+    "L R'": ["M'", "x'"],
+    "B' F": ["S'", "z"],
+    "B F'": ["S", "z'"],
+  };
+
+  return directPairs[pair] || null;
+}
+
+function normalizeSmartCubeSlicePairs(tokens) {
+  const sliced = [];
+  let index = 0;
+
+  while (index < tokens.length) {
+    const slicePair =
+      index + 1 < tokens.length ? slicePairToRotation(tokens[index], tokens[index + 1]) : null;
+    if (slicePair) {
+      sliced.push(...slicePair);
+      index += 2;
+    } else {
+      sliced.push(tokens[index]);
+      index += 1;
+    }
+  }
+
+  const output = [];
+  let remainder = sliced.slice();
+  while (remainder.length) {
+    const token = remainder.shift();
+    if (rotationMoves.has(token)) {
+      remainder = applyRotationToTokens(remainder, token);
+    } else {
+      output.push(token);
+    }
+  }
+
+  return output;
+}
+
 export function getOrientationData(orientation = "yellow-green") {
   const orientationRotations = splitMoves(orientationDict[orientation] || "");
   const inverseRotations = orientationRotations
@@ -229,8 +273,12 @@ export function normalizeForOrientation(scramble, solve, orientation = "yellow-g
   const { rotationPrefix, normalizationRotations } = getOrientationData(orientation);
   const scrambleTokens = splitMoves(scramble);
   const solveTokens = splitMoves(solve);
-  const normalizedScramble = parseRotationFromAlg([...normalizationRotations, ...scrambleTokens]);
-  const normalizedSolve = parseRotationFromAlg([...normalizationRotations, ...solveTokens]);
+  const normalizedScramble = normalizeSmartCubeSlicePairs(
+    parseRotationFromAlg([...normalizationRotations, ...scrambleTokens])
+  );
+  const normalizedSolve = normalizeSmartCubeSlicePairs(
+    parseRotationFromAlg([...normalizationRotations, ...solveTokens])
+  );
 
   return {
     scrambleTokens: normalizedScramble,
