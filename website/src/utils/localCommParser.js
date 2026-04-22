@@ -1076,21 +1076,16 @@ function shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength) {
   );
 }
 
-function evaluateCommSegment({
-  startOffset,
+function evaluateCommWindow({
   referenceTokens,
-  segmentStateTokens,
   currentTokens,
-  count,
-  segmentStartIndex,
+  startIndex,
+  endIndex,
   buffers,
 }) {
-  const candidateReference = startOffset === 0
-    ? referenceTokens
-    : segmentStateTokens[startOffset - 1];
-  const lastSolvedPieces = diffSolvedState(candidateReference, currentTokens);
+  const lastSolvedPieces = diffSolvedState(referenceTokens, currentTokens);
   const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
-  const spanLength = count - (segmentStartIndex + startOffset);
+  const spanLength = endIndex - startIndex + 1;
 
   return {
     lastSolvedPieces,
@@ -1128,9 +1123,6 @@ export function buildLocalCommAnalysis(setting) {
   scrambleTokens.forEach((move) => applyMove(cube, move));
 
   let referenceTokens = stateToSlotTokens(cube.state);
-  let segmentStartIndex = 0;
-  let currentAlg = [];
-  let segmentStateTokens = [];
   const prefixAlg = [];
   const comms = [];
   const solveStates = [];
@@ -1142,88 +1134,70 @@ export function buildLocalCommAnalysis(setting) {
     applyMove(cube, solveTokens[count]);
     referenceTokens = stateToSlotTokens(cube.state);
     count += 1;
-    segmentStartIndex = count;
   }
 
-  for (let index = count; index < solveTokens.length; index += 1) {
-    const move = solveTokens[index];
-    currentAlg.push(move);
+  const initialReferenceTokens = referenceTokens;
+  const coreSolveTokens = solveTokens.slice(count);
+  const stateTokensAfterMove = [];
+
+  for (let index = 0; index < coreSolveTokens.length; index += 1) {
+    const move = coreSolveTokens[index];
     applyMove(cube, move);
-    count = index + 1;
     const currentTokens = stateToSlotTokens(cube.state);
-    segmentStateTokens.push(currentTokens);
-    const diff = similarityRatio(referenceTokens, currentTokens);
-    const solvedEdges = countSolvedEdges(cube.state);
-    const solvedCorners = countSolvedCorners(cube.state);
+    stateTokensAfterMove.push(currentTokens);
 
     solveStates.push({
       move,
-      count,
-      solvedEdges,
-      solvedCorners,
-      diff,
+      count: count + index + 1,
+      solvedEdges: countSolvedEdges(cube.state),
+      solvedCorners: countSolvedCorners(cube.state),
+      diff: similarityRatio(index === 0 ? initialReferenceTokens : stateTokensAfterMove[index - 1], currentTokens),
     });
+  }
 
-    const primarySegment = evaluateCommSegment({
-      startOffset: 0,
-      referenceTokens,
-      segmentStateTokens,
-      currentTokens,
-      count,
-      segmentStartIndex,
-      buffers,
-    });
-    if (setting.DEBUG_COMM_DELTAS) {
-      debugDeltas.push({
-        count,
-        spanLength: primarySegment.spanLength,
-        changed: primarySegment.lastSolvedPieces,
-        parsed: primarySegment.parsed,
-        pieceSummary: changedPieceSummary(primarySegment.lastSolvedPieces),
+  let cursor = 0;
+  while (cursor < coreSolveTokens.length) {
+    const startIndex = count + cursor + 1;
+    const referenceAtCursor = cursor === 0 ? initialReferenceTokens : stateTokensAfterMove[cursor - 1];
+    let acceptedSegment = null;
+    let acceptedEnd = null;
+
+    for (let end = cursor; end < coreSolveTokens.length; end += 1) {
+      const candidateSegment = evaluateCommWindow({
+        referenceTokens: referenceAtCursor,
+        currentTokens: stateTokensAfterMove[end],
+        startIndex,
+        endIndex: count + end + 1,
+        buffers,
       });
-    }
 
-    let acceptedOffset = primarySegment.accepted ? 0 : null;
-    let acceptedSegment = primarySegment.accepted ? primarySegment : null;
-
-    if (acceptedOffset === null && currentAlg.length > 4) {
-      for (let offset = 1; offset <= currentAlg.length - 4; offset += 1) {
-        const candidateSegment = evaluateCommSegment({
-          startOffset: offset,
-          referenceTokens,
-          segmentStateTokens,
-          currentTokens,
-          count,
-          segmentStartIndex,
-          buffers,
-        });
-        if (candidateSegment.accepted) {
-          acceptedOffset = offset;
-          acceptedSegment = candidateSegment;
-          break;
-        }
-      }
-    }
-
-    if (acceptedSegment) {
-      if (acceptedOffset > 0) {
-        appendUnknownCommStat(comms, {
-          algTokens: currentAlg.slice(0, acceptedOffset),
-          moveStartIndex: segmentStartIndex + 1,
-          moveEndIndex: segmentStartIndex + acceptedOffset,
+      if (setting.DEBUG_COMM_DELTAS) {
+        debugDeltas.push({
+          count: count + end + 1,
+          spanLength: candidateSegment.spanLength,
+          changed: candidateSegment.lastSolvedPieces,
+          parsed: candidateSegment.parsed,
+          pieceSummary: changedPieceSummary(candidateSegment.lastSolvedPieces),
         });
       }
 
+      if (candidateSegment.accepted) {
+        acceptedSegment = candidateSegment;
+        acceptedEnd = end;
+      }
+    }
+
+    if (acceptedSegment && acceptedEnd !== null) {
       const algTokens = comms.length === 0 && prefixAlg.length
-        ? prefixAlg.concat(currentAlg.slice(acceptedOffset))
-        : currentAlg.slice(acceptedOffset);
+        ? prefixAlg.concat(coreSolveTokens.slice(cursor, acceptedEnd + 1))
+        : coreSolveTokens.slice(cursor, acceptedEnd + 1);
 
       comms.push(
         buildCommStat({
           parsed: acceptedSegment.parsed,
           algTokens,
-          moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : segmentStartIndex + acceptedOffset + 1,
-          moveEndIndex: count,
+          moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : startIndex,
+          moveEndIndex: count + acceptedEnd + 1,
           commIndex: comms.length + 1,
           parseToLetterPair,
           letterPairs,
@@ -1231,23 +1205,19 @@ export function buildLocalCommAnalysis(setting) {
         })
       );
 
-      referenceTokens = currentTokens;
-      segmentStartIndex = count;
-      currentAlg = [];
-      segmentStateTokens = [];
+      cursor = acceptedEnd + 1;
+      continue;
     }
-  }
-
-  if (currentAlg.length) {
-    const algTokens = comms.length === 0 && prefixAlg.length
-      ? prefixAlg.concat(currentAlg)
-      : currentAlg;
 
     appendUnknownCommStat(comms, {
-      algTokens,
-      moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : segmentStartIndex + 1,
-      moveEndIndex: count,
+      algTokens:
+        comms.length === 0 && prefixAlg.length
+          ? prefixAlg.concat([coreSolveTokens[cursor]])
+          : [coreSolveTokens[cursor]],
+      moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : startIndex,
+      moveEndIndex: count + cursor + 1,
     });
+    cursor += 1;
   }
 
   return {
