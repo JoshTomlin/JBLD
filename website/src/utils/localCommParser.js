@@ -740,7 +740,7 @@ function detectParityCase(lastSolvedPieces) {
         toCanonicalStickerName(pickRepresentativeSticker([piece], reidEdgeOrder))
       ),
       ...sortPiecesByOrder(summary.corners, reidCornerOrder).map((piece) =>
-        toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder))
+        toCanonicalStickerName(pickCornerTwistLabelSticker(piece))
       ),
     ],
     pieceType: { edge: false, corner: false, parity: true },
@@ -1111,6 +1111,7 @@ function evaluateCommWindow({
       parsed,
       spanLength,
       implicitRotation: candidate.rotation || null,
+      resolvedTokens: candidate.tokens,
       accepted: shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength),
     };
 
@@ -1127,6 +1128,7 @@ function evaluateCommWindow({
     parsed: { comm: [], pieceType: { edge: false, corner: false, parity: false } },
     spanLength,
     implicitRotation: null,
+    resolvedTokens: baseTokens,
     accepted: false,
   };
 }
@@ -1238,15 +1240,15 @@ export function buildLocalCommAnalysis(setting) {
   }
 
   let cursor = 0;
+  let currentReferenceTokens = initialReferenceTokens;
   while (cursor < coreSolveTokens.length) {
     const startIndex = count + cursor + 1;
-    const referenceAtCursor = cursor === 0 ? initialReferenceTokens : stateTokensAfterMove[cursor - 1];
     let acceptedSegment = null;
     let acceptedEnd = null;
 
     for (let end = cursor; end < coreSolveTokens.length; end += 1) {
       const candidateSegment = evaluateCommWindow({
-        referenceTokens: referenceAtCursor,
+        referenceTokens: currentReferenceTokens,
         currentState: stateSnapshotsAfterMove[end],
         startIndex,
         endIndex: count + end + 1,
@@ -1288,6 +1290,7 @@ export function buildLocalCommAnalysis(setting) {
         })
       );
 
+      currentReferenceTokens = acceptedSegment.resolvedTokens;
       cursor = acceptedEnd + 1;
       continue;
     }
@@ -1300,6 +1303,7 @@ export function buildLocalCommAnalysis(setting) {
       moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : startIndex,
       moveEndIndex: count + cursor + 1,
     });
+    currentReferenceTokens = stateTokensAfterMove[cursor];
     cursor += 1;
   }
 
