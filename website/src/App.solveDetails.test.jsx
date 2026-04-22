@@ -55,6 +55,18 @@ describe("solve details view data", () => {
     expect(app.compactRepeatedTurns("r U R' U' M U R U' R'")).toBe("r U R' U' M U R U' R'");
   });
 
+  it("appends implicit parser rotations to displayed reconstruction algs", () => {
+    const app = new App();
+
+    expect(
+      app.formatReconstructionAlg({
+        alg: "L F R' F' M F R F' R'",
+        implicit_rotation: "x",
+        phase: "edge",
+      })
+    ).toBe("L F R' F' M F R F' R' x");
+  });
+
   it("saves CubeDB links with the recorded cube scramble", () => {
     const app = new App();
     const recordedScramble = "U R F";
@@ -178,7 +190,7 @@ describe("solve details view data", () => {
     expect(details.edgeRows[1].recogDuration).toBeCloseTo(1.8);
     expect(details.edgeRows[1].execDuration).toBeCloseTo(1.1);
     expect(app.formatReconstructionLine(details.edgeRows[0])).toBe("U2 M U2 M' (AU)");
-    expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("1.2 | 2.3");
+    expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("3.5");
   });
 
   it("keeps unparsed DNF move tails inside the active reconstruction phase", () => {
@@ -216,7 +228,7 @@ describe("solve details view data", () => {
     expect(details.cornerRows).toHaveLength(0);
     expect(details.edgeRows[0].displayPhase).toBe("edge");
     expect(app.formatReconstructionLine(details.edgeRows[0])).toBe("R U R' U' F (?)");
-    expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("0 | 2.6");
+    expect(app.formatCommTimingPair(details.edgeRows[0])).toBe("2.6");
   });
 
   it("keeps unknown rows in order before the next corner comm", () => {
@@ -377,5 +389,11 @@ describe("solve details view data", () => {
     const app = new App();
 
     expect(app.formatScrambleForDetails("R R U U' L L")).toBe("R2 L2");
+  });
+
+  it("normalizes smart-cube slice pairs inside scramble text for solve details", () => {
+    const app = new App();
+
+    expect(app.formatScrambleForDetails("U2 L R' U2 R L'")).toBe("U2 M' B2 M");
   });
 });

@@ -959,10 +959,12 @@ class App extends React.Component {
     return output.join(" ");
   };
 
-  formatReconstructionAlg = (comm) =>
-    this.compactRepeatedTurns(comm && comm.alg, {
+  formatReconstructionAlg = (comm) => {
+    const formattedAlg = this.compactRepeatedTurns(comm && comm.alg, {
       convertSlices: comm && comm.phase === "edge",
     });
+    return [formattedAlg, comm && comm.implicit_rotation].filter(Boolean).join(" ");
+  };
 
   formatReconstructionLine = (comm) =>
     [
@@ -974,16 +976,18 @@ class App extends React.Component {
       .trim();
 
   formatScrambleForDetails = (scramble) =>
-    this.simplifyTurnSequence(scramble) || "--";
+    this.simplifyTurnSequence(this.convertSmartCubeSlicesForDisplay(scramble)) || "--";
 
   formatCommTimingPair = (comm) => {
-    const recog = comm && Number.isFinite(comm.recogDuration)
-      ? this.formatInlineDuration(comm.recogDuration)
-      : "--";
-    const exec = comm && Number.isFinite(comm.execDuration)
-      ? this.formatInlineDuration(comm.execDuration)
-      : "--";
-    return `${recog} | ${exec}`;
+    const recog = comm && Number.isFinite(comm.recogDuration) ? Number(comm.recogDuration) : null;
+    const exec = comm && Number.isFinite(comm.execDuration) ? Number(comm.execDuration) : null;
+    const total =
+      recog !== null && exec !== null
+        ? recog + exec
+        : recog !== null
+          ? recog
+          : exec;
+    return total !== null ? this.formatInlineDuration(total) : "--";
   };
 
   assignReconstructionDisplayPhases = (rows = []) => {

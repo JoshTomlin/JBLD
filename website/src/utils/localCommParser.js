@@ -92,6 +92,9 @@ const inverseRotationMap = {
   "z'": "z",
   z2: "z2",
 };
+const orientationRotationSequences = Array.from(
+  new Set(Object.values(orientationDict).map((value) => (value || "").trim()))
+);
 
 const translationMaps = {
   y: {
@@ -992,6 +995,7 @@ function buildCommStat({
   parseToLetterPair,
   letterPairs,
   buffers,
+  implicitRotation,
 }) {
   const phase = phaseFromPieceType(parsed.pieceType);
   const commentDisplay = buildCommentDisplay(
@@ -1016,6 +1020,7 @@ function buildCommStat({
     move_end_index: moveEndIndex,
     parse_text: commentDisplay.parseText,
     raw_comm: parsed.comm,
+    implicit_rotation: implicitRotation || null,
   };
 }
 
@@ -1078,25 +1083,80 @@ function shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength) {
 
 function evaluateCommWindow({
   referenceTokens,
-  currentTokens,
+  currentState,
   startIndex,
   endIndex,
   buffers,
 }) {
-  const lastSolvedPieces = diffSolvedState(referenceTokens, currentTokens);
-  const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
   const spanLength = endIndex - startIndex + 1;
+  const baseTokens = stateToSlotTokens(currentState);
+  const candidates = [{ rotation: "", tokens: baseTokens }];
 
-  return {
-    lastSolvedPieces,
-    parsed,
+  orientationRotationSequences.forEach((rotation) => {
+    if (!rotation) {
+      return;
+    }
+    candidates.push({
+      rotation,
+      tokens: rotateStateTokens(currentState, rotation),
+    });
+  });
+
+  let fallback = null;
+  for (const candidate of candidates) {
+    const lastSolvedPieces = diffSolvedState(referenceTokens, candidate.tokens);
+    const parsed = parseSolvedToComm(lastSolvedPieces, buffers);
+    const result = {
+      lastSolvedPieces,
+      parsed,
+      spanLength,
+      implicitRotation: candidate.rotation || null,
+      accepted: shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength),
+    };
+
+    if (!fallback) {
+      fallback = result;
+    }
+    if (result.accepted) {
+      return result;
+    }
+  }
+
+  return fallback || {
+    lastSolvedPieces: {},
+    parsed: { comm: [], pieceType: { edge: false, corner: false, parity: false } },
     spanLength,
-    accepted: shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength),
+    implicitRotation: null,
+    accepted: false,
   };
 }
 
 function applyMove(cube, moveToken) {
   cube.applyMove(new Move(normalizeMoveToken(moveToken)));
+}
+
+function cloneCubeState(state) {
+  return {
+    EDGES: {
+      permutation: state.EDGES.permutation.slice(),
+      orientation: state.EDGES.orientation.slice(),
+    },
+    CORNERS: {
+      permutation: state.CORNERS.permutation.slice(),
+      orientation: state.CORNERS.orientation.slice(),
+    },
+    CENTERS: {
+      permutation: state.CENTERS.permutation.slice(),
+      orientation: state.CENTERS.orientation.slice(),
+    },
+  };
+}
+
+function rotateStateTokens(state, rotationSequence) {
+  const cube = new KPuzzle(cubeDefinition);
+  cube.state = cloneCubeState(state);
+  splitMoves(rotationSequence).forEach((move) => applyMove(cube, move));
+  return stateToSlotTokens(cube.state);
 }
 
 export function buildLocalCommAnalysis(setting) {
@@ -1126,6 +1186,7 @@ export function buildLocalCommAnalysis(setting) {
   const prefixAlg = [];
   const comms = [];
   const solveStates = [];
+  const stateSnapshotsAfterMove = [];
   const debugDeltas = [];
   let count = 0;
 
@@ -1144,6 +1205,7 @@ export function buildLocalCommAnalysis(setting) {
     const move = coreSolveTokens[index];
     applyMove(cube, move);
     const currentTokens = stateToSlotTokens(cube.state);
+    stateSnapshotsAfterMove.push(cloneCubeState(cube.state));
     stateTokensAfterMove.push(currentTokens);
 
     solveStates.push({
@@ -1165,7 +1227,7 @@ export function buildLocalCommAnalysis(setting) {
     for (let end = cursor; end < coreSolveTokens.length; end += 1) {
       const candidateSegment = evaluateCommWindow({
         referenceTokens: referenceAtCursor,
-        currentTokens: stateTokensAfterMove[end],
+        currentState: stateSnapshotsAfterMove[end],
         startIndex,
         endIndex: count + end + 1,
         buffers,
@@ -1202,6 +1264,7 @@ export function buildLocalCommAnalysis(setting) {
           parseToLetterPair,
           letterPairs,
           buffers,
+          implicitRotation: acceptedSegment.implicitRotation,
         })
       );
 
