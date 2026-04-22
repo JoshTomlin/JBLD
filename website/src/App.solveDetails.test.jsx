@@ -49,6 +49,12 @@ describe("solve details view data", () => {
     expect(app.compactRepeatedTurns("U2 L R' U2 R L'")).toBe("U2 M' B2 M");
   });
 
+  it("preserves explicit wide moves instead of leaking rotations across later slice moves", () => {
+    const app = new App();
+
+    expect(app.compactRepeatedTurns("r U R' U' M U R U' R'")).toBe("r U R' U' M U R U' R'");
+  });
+
   it("saves CubeDB links with the recorded cube scramble", () => {
     const app = new App();
     const recordedScramble = "U R F";

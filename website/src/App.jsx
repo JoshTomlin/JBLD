@@ -790,6 +790,28 @@ class App extends React.Component {
     return next;
   };
 
+  canonicalizeDisplayWideMove = (token) => {
+    const match = token && token.match(/^(\d+)?([URFDLBurfdlb])(w?)(2|')?$/);
+    if (!match) {
+      return token;
+    }
+
+    const [, layers, face, wideMarker, suffix = ""] = match;
+    if (layers && layers !== "2") {
+      return token;
+    }
+
+    if (wideMarker || face === face.toLowerCase()) {
+      return `${face.toLowerCase()}${suffix}`;
+    }
+
+    return token;
+  };
+
+  convertWideMovesForDisplay = (tokens) => {
+    return tokens.map((token) => this.canonicalizeDisplayWideMove(token));
+  };
+
   slicePairToRotation = (first, second) => {
     const pair = [first, second].sort().join(" ");
     const directPairs = {
@@ -805,7 +827,8 @@ class App extends React.Component {
   };
 
   convertSmartCubeSlicesForDisplay = (algText) => {
-    const tokens = this.normalizeDisplayAlgText(algText).split(/\s+/).filter(Boolean);
+    const rawTokens = this.normalizeDisplayAlgText(algText).split(/\s+/).filter(Boolean);
+    const tokens = this.convertWideMovesForDisplay(rawTokens);
     const sliced = [];
     let index = 0;
 
