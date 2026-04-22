@@ -1159,6 +1159,26 @@ function rotateStateTokens(state, rotationSequence) {
   return stateToSlotTokens(cube.state);
 }
 
+function isSolvedState(state) {
+  return countSolvedEdges(state) === 12 && countSolvedCorners(state) === 8;
+}
+
+function isSolvedModuloRotation(state) {
+  if (isSolvedState(state)) {
+    return true;
+  }
+
+  return orientationRotationSequences.some((rotation) => {
+    if (!rotation) {
+      return false;
+    }
+
+    const rotatedTokens = rotateStateTokens(state, rotation);
+    const diff = diffSolvedState(stickerIdentityOrder, rotatedTokens);
+    return Object.keys(diff).length === 0;
+  });
+}
+
 export function buildLocalCommAnalysis(setting) {
   const orientation = setting.CUBE_OREINTATION || "yellow-green";
   const buffers = {
@@ -1287,7 +1307,7 @@ export function buildLocalCommAnalysis(setting) {
     rotationPrefix,
     commStats: comms,
     parsed: comms.some((comm) => comm.phase !== "unknown"),
-    solved: countSolvedEdges(cube.state) === 12 && countSolvedCorners(cube.state) === 8,
+    solved: isSolvedModuloRotation(cube.state),
     solveStates,
     debugDeltas: setting.DEBUG_COMM_DELTAS ? debugDeltas : undefined,
   };
