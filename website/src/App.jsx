@@ -17,11 +17,14 @@ import {
 } from "./utils/supabaseSync";
 import {
   bootstrapLegacyStorageIntoDatabase,
+  getAlgLibrarySummary,
   getLocalDatabaseSummary,
+  importAlgLibraryEntries,
   loadDatasetFromDatabase,
   persistDatasetToDatabase,
   queryLocalDatabase,
 } from "./utils/localDatabase";
+import { importAlgWorkbookFile } from "./utils/algWorkbookImport";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -34,6 +37,7 @@ class App extends React.Component {
     this.newMovesNotation = this.newMovesNotation.bind(this);
     this.deferredInstallPrompt = null;
     this.localDatabaseWritePromise = Promise.resolve();
+    this.algLibraryInputRef = React.createRef();
     this.state = {
       activeView: "solve",
       showMenu: false,
@@ -61,6 +65,9 @@ class App extends React.Component {
         success: "",
       },
       local_storage_setting: null,
+      algLibrarySummary: { counts: [], recentEntries: [] },
+      algLibraryImporting: false,
+      algLibraryNotice: null,
       renderTable: null,
       solves_stats: [],
       timer_focus: null,
@@ -273,9 +280,11 @@ class App extends React.Component {
         summary: () => getLocalDatabaseSummary(),
         loadDataset: () => loadDatasetFromDatabase(),
         refreshLocalCache: () => this.refreshSessionStorageFromDatabase(),
+        algLibrarySummary: () => getAlgLibrarySummary(),
       };
     }
 
+    this.refreshAlgLibrarySummary();
     return dataset;
   };
 
@@ -287,6 +296,17 @@ class App extends React.Component {
       });
     }
     return dataset;
+  };
+
+  refreshAlgLibrarySummary = async () => {
+    try {
+      const algLibrarySummary = await getAlgLibrarySummary();
+      this.setState({ algLibrarySummary });
+      return algLibrarySummary;
+    } catch (error) {
+      console.warn("Failed to refresh alg library summary", error);
+      return null;
+    }
   };
 
   persistSessionStorage = (sessions, activeSessionId, options = {}) => {
@@ -2811,6 +2831,50 @@ class App extends React.Component {
       console.warn("Failed to copy scramble", error);
     });
   };
+  openAlgLibraryImport = () => {
+    if (this.algLibraryInputRef.current) {
+      this.algLibraryInputRef.current.value = "";
+      this.algLibraryInputRef.current.click();
+    }
+  };
+  handleAlgLibraryImport = async (event) => {
+    const file =
+      event &&
+      event.target &&
+      event.target.files &&
+      event.target.files.length
+        ? event.target.files[0]
+        : null;
+
+    if (!file) {
+      return;
+    }
+
+    this.setState({
+      algLibraryImporting: true,
+      algLibraryNotice: `Importing ${file.name}...`,
+    });
+
+    try {
+      const entries = await importAlgWorkbookFile(file);
+      await importAlgLibraryEntries(entries);
+      const summary = await this.refreshAlgLibrarySummary();
+      const totalCount = Array.isArray(summary && summary.counts)
+        ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
+        : entries.length;
+
+      this.setState({
+        algLibraryImporting: false,
+        algLibraryNotice: `Imported ${entries.length} rows. Library now has ${totalCount} saved comms.`,
+      });
+    } catch (error) {
+      console.error("Failed to import alg library workbook", error);
+      this.setState({
+        algLibraryImporting: false,
+        algLibraryNotice: "Alg library import failed. Check the file format and try again.",
+      });
+    }
+  };
   desktop_layout = () => {
     const accuracyText = this.state.averages.success || "--";
     const ao5Text = this.formatSummaryValue(this.state.averages.ao5);
@@ -2819,6 +2883,16 @@ class App extends React.Component {
     );
     const activeSession = this.getActiveSessionFromList(sessions, this.state.activeSessionId);
     const activeSessionSummary = this.getSessionSummary(activeSession);
+    const algLibraryCounts = Array.isArray(this.state.algLibrarySummary.counts)
+      ? this.state.algLibrarySummary.counts
+      : [];
+    const algLibraryRecentEntries = Array.isArray(this.state.algLibrarySummary.recentEntries)
+      ? this.state.algLibrarySummary.recentEntries
+      : [];
+    const algLibraryTotal = algLibraryCounts.reduce(
+      (total, entry) => total + (Number(entry.count) || 0),
+      0
+    );
     const recentSolves = [...this.state.solves_stats].slice().reverse();
     const chartSolves = recentSolves
       .filter(({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve)))
@@ -3077,16 +3151,50 @@ class App extends React.Component {
           </div>
           <div className="study_section_header">
             <div className="chart_card_title">Personal Library</div>
-            <div className="section_meta">Saved drill stacks</div>
+            <div className="section_meta">{algLibraryTotal ? `${algLibraryTotal} saved comms` : "Saved drill stacks"}</div>
           </div>
           <div className="study_library_grid">
             <article className="study_library_card">
-              <div className="study_library_title">Book 1: 3-Style Corners</div>
-              <div className="study_library_text">Foundational review deck for corner commutators and setup moves.</div>
+              <div className="study_library_title">Import Workbook</div>
+              <div className="study_library_text">
+                Load your corners and edges sheets from Excel. Comm notation is expanded and saved as full algs automatically.
+              </div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={this.openAlgLibraryImport}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Excel File"}
+                </button>
+              </div>
+              {this.state.algLibraryNotice ? (
+                <div className="study_library_notice">{this.state.algLibraryNotice}</div>
+              ) : null}
             </article>
             <article className="study_library_card">
-              <div className="study_library_title">Edge Commutator Drills</div>
-              <div className="study_library_text">Focused practice stack for edge buffer transitions and recognition.</div>
+              <div className="study_library_title">Recent Library Entries</div>
+              <div className="study_library_text">
+                {algLibraryCounts.length
+                  ? algLibraryCounts
+                      .map((entry) => `${entry.piece_type}: ${entry.count}`)
+                      .join(" • ")
+                  : "Import your workbook to start building a searchable comm library."}
+              </div>
+              {algLibraryRecentEntries.length ? (
+                <div className="study_library_entry_list">
+                  {algLibraryRecentEntries.map((entry) => (
+                    <div key={entry.id} className="study_library_entry">
+                      <div className="study_library_entry_header">
+                        <strong>{entry.case_code}</strong>
+                        <span>{entry.piece_type}</span>
+                      </div>
+                      <div className="study_library_entry_alg">{entry.expanded_alg}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </article>
           </div>
         </section>
@@ -3495,6 +3603,13 @@ class App extends React.Component {
 
     return (
       <React.Fragment>
+        <input
+          ref={this.algLibraryInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: "none" }}
+          onChange={this.handleAlgLibraryImport}
+        />
         <div className="application">
           <Helmet id="background_page"></Helmet>
         </div>

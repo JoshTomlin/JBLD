@@ -329,11 +329,26 @@ async function runMigrations(db) {
       raw_comm_json TEXT NOT NULL DEFAULT '[]'
     );
 
+    CREATE TABLE IF NOT EXISTS alg_library_entries (
+      id TEXT PRIMARY KEY,
+      piece_type TEXT NOT NULL,
+      sheet_name TEXT,
+      row_index INTEGER,
+      case_code TEXT NOT NULL,
+      comm_notation TEXT NOT NULL,
+      expanded_alg TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
+    );
+
     CREATE INDEX IF NOT EXISTS solves_session_id_idx
       ON solves (session_id, recorded_at DESC);
 
     CREATE INDEX IF NOT EXISTS solve_comms_case_id_idx
       ON solve_comms (case_id, phase);
+
+    CREATE INDEX IF NOT EXISTS alg_library_entries_piece_type_idx
+      ON alg_library_entries (piece_type, case_code);
 
     INSERT INTO app_meta (key, value_json)
     VALUES ('schema_version', ${quoteSqlString(JSON.stringify(SCHEMA_VERSION))})
@@ -547,5 +562,69 @@ export async function getLocalDatabaseSummary() {
     solves: Number(solves.rows[0] && solves.rows[0].count) || 0,
     solveComms: Number(comms.rows[0] && comms.rows[0].count) || 0,
     commCases: Number(cases.rows[0] && cases.rows[0].count) || 0,
+  };
+}
+
+export async function importAlgLibraryEntries(entries = []) {
+  const db = await getDatabase();
+  const normalizedEntries = Array.isArray(entries) ? entries.filter(Boolean) : [];
+
+  await db.exec("BEGIN");
+  try {
+    for (const entry of normalizedEntries) {
+      await db.query(
+        `INSERT INTO alg_library_entries (
+          id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, timezone('utc', now())
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          piece_type = EXCLUDED.piece_type,
+          sheet_name = EXCLUDED.sheet_name,
+          row_index = EXCLUDED.row_index,
+          case_code = EXCLUDED.case_code,
+          comm_notation = EXCLUDED.comm_notation,
+          expanded_alg = EXCLUDED.expanded_alg,
+          updated_at = timezone('utc', now())`,
+        [
+          String(entry.id),
+          entry.pieceType || "unknown",
+          entry.sheetName || null,
+          Number.isFinite(Number(entry.rowIndex)) ? Number(entry.rowIndex) : null,
+          entry.caseCode || "",
+          entry.notation || "",
+          entry.expandedAlg || "",
+        ]
+      );
+    }
+
+    await db.exec("COMMIT");
+  } catch (error) {
+    await db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export async function getAlgLibrarySummary(limit = 6) {
+  const db = await getDatabase();
+  const [countResult, recentResult] = await Promise.all([
+    db.query(
+      `SELECT piece_type, COUNT(*)::int AS count
+       FROM alg_library_entries
+       GROUP BY piece_type
+       ORDER BY piece_type ASC`
+    ),
+    db.query(
+      `SELECT id, piece_type, case_code, comm_notation, expanded_alg, updated_at
+       FROM alg_library_entries
+       ORDER BY updated_at DESC
+       LIMIT $1`,
+      [limit]
+    ),
+  ]);
+
+  return {
+    counts: countResult.rows || [],
+    recentEntries: recentResult.rows || [],
   };
 }

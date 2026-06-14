@@ -869,6 +869,68 @@ textarea {
   gap: 8px;
 }
 
+.study_library_action_row {
+  margin-top: 4px;
+}
+
+.study_library_button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: white;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.study_library_notice {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.study_library_entry_list {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.study_library_entry {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(7, 17, 38, 0.9);
+  display: grid;
+  gap: 6px;
+}
+
+.study_library_entry_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.study_library_entry_header strong {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.study_library_entry_header span {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.study_library_entry_alg {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .history_overview,
 .stats_breakdown_grid {
   display: grid;
