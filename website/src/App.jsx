@@ -17,8 +17,10 @@ import {
 } from "./utils/supabaseSync";
 import {
   bootstrapLegacyStorageIntoDatabase,
+  getLocalDatabaseSummary,
   loadDatasetFromDatabase,
   persistDatasetToDatabase,
+  queryLocalDatabase,
 } from "./utils/localDatabase";
 
 import LZString from "lz-string";
@@ -263,6 +265,15 @@ class App extends React.Component {
       this.persistSessionStorage(dataset.sessions, dataset.activeSessionId, {
         skipDatabaseMirror: true,
       });
+    }
+
+    if (typeof window !== "undefined") {
+      window.jbldDbDebug = {
+        query: (sql, params = []) => queryLocalDatabase(sql, params),
+        summary: () => getLocalDatabaseSummary(),
+        loadDataset: () => loadDatasetFromDatabase(),
+        refreshLocalCache: () => this.refreshSessionStorageFromDatabase(),
+      };
     }
 
     return dataset;
@@ -1506,6 +1517,87 @@ class App extends React.Component {
     };
   };
 
+  getRecentCommHistory = (solves = [], limit = 8) => {
+    const recentSolves = Array.isArray(solves) ? solves.slice().reverse() : [];
+    const commsByToken = new Map();
+
+    recentSolves.forEach((solve) => {
+      if (!solve || !Array.isArray(solve.comm_stats) || !solve.comm_stats.length) {
+        return;
+      }
+
+      let previousEndIndex = 0;
+      solve.comm_stats.forEach((comm) => {
+        const token = this.formatCommSummaryToken(comm);
+        const boundary = this.getCommBoundary(comm, previousEndIndex + 1);
+        const timing = this.getCommTimingSeconds(solve, comm, previousEndIndex);
+
+        if (boundary.end !== null) {
+          previousEndIndex = boundary.end;
+        }
+
+        if (!token || comm.phase === "unknown") {
+          return;
+        }
+
+        const existing = commsByToken.get(token) || {
+          token,
+          phase: comm.phase,
+          count: 0,
+          recogTotal: 0,
+          recogCount: 0,
+          execTotal: 0,
+          execCount: 0,
+          lastSeen: null,
+        };
+
+        existing.count += 1;
+
+        if (Number.isFinite(timing.recog)) {
+          existing.recogTotal += Number(timing.recog);
+          existing.recogCount += 1;
+        }
+
+        if (Number.isFinite(timing.exec)) {
+          existing.execTotal += Number(timing.exec);
+          existing.execCount += 1;
+        }
+
+        if (!existing.lastSeen || ((solve.date || 0) > existing.lastSeen)) {
+          existing.lastSeen = solve.date || existing.lastSeen;
+        }
+
+        commsByToken.set(token, existing);
+      });
+    });
+
+    return [...commsByToken.values()]
+      .map((entry) => ({
+        token: entry.token,
+        phase: entry.phase,
+        count: entry.count,
+        avgRecog:
+          entry.recogCount > 0 ? entry.recogTotal / entry.recogCount : null,
+        avgExec:
+          entry.execCount > 0 ? entry.execTotal / entry.execCount : null,
+        lastSeen: entry.lastSeen,
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+
+        const aExec = Number.isFinite(a.avgExec) ? a.avgExec : Number.POSITIVE_INFINITY;
+        const bExec = Number.isFinite(b.avgExec) ? b.avgExec : Number.POSITIVE_INFINITY;
+        if (aExec !== bExec) {
+          return bExec - aExec;
+        }
+
+        return String(a.token).localeCompare(String(b.token));
+      })
+      .slice(0, limit);
+  };
+
   getLastSolveEventLabel = (solve) => {
     if (!solve || !Array.isArray(solve.comm_stats) || !solve.comm_stats.length) {
       return null;
@@ -2738,6 +2830,7 @@ class App extends React.Component {
     const memoText = latestSolve ? this.convert_sec_to_format(latestSolve.memo_time) : "--";
     const execText = latestSolve ? this.convert_sec_to_format(latestSolve.exe_time) : "--";
     const latestFive = recentSolves.slice(0, 5);
+    const recentCommHistory = this.getRecentCommHistory(recentSolves, 8);
     const trendLabel =
       latestFive.length >= 2 &&
       !isDnfValue(latestFive[0].DNF) &&
@@ -3138,11 +3231,11 @@ class App extends React.Component {
                 {trendLabel === "Trending faster" ? "Up" : "PB"}
               </div>
             </div>
-            <div className="chart_card">
-              <div className="chart_card_header">
-                <div className="chart_card_title">Session Progress</div>
-                <div className="section_meta">Last {chartTimes.length || 0} solves</div>
-              </div>
+             <div className="chart_card">
+               <div className="chart_card_header">
+                 <div className="chart_card_title">Session Progress</div>
+                 <div className="section_meta">Last {chartTimes.length || 0} solves</div>
+               </div>
               {chartPath ? (
                 <div className="chart_canvas">
                   <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -3153,6 +3246,50 @@ class App extends React.Component {
                 </div>
               ) : (
                 <div className="empty_chart_state">Solve a few attempts to draw your progress chart.</div>
+              )}
+            </div>
+            <div className="chart_card">
+              <div className="chart_card_header">
+                <div>
+                  <div className="chart_card_title">Recent Comm History</div>
+                  <div className="study_stat_caption">Most frequent parsed cases from recent solves</div>
+                </div>
+                <div className="section_meta">{recentCommHistory.length ? `${recentCommHistory.length} tracked` : "No comms yet"}</div>
+              </div>
+              {recentCommHistory.length ? (
+                <div className="stats_comm_list">
+                  {recentCommHistory.map((entry) => (
+                    <article key={`${entry.phase}-${entry.token}`} className="stats_comm_card">
+                      <div className="stats_comm_identity">
+                        <div className="stats_comm_title_row">
+                          <div className="stats_comm_token">{entry.token}</div>
+                          <div className={`stats_comm_phase stats_comm_phase_${entry.phase}`}>{entry.phase}</div>
+                        </div>
+                        <div className="stats_comm_meta">
+                          Seen {entry.count} {entry.count === 1 ? "time" : "times"}
+                          {entry.lastSeen ? ` • ${formatHistoryDate(entry.lastSeen)}` : ""}
+                        </div>
+                      </div>
+                      <div className="stats_comm_metrics">
+                        <div className="stats_comm_metric">
+                          <span>Recog</span>
+                          <strong>{this.formatInlineDuration(entry.avgRecog) || "--"}</strong>
+                        </div>
+                        <div className="stats_comm_metric">
+                          <span>Exec</span>
+                          <strong>{this.formatInlineDuration(entry.avgExec) || "--"}</strong>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty_state_card">
+                  <div className="placeholder_eyebrow">Stats</div>
+                  <div className="placeholder_text">
+                    Parsed comm history will start appearing here once you log a few reviewed solves.
+                  </div>
+                </div>
               )}
             </div>
           </section>

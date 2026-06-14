@@ -527,3 +527,25 @@ export async function bootstrapLegacyStorageIntoDatabase({ sessions, activeSessi
   await persistDatasetToDatabase({ sessions, activeSessionId });
   return loadDatasetFromDatabase();
 }
+
+export async function queryLocalDatabase(sql, params = []) {
+  const db = await getDatabase();
+  return db.query(sql, Array.isArray(params) ? params : []);
+}
+
+export async function getLocalDatabaseSummary() {
+  const db = await getDatabase();
+  const [sessions, solves, comms, cases] = await Promise.all([
+    db.query("SELECT COUNT(*)::int AS count FROM sessions"),
+    db.query("SELECT COUNT(*)::int AS count FROM solves"),
+    db.query("SELECT COUNT(*)::int AS count FROM solve_comms"),
+    db.query("SELECT COUNT(*)::int AS count FROM comm_cases"),
+  ]);
+
+  return {
+    sessions: Number(sessions.rows[0] && sessions.rows[0].count) || 0,
+    solves: Number(solves.rows[0] && solves.rows[0].count) || 0,
+    solveComms: Number(comms.rows[0] && comms.rows[0].count) || 0,
+    commCases: Number(cases.rows[0] && cases.rows[0].count) || 0,
+  };
+}

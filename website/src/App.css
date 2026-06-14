@@ -1166,6 +1166,105 @@ textarea {
   gap: 18px;
 }
 
+.stats_comm_list {
+  display: grid;
+  gap: 12px;
+}
+
+.stats_comm_card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(7, 17, 38, 0.9);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.stats_comm_identity {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.stats_comm_title_row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.stats_comm_token {
+  color: var(--text-soft);
+  font-size: 0.98rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats_comm_phase {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.stats_comm_phase_edge {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+.stats_comm_phase_corner {
+  background: rgba(16, 185, 129, 0.18);
+  color: #86efac;
+}
+
+.stats_comm_phase_parity {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+}
+
+.stats_comm_meta {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.stats_comm_metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(62px, auto));
+  gap: 8px;
+}
+
+.stats_comm_metric {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.stats_comm_metric span {
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stats_comm_metric strong {
+  color: var(--text-soft);
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
 .chart_canvas {
   height: 220px;
 }
