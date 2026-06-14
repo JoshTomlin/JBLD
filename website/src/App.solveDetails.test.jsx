@@ -391,9 +391,9 @@ describe("solve details view data", () => {
     expect(app.formatScrambleForDetails("R R U U' L L")).toBe("R2 L2");
   });
 
-  it("normalizes smart-cube slice pairs inside scramble text for solve details", () => {
+  it("does not introduce slice moves when simplifying scramble text for solve details", () => {
     const app = new App();
 
-    expect(app.formatScrambleForDetails("U2 L R' U2 R L'")).toBe("U2 M' B2 M");
+    expect(app.formatScrambleForDetails("U2 L R' U2 R L'")).toBe("U2 L R' U2 R L'");
   });
 });

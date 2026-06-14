@@ -976,7 +976,7 @@ class App extends React.Component {
       .trim();
 
   formatScrambleForDetails = (scramble) =>
-    this.simplifyTurnSequence(this.convertSmartCubeSlicesForDisplay(scramble)) || "--";
+    this.simplifyTurnSequence(this.normalizeDisplayAlgText(scramble)) || "--";
 
   formatCommTimingPair = (comm) => {
     const recog = comm && Number.isFinite(comm.recogDuration) ? Number(comm.recogDuration) : null;

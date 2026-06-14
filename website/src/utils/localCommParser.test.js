@@ -138,7 +138,15 @@ describe("localCommParser", () => {
   it("normalizes smart-cube opposite face pairs before parsing comms", () => {
     const normalized = normalizeForOrientation("", "U2 L R' U2 R L'", "white-green");
 
+    expect(normalized.commSolveTokens).toEqual(["U2", "L", "R'", "U2", "R", "L'"]);
     expect(normalized.solveTokens).toEqual(["U2", "M'", "B2", "M"]);
+  });
+
+  it("preserves opposite-face move boundaries for comm detection", () => {
+    const normalized = normalizeForOrientation("", "R U L", "white-green");
+
+    expect(normalized.commSolveTokens).toEqual(["R", "U", "L"]);
+    expect(normalized.solveTokens).toEqual(["R", "U", "L"]);
   });
 
   it("preserves explicit slice moves in scrambles", () => {

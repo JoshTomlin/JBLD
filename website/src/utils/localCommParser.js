@@ -316,13 +316,16 @@ export function normalizeForOrientation(scramble, solve, orientation = "yellow-g
   const solveTokens = canonicalizeMoveTokens(splitMoves(solve));
   const normalizedScramble = parseRotationFromAlg([...normalizationRotations, ...scrambleTokens]);
   const normalizedSolveBase = parseRotationFromAlg([...normalizationRotations, ...solveTokens]);
-  const normalizedSolve = hasExplicitWideOrSliceMoves(solveTokens)
-    ? normalizedSolveBase
-    : normalizeSmartCubeSlicePairs(normalizedSolveBase);
+  const useSmartCubeSlicePairs = !hasExplicitWideOrSliceMoves(solveTokens);
+  const normalizedSolve = useSmartCubeSlicePairs
+    ? normalizeSmartCubeSlicePairs(normalizedSolveBase)
+    : normalizedSolveBase;
 
   return {
     scrambleTokens: normalizedScramble,
+    commSolveTokens: normalizedSolveBase,
     solveTokens: normalizedSolve,
+    useSmartCubeSlicePairs,
     rotationPrefix,
   };
 }
@@ -1069,6 +1072,14 @@ function appendUnknownCommStat(comms, { algTokens, moveStartIndex, moveEndIndex 
   );
 }
 
+function toDisplayAlgTokens(tokens, useSmartCubeSlicePairs) {
+  if (!useSmartCubeSlicePairs) {
+    return tokens.slice();
+  }
+
+  return normalizeSmartCubeSlicePairs(tokens);
+}
+
 function shouldAcceptCommSegment(lastSolvedPieces, parsed, spanLength) {
   return (
     spanLength >= 4 &&
@@ -1195,7 +1206,12 @@ export function buildLocalCommAnalysis(setting) {
     }
   })();
   const parseToLetterPair = setting.PARSE_TO_LETTER_PAIR !== false;
-  const { scrambleTokens, solveTokens, rotationPrefix } = normalizeForOrientation(
+  const {
+    scrambleTokens,
+    commSolveTokens,
+    useSmartCubeSlicePairs,
+    rotationPrefix,
+  } = normalizeForOrientation(
     setting.SCRAMBLE || "",
     setting.SOLVE || "",
     orientation
@@ -1212,15 +1228,15 @@ export function buildLocalCommAnalysis(setting) {
   const debugDeltas = [];
   let count = 0;
 
-  while (count < solveTokens.length && rotationMoves.has(solveTokens[count])) {
-    prefixAlg.push(solveTokens[count]);
-    applyMove(cube, solveTokens[count]);
+  while (count < commSolveTokens.length && rotationMoves.has(commSolveTokens[count])) {
+    prefixAlg.push(commSolveTokens[count]);
+    applyMove(cube, commSolveTokens[count]);
     referenceTokens = stateToSlotTokens(cube.state);
     count += 1;
   }
 
   const initialReferenceTokens = referenceTokens;
-  const coreSolveTokens = solveTokens.slice(count);
+  const coreSolveTokens = commSolveTokens.slice(count);
   const stateTokensAfterMove = [];
 
   for (let index = 0; index < coreSolveTokens.length; index += 1) {
@@ -1279,7 +1295,7 @@ export function buildLocalCommAnalysis(setting) {
       comms.push(
         buildCommStat({
           parsed: acceptedSegment.parsed,
-          algTokens,
+          algTokens: toDisplayAlgTokens(algTokens, useSmartCubeSlicePairs),
           moveStartIndex: comms.length === 0 && prefixAlg.length ? 1 : startIndex,
           moveEndIndex: count + acceptedEnd + 1,
           commIndex: comms.length + 1,
