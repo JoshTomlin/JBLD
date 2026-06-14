@@ -15,6 +15,11 @@ import {
   isSupabaseConfigured,
   syncSupabaseDataset,
 } from "./utils/supabaseSync";
+import {
+  bootstrapLegacyStorageIntoDatabase,
+  loadDatasetFromDatabase,
+  persistDatasetToDatabase,
+} from "./utils/localDatabase";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -26,6 +31,7 @@ class App extends React.Component {
     this.connectGanCubeDirect = this.connectGanCubeDirect.bind(this);
     this.newMovesNotation = this.newMovesNotation.bind(this);
     this.deferredInstallPrompt = null;
+    this.localDatabaseWritePromise = Promise.resolve();
     this.state = {
       activeView: "solve",
       showMenu: false,
@@ -112,16 +118,22 @@ class App extends React.Component {
   }
 
   componentDidMount = () => {
-    this.initialStatsFromLocalstorage();
-    this.handle_scramble();
     window.addEventListener("online", this.handleNetworkChange);
     window.addEventListener("offline", this.handleNetworkChange);
     window.addEventListener("beforeinstallprompt", this.handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", this.handleAppInstalled);
-    this.probeRemoteParserAvailability();
-    this.syncSessionsWithCloud().catch((error) => {
-      console.warn("Cloud sync bootstrapping failed, using local cache", error);
-    });
+    this.bootstrapLocalPersistence()
+      .catch((error) => {
+        console.warn("Local database bootstrap failed, using localStorage cache", error);
+      })
+      .finally(() => {
+        this.initialStatsFromLocalstorage();
+        this.handle_scramble();
+        this.probeRemoteParserAvailability();
+        this.syncSessionsWithCloud().catch((error) => {
+          console.warn("Cloud sync bootstrapping failed, using local cache", error);
+        });
+      });
   };
   componentWillUnmount = () => {
     window.removeEventListener("online", this.handleNetworkChange);
@@ -229,16 +241,59 @@ class App extends React.Component {
     return sessions.find((session) => session.id === activeSessionId) || sessions[0];
   };
 
-  persistSessionStorage = (sessions, activeSessionId) => {
+  persistLocalDatabaseSnapshot = (sessions, activeSessionId) => {
+    this.localDatabaseWritePromise = this.localDatabaseWritePromise
+      .catch(() => null)
+      .then(() => persistDatasetToDatabase({ sessions, activeSessionId }))
+      .catch((error) => {
+        console.warn("Failed to persist local PGlite dataset", error);
+      });
+
+    return this.localDatabaseWritePromise;
+  };
+
+  bootstrapLocalPersistence = async () => {
+    const legacyDataset = this.ensureSessionStorage({ skipDatabaseMirror: true });
+    const dataset = await bootstrapLegacyStorageIntoDatabase({
+      sessions: legacyDataset.sessions,
+      activeSessionId: legacyDataset.activeSessionId,
+    });
+
+    if (dataset && Array.isArray(dataset.sessions) && dataset.sessions.length) {
+      this.persistSessionStorage(dataset.sessions, dataset.activeSessionId, {
+        skipDatabaseMirror: true,
+      });
+    }
+
+    return dataset;
+  };
+
+  refreshSessionStorageFromDatabase = async () => {
+    const dataset = await loadDatasetFromDatabase();
+    if (dataset && Array.isArray(dataset.sessions) && dataset.sessions.length) {
+      this.persistSessionStorage(dataset.sessions, dataset.activeSessionId, {
+        skipDatabaseMirror: true,
+      });
+    }
+    return dataset;
+  };
+
+  persistSessionStorage = (sessions, activeSessionId, options = {}) => {
+    const { skipDatabaseMirror = false } = options;
     const activeSession = this.getActiveSessionFromList(sessions, activeSessionId);
     const solves = activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : [];
 
     localStorage.setItem("sessions", JSON.stringify(sessions));
     localStorage.setItem("activeSessionId", JSON.stringify(activeSession ? activeSession.id : null));
     localStorage.setItem("solves", JSON.stringify(solves));
+
+    if (!skipDatabaseMirror) {
+      this.persistLocalDatabaseSnapshot(sessions, activeSession ? activeSession.id : activeSessionId);
+    }
   };
 
-  ensureSessionStorage = () => {
+  ensureSessionStorage = (options = {}) => {
+    const { skipDatabaseMirror = false } = options;
     let sessions = this.parseJsonStorage("sessions", []);
     let activeSessionId = this.parseJsonStorage("activeSessionId", null);
 
@@ -269,7 +324,9 @@ class App extends React.Component {
     const activeSession = this.getActiveSessionFromList(sessions, activeSessionId);
     const resolvedActiveSessionId = activeSession ? activeSession.id : sessions[0].id;
 
-    this.persistSessionStorage(sessions, resolvedActiveSessionId);
+    this.persistSessionStorage(sessions, resolvedActiveSessionId, {
+      skipDatabaseMirror,
+    });
 
     return {
       sessions,
@@ -2607,9 +2664,7 @@ class App extends React.Component {
       localStorage.removeItem("averages");
       localStorage.removeItem("setting");
       localStorage.setItem("setting", JSON.stringify(preservedSetting));
-      localStorage.setItem("sessions", JSON.stringify([freshSession]));
-      localStorage.setItem("activeSessionId", JSON.stringify(freshSession.id));
-      localStorage.setItem("solves", JSON.stringify([]));
+      this.persistSessionStorage([freshSession], freshSession.id);
     } catch (error) {
       console.error("Failed to reset local app data", error);
     }
