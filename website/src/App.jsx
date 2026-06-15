@@ -2869,9 +2869,11 @@ class App extends React.Component {
       });
     } catch (error) {
       console.error("Failed to import alg library workbook", error);
+      const reason =
+        error && error.message ? error.message : "Check the file format and try again.";
       this.setState({
         algLibraryImporting: false,
-        algLibraryNotice: "Alg library import failed. Check the file format and try again.",
+        algLibraryNotice: `Alg library import failed. ${reason}`,
       });
     }
   };

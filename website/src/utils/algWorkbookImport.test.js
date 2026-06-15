@@ -46,4 +46,32 @@ describe("algWorkbookImport", () => {
 
     spy.mockRestore();
   });
+
+  it("repairs workbook rows with a missing trailing closing bracket", () => {
+    const workbook = {
+      SheetNames: ["Corners"],
+      Sheets: {
+        Corners: {},
+      },
+    };
+
+    const spy = jest.spyOn(require("xlsx").utils, "sheet_to_json");
+
+    spy.mockImplementationOnce(() => [["IN", "[R' F' R D U : [U2 , R' D' R]"]]);
+
+    const entries = extractAlgLibraryEntriesFromWorkbook(workbook);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "corner",
+          caseCode: "IN",
+          notation: "[R' F' R D U : [U2 , R' D' R]",
+          expandedAlg: "R' F' R D U' R' D' R U2 R' D R U' D' R' F R",
+        }),
+      ])
+    );
+
+    spy.mockRestore();
+  });
 });

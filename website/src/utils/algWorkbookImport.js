@@ -16,11 +16,37 @@ function inferPieceType(sheetName = "") {
   return "unknown";
 }
 
+function closeTrailingBracketGap(notation = "") {
+  const value = String(notation || "").trim();
+  const openCount = (value.match(/\[/g) || []).length;
+  const closeCount = (value.match(/\]/g) || []).length;
+
+  if (openCount <= closeCount) {
+    return value;
+  }
+
+  return `${value}${"]".repeat(openCount - closeCount)}`;
+}
+
+function expandWorkbookNotation(notation = "") {
+  if (!hasCommNotation(notation)) {
+    return notation;
+  }
+
+  try {
+    return expandCommNotation(notation);
+  } catch (error) {
+    const repairedNotation = closeTrailingBracketGap(notation);
+    if (repairedNotation !== notation) {
+      return expandCommNotation(repairedNotation);
+    }
+    throw error;
+  }
+}
+
 function buildEntry({ sheetName, rowIndex, caseCode, notation }) {
   const pieceType = inferPieceType(sheetName);
-  const expandedAlg = hasCommNotation(notation)
-    ? expandCommNotation(notation)
-    : notation;
+  const expandedAlg = expandWorkbookNotation(notation);
 
   return {
     id: `${pieceType}-${caseCode}`.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"),
@@ -31,6 +57,23 @@ function buildEntry({ sheetName, rowIndex, caseCode, notation }) {
     notation,
     expandedAlg,
   };
+}
+
+async function readWorkbookFileAsArrayBuffer(file) {
+  if (file && typeof file.arrayBuffer === "function") {
+    return file.arrayBuffer();
+  }
+
+  if (typeof FileReader !== "undefined" && file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error("Failed to read workbook file"));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  throw new Error("This browser cannot read the selected Excel file.");
 }
 
 export function extractAlgLibraryEntriesFromWorkbook(workbook) {
@@ -71,7 +114,7 @@ export function extractAlgLibraryEntriesFromWorkbook(workbook) {
 }
 
 export async function importAlgWorkbookFile(file) {
-  const buffer = await file.arrayBuffer();
+  const buffer = await readWorkbookFileAsArrayBuffer(file);
   const workbook = XLSX.read(buffer, {
     type: "array",
   });
