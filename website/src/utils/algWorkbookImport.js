@@ -1,5 +1,13 @@
-import * as XLSX from "xlsx";
 import { expandCommNotation, hasCommNotation } from "./commNotation";
+
+let cachedXlsxModule = null;
+
+function getXlsxModule() {
+  if (!cachedXlsxModule) {
+    cachedXlsxModule = require("xlsx/dist/xlsx.full.min.js");
+  }
+  return cachedXlsxModule;
+}
 
 function normalizeCell(value) {
   return value === null || value === undefined ? "" : String(value).trim();
@@ -77,6 +85,7 @@ async function readWorkbookFileAsArrayBuffer(file) {
 }
 
 export function extractAlgLibraryEntriesFromWorkbook(workbook) {
+  const XLSX = getXlsxModule();
   const entries = [];
 
   workbook.SheetNames.forEach((sheetName) => {
@@ -114,6 +123,7 @@ export function extractAlgLibraryEntriesFromWorkbook(workbook) {
 }
 
 export async function importAlgWorkbookFile(file) {
+  const XLSX = getXlsxModule();
   const buffer = await readWorkbookFileAsArrayBuffer(file);
   const workbook = XLSX.read(buffer, {
     type: "array",

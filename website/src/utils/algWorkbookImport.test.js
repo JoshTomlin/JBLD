@@ -10,7 +10,7 @@ describe("algWorkbookImport", () => {
       },
     };
 
-    const spy = jest.spyOn(require("xlsx").utils, "sheet_to_json");
+    const spy = jest.spyOn(require("xlsx/dist/xlsx.full.min.js").utils, "sheet_to_json");
 
     spy
       .mockImplementationOnce(() => [
@@ -55,7 +55,7 @@ describe("algWorkbookImport", () => {
       },
     };
 
-    const spy = jest.spyOn(require("xlsx").utils, "sheet_to_json");
+    const spy = jest.spyOn(require("xlsx/dist/xlsx.full.min.js").utils, "sheet_to_json");
 
     spy.mockImplementationOnce(() => [["IN", "[R' F' R D U : [U2 , R' D' R]"]]);
 
