@@ -64,4 +64,34 @@ describe("algCsvImport", () => {
       ])
     );
   });
+
+  it("repairs extra trailing closing brackets from csv algs", () => {
+    const csvText = 'case_code,alg\nEQ,"[R\' , F\' L F]]"';
+
+    const entries = extractAlgLibraryEntriesFromCsv(csvText, "corner", "corners.csv");
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          caseCode: "EQ",
+          expandedAlg: "R' F' L F R F' L' F",
+        }),
+      ])
+    );
+  });
+
+  it("strips a UTF-8 bom from the first case code cell", () => {
+    const csvText = '\uFEFFcase_code,alg\nAB,"[R\' D\' R , U2]"';
+
+    const entries = extractAlgLibraryEntriesFromCsv(csvText, "corner", "corners.csv");
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          caseCode: "AB",
+          id: "corner-ab",
+        }),
+      ])
+    );
+  });
 });

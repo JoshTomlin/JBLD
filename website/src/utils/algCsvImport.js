@@ -4,19 +4,30 @@ const HEADER_CASE_FIELDS = ["case", "case_code", "code", "target", "letter_pair"
 const HEADER_ALG_FIELDS = ["alg", "algorithm", "notation", "comm", "comm_notation"];
 
 function normalizeCell(value) {
-  return value === null || value === undefined ? "" : String(value).trim();
+  return value === null || value === undefined ? "" : String(value).replace(/^\uFEFF/, "").trim();
 }
 
-function closeTrailingBracketGap(notation = "") {
+function repairBracketBalance(notation = "") {
   const value = String(notation || "").trim();
   const openCount = (value.match(/\[/g) || []).length;
   const closeCount = (value.match(/\]/g) || []).length;
 
-  if (openCount <= closeCount) {
+  if (openCount === closeCount) {
     return value;
   }
 
-  return `${value}${"]".repeat(openCount - closeCount)}`;
+  if (openCount > closeCount) {
+    return `${value}${"]".repeat(openCount - closeCount)}`;
+  }
+
+  let repairedValue = value;
+  let extraClosers = closeCount - openCount;
+  while (extraClosers > 0 && repairedValue.endsWith("]")) {
+    repairedValue = repairedValue.slice(0, -1).trimEnd();
+    extraClosers -= 1;
+  }
+
+  return repairedValue;
 }
 
 function expandLibraryNotation(notation = "") {
@@ -27,7 +38,7 @@ function expandLibraryNotation(notation = "") {
   try {
     return expandCommNotation(notation);
   } catch (error) {
-    const repairedNotation = closeTrailingBracketGap(notation);
+    const repairedNotation = repairBracketBalance(notation);
     if (repairedNotation !== notation) {
       return expandCommNotation(repairedNotation);
     }
@@ -167,13 +178,20 @@ export function extractAlgLibraryEntriesFromCsv(csvText = "", pieceType = "unkno
         return null;
       }
 
-      return buildEntry({
-        pieceType,
-        sourceName,
-        rowIndex: index + 1 + headerOffset,
-        caseCode,
-        notation,
-      });
+      try {
+        return buildEntry({
+          pieceType,
+          sourceName,
+          rowIndex: index + 1 + headerOffset,
+          caseCode,
+          notation,
+        });
+      } catch (error) {
+        const sourceLabel = sourceName || `${pieceType} csv`;
+        throw new Error(
+          `Failed to parse ${sourceLabel} row ${index + 1 + headerOffset} (${caseCode}): ${error.message}`
+        );
+      }
     })
     .filter(Boolean);
 }
