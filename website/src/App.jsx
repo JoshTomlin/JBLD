@@ -25,6 +25,7 @@ import {
   queryLocalDatabase,
 } from "./utils/localDatabase";
 import { importAlgCsvFile } from "./utils/algCsvImport";
+import { getBundledAlgLibraryEntries } from "./data/bundledAlgLibrary";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -2892,6 +2893,36 @@ class App extends React.Component {
       });
     }
   };
+  loadBundledAlgLibrary = async () => {
+    this.setState({
+      algLibraryImporting: true,
+      algLibraryNotice: "Loading bundled corners and edges library...",
+    });
+
+    try {
+      const entries = getBundledAlgLibraryEntries();
+      await importAlgLibraryEntries(entries);
+      const summary = await this.refreshAlgLibrarySummary();
+      const totalCount = Array.isArray(summary && summary.counts)
+        ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
+        : entries.length;
+
+      this.setState({
+        algLibraryImporting: false,
+        algLibraryImportType: null,
+        algLibraryNotice: `Loaded ${entries.length} bundled corner and edge algs. Library now has ${totalCount} saved comms.`,
+      });
+    } catch (error) {
+      console.error("Failed to load bundled alg library", error);
+      const reason =
+        error && error.message ? error.message : "The bundled alg library could not be loaded.";
+      this.setState({
+        algLibraryImporting: false,
+        algLibraryImportType: null,
+        algLibraryNotice: `Bundled alg library failed to load. ${reason}`,
+      });
+    }
+  };
   desktop_layout = () => {
     const accuracyText = this.state.averages.success || "--";
     const ao5Text = this.formatSummaryValue(this.state.averages.ao5);
@@ -3272,12 +3303,22 @@ class App extends React.Component {
           </div>
           <div className="study_library_grid">
             <article className="study_library_card">
-              <div className="study_library_title">CSV Format</div>
+              <div className="study_library_title">Bundled Library</div>
               <div className="study_library_text">
-                Import one CSV per category using `case_code,alg`. Comm notation like `[A, B]` and `[A : B]` is expanded automatically.
+                Load your bundled corner and edge algs directly from the app with no file upload required.
+              </div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={this.loadBundledAlgLibrary}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Loading..." : "Load Bundled Corners + Edges"}
+                </button>
               </div>
               <div className="study_library_notice">
-                Example: `AB,"[R' D' R , U2]"` or `UF-UR,"M' U M' U M' U2 M U M U M U2"`
+                This uses the exact `corners.csv` and `edges.csv` data you sent, bundled into the app.
               </div>
             </article>
             <article className="study_library_card">
