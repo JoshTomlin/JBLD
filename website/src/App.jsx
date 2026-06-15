@@ -286,7 +286,7 @@ class App extends React.Component {
       };
     }
 
-    this.refreshAlgLibrarySummary();
+    await this.ensureBundledAlgLibraryLoaded();
     return dataset;
   };
 
@@ -308,6 +308,35 @@ class App extends React.Component {
     } catch (error) {
       console.warn("Failed to refresh alg library summary", error);
       return null;
+    }
+  };
+
+  ensureBundledAlgLibraryLoaded = async () => {
+    const summary = await this.refreshAlgLibrarySummary();
+    const totalCount = Array.isArray(summary && summary.counts)
+      ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
+      : 0;
+
+    if (totalCount > 0) {
+      return summary;
+    }
+
+    try {
+      const entries = getBundledAlgLibraryEntries();
+      await importAlgLibraryEntries(entries);
+      const nextSummary = await this.refreshAlgLibrarySummary();
+      this.setState({
+        algLibraryNotice: `Loaded ${entries.length} bundled corner and edge algs automatically.`,
+      });
+      return nextSummary;
+    } catch (error) {
+      console.error("Failed to auto-load bundled alg library", error);
+      const reason =
+        error && error.message ? error.message : "The bundled alg library could not be loaded.";
+      this.setState({
+        algLibraryNotice: `Bundled alg library failed to load. ${reason}`,
+      });
+      return summary;
     }
   };
 
@@ -3317,6 +3346,9 @@ class App extends React.Component {
                   {this.state.algLibraryImporting ? "Loading..." : "Load Bundled Corners + Edges"}
                 </button>
               </div>
+              {this.state.algLibraryNotice ? (
+                <div className="study_library_notice">{this.state.algLibraryNotice}</div>
+              ) : null}
               <div className="study_library_notice">
                 This uses the exact `corners.csv` and `edges.csv` data you sent, bundled into the app.
               </div>
@@ -3390,9 +3422,6 @@ class App extends React.Component {
                   {this.state.algLibraryImporting ? "Importing..." : "Import Parity CSV"}
                 </button>
               </div>
-              {this.state.algLibraryNotice ? (
-                <div className="study_library_notice">{this.state.algLibraryNotice}</div>
-              ) : null}
             </article>
           </div>
           <div className="study_section_header">
