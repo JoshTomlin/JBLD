@@ -24,7 +24,7 @@ import {
   persistDatasetToDatabase,
   queryLocalDatabase,
 } from "./utils/localDatabase";
-import { importAlgWorkbookFile } from "./utils/algWorkbookImport";
+import { importAlgCsvFile } from "./utils/algCsvImport";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
@@ -67,6 +67,7 @@ class App extends React.Component {
       local_storage_setting: null,
       algLibrarySummary: { counts: [], recentEntries: [] },
       algLibraryImporting: false,
+      algLibraryImportType: null,
       algLibraryNotice: null,
       renderTable: null,
       solves_stats: [],
@@ -2831,13 +2832,16 @@ class App extends React.Component {
       console.warn("Failed to copy scramble", error);
     });
   };
-  openAlgLibraryImport = () => {
+  openAlgLibraryImport = (pieceType) => {
     if (this.algLibraryInputRef.current) {
-      this.algLibraryInputRef.current.value = "";
-      this.algLibraryInputRef.current.click();
+      this.setState({ algLibraryImportType: pieceType || null }, () => {
+        this.algLibraryInputRef.current.value = "";
+        this.algLibraryInputRef.current.click();
+      });
     }
   };
   handleAlgLibraryImport = async (event) => {
+    const importType = this.state.algLibraryImportType;
     const file =
       event &&
       event.target &&
@@ -2847,16 +2851,25 @@ class App extends React.Component {
         : null;
 
     if (!file) {
+      this.setState({ algLibraryImportType: null });
+      return;
+    }
+
+    if (!importType) {
+      this.setState({
+        algLibraryImporting: false,
+        algLibraryNotice: "Choose a library category before importing a CSV file.",
+      });
       return;
     }
 
     this.setState({
       algLibraryImporting: true,
-      algLibraryNotice: `Importing ${file.name}...`,
+      algLibraryNotice: `Importing ${file.name} into ${importType} library...`,
     });
 
     try {
-      const entries = await importAlgWorkbookFile(file);
+      const entries = await importAlgCsvFile(file, importType);
       await importAlgLibraryEntries(entries);
       const summary = await this.refreshAlgLibrarySummary();
       const totalCount = Array.isArray(summary && summary.counts)
@@ -2865,7 +2878,8 @@ class App extends React.Component {
 
       this.setState({
         algLibraryImporting: false,
-        algLibraryNotice: `Imported ${entries.length} rows. Library now has ${totalCount} saved comms.`,
+        algLibraryImportType: null,
+        algLibraryNotice: `Imported ${entries.length} ${importType} rows. Library now has ${totalCount} saved comms.`,
       });
     } catch (error) {
       console.error("Failed to import alg library workbook", error);
@@ -2873,6 +2887,7 @@ class App extends React.Component {
         error && error.message ? error.message : "Check the file format and try again.";
       this.setState({
         algLibraryImporting: false,
+        algLibraryImportType: null,
         algLibraryNotice: `Alg library import failed. ${reason}`,
       });
     }
@@ -3163,18 +3178,17 @@ class App extends React.Component {
           </div>
           <div className="study_library_grid">
             <article className="study_library_card">
-              <div className="study_library_title">Import Workbook</div>
+              <div className="study_library_title">Alg Library</div>
               <div className="study_library_text">
-                Load your corners and edges sheets from Excel. Comm notation is expanded and saved as full algs automatically.
+                Manage your corners, edges, flips, twists, and parity CSV files from the dedicated Alg Library screen.
               </div>
               <div className="study_library_action_row">
                 <button
                   type="button"
                   className="study_library_button"
-                  onClick={this.openAlgLibraryImport}
-                  disabled={this.state.algLibraryImporting}
+                  onClick={() => this.setState({ activeView: "alg-library" })}
                 >
-                  {this.state.algLibraryImporting ? "Importing..." : "Import Excel File"}
+                  Open Alg Library
                 </button>
               </div>
               {this.state.algLibraryNotice ? (
@@ -3188,7 +3202,7 @@ class App extends React.Component {
                   ? algLibraryCounts
                       .map((entry) => `${entry.piece_type}: ${entry.count}`)
                       .join(" • ")
-                  : "Import your workbook to start building a searchable comm library."}
+                  : "Import your CSV files to start building a searchable comm library."}
               </div>
               {algLibraryRecentEntries.length ? (
                 <div className="study_library_entry_list">
@@ -3233,6 +3247,24 @@ class App extends React.Component {
                 {(algLibraryCounts.find((entry) => entry.piece_type === "edge") || {}).count || "--"}
               </strong>
             </div>
+            <div className="breakdown_card">
+              <span>Flips</span>
+              <strong>
+                {(algLibraryCounts.find((entry) => entry.piece_type === "flip") || {}).count || "--"}
+              </strong>
+            </div>
+            <div className="breakdown_card">
+              <span>Twists</span>
+              <strong>
+                {(algLibraryCounts.find((entry) => entry.piece_type === "twist") || {}).count || "--"}
+              </strong>
+            </div>
+            <div className="breakdown_card">
+              <span>Parity</span>
+              <strong>
+                {(algLibraryCounts.find((entry) => entry.piece_type === "parity") || {}).count || "--"}
+              </strong>
+            </div>
           </div>
           <div className="study_section_header">
             <div className="chart_card_title">Upload Sources</div>
@@ -3240,32 +3272,86 @@ class App extends React.Component {
           </div>
           <div className="study_library_grid">
             <article className="study_library_card">
-              <div className="study_library_title">Corners & Edges Workbook</div>
+              <div className="study_library_title">CSV Format</div>
               <div className="study_library_text">
-                Import your Excel workbook with the `Corners` and `Edges` sheets. Comm notation like `[A, B]` and `[A : B]` is expanded automatically.
+                Import one CSV per category using `case_code,alg`. Comm notation like `[A, B]` and `[A : B]` is expanded automatically.
               </div>
+              <div className="study_library_notice">
+                Example: `AB,"[R' D' R , U2]"` or `UF-UR,"M' U M' U M' U2 M U M U M U2"`
+              </div>
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Corner CSV</div>
+              <div className="study_library_text">Upload your corner comm library.</div>
               <div className="study_library_action_row">
                 <button
                   type="button"
                   className="study_library_button"
-                  onClick={this.openAlgLibraryImport}
+                  onClick={() => this.openAlgLibraryImport("corner")}
                   disabled={this.state.algLibraryImporting}
                 >
-                  {this.state.algLibraryImporting ? "Importing..." : "Import Excel File"}
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Corners CSV"}
+                </button>
+              </div>
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Edge CSV</div>
+              <div className="study_library_text">Upload your edge comm library.</div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={() => this.openAlgLibraryImport("edge")}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Edges CSV"}
+                </button>
+              </div>
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Flip CSV</div>
+              <div className="study_library_text">Upload your flip algs as their own category.</div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={() => this.openAlgLibraryImport("flip")}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Flips CSV"}
+                </button>
+              </div>
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Twist CSV</div>
+              <div className="study_library_text">Upload your twist algs as their own category.</div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={() => this.openAlgLibraryImport("twist")}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Twists CSV"}
+                </button>
+              </div>
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Parity CSV</div>
+              <div className="study_library_text">Upload your parity algs as their own category.</div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={() => this.openAlgLibraryImport("parity")}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Parity CSV"}
                 </button>
               </div>
               {this.state.algLibraryNotice ? (
                 <div className="study_library_notice">{this.state.algLibraryNotice}</div>
               ) : null}
-            </article>
-            <article className="study_library_card">
-              <div className="study_library_title">Special Cases</div>
-              <div className="study_library_text">
-                Flips, twists, and parity are not seeded yet. If you upload those lists to me, I can wire them into the same local library next.
-              </div>
-              <div className="study_library_notice">
-                Hard-coding them from your files is a fine first step, and we can make the importer smarter afterward.
-              </div>
             </article>
           </div>
           <div className="study_section_header">
@@ -3282,7 +3368,7 @@ class App extends React.Component {
                   ? algLibraryCounts
                       .map((entry) => `${entry.piece_type}: ${entry.count}`)
                       .join(" • ")
-                  : "Import your workbook to start building a searchable comm library."}
+                  : "Import your CSV files to start building a searchable comm library."}
               </div>
             </article>
             <article className="study_library_card">
@@ -3715,7 +3801,7 @@ class App extends React.Component {
         <input
           ref={this.algLibraryInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".csv,text/csv"
           style={{ display: "none" }}
           onChange={this.handleAlgLibraryImport}
         />
