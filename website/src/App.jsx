@@ -2991,6 +2991,12 @@ class App extends React.Component {
         heading: "Review analytics, trouble cases, and personal practice collections.",
         body: "This page brings your execution trends and weak cases together in one place.",
       },
+      "alg-library": {
+        title: "Alg Library",
+        eyebrow: "Alg Library",
+        heading: "Import, review, and maintain the comms you want the app to recognize as your preferred cases.",
+        body: "Use this page to build a personal library for edges, corners, and later flips, twists, and parity.",
+      },
       history: {
         title: "History",
         eyebrow: "History",
@@ -3195,6 +3201,107 @@ class App extends React.Component {
                   ))}
                 </div>
               ) : null}
+            </article>
+          </div>
+        </section>
+      );
+    } else if (this.state.activeView === "alg-library") {
+      mainView = (
+        <section className="study_screen view_panel">
+          <div className="section_header">
+            <div>
+              <div className="placeholder_title">Alg Library</div>
+              <div className="placeholder_text">{currentView.body}</div>
+            </div>
+          </div>
+          <div className="stats_breakdown_grid">
+            <div className="breakdown_card">
+              <span>Total Saved</span>
+              <strong>{algLibraryTotal || "--"}</strong>
+            </div>
+            <div className="breakdown_card">
+              <span>Corner Algs</span>
+              <strong>
+                {(algLibraryCounts.find((entry) => entry.piece_type === "corner") || {}).count || "--"}
+              </strong>
+            </div>
+            <div className="breakdown_card">
+              <span>Edge Algs</span>
+              <strong>
+                {(algLibraryCounts.find((entry) => entry.piece_type === "edge") || {}).count || "--"}
+              </strong>
+            </div>
+          </div>
+          <div className="study_section_header">
+            <div className="chart_card_title">Upload Sources</div>
+            <div className="section_meta">Local-first</div>
+          </div>
+          <div className="study_library_grid">
+            <article className="study_library_card">
+              <div className="study_library_title">Corners & Edges Workbook</div>
+              <div className="study_library_text">
+                Import your Excel workbook with the `Corners` and `Edges` sheets. Comm notation like `[A, B]` and `[A : B]` is expanded automatically.
+              </div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={this.openAlgLibraryImport}
+                  disabled={this.state.algLibraryImporting}
+                >
+                  {this.state.algLibraryImporting ? "Importing..." : "Import Excel File"}
+                </button>
+              </div>
+              {this.state.algLibraryNotice ? (
+                <div className="study_library_notice">{this.state.algLibraryNotice}</div>
+              ) : null}
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Special Cases</div>
+              <div className="study_library_text">
+                Flips, twists, and parity are not seeded yet. If you upload those lists to me, I can wire them into the same local library next.
+              </div>
+              <div className="study_library_notice">
+                Hard-coding them from your files is a fine first step, and we can make the importer smarter afterward.
+              </div>
+            </article>
+          </div>
+          <div className="study_section_header">
+            <div className="chart_card_title">Recent Library Entries</div>
+            <div className="section_meta">
+              {algLibraryTotal ? `${algLibraryTotal} saved comms` : "No library entries yet"}
+            </div>
+          </div>
+          <div className="study_library_grid">
+            <article className="study_library_card">
+              <div className="study_library_title">Library Summary</div>
+              <div className="study_library_text">
+                {algLibraryCounts.length
+                  ? algLibraryCounts
+                      .map((entry) => `${entry.piece_type}: ${entry.count}`)
+                      .join(" • ")
+                  : "Import your workbook to start building a searchable comm library."}
+              </div>
+            </article>
+            <article className="study_library_card">
+              <div className="study_library_title">Latest Imported Algs</div>
+              {algLibraryRecentEntries.length ? (
+                <div className="study_library_entry_list">
+                  {algLibraryRecentEntries.map((entry) => (
+                    <div key={entry.id} className="study_library_entry">
+                      <div className="study_library_entry_header">
+                        <strong>{entry.case_code}</strong>
+                        <span>{entry.piece_type}</span>
+                      </div>
+                      <div className="study_library_entry_alg">{entry.expanded_alg}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="study_library_text">
+                  Recent imported entries will appear here after your first upload.
+                </div>
+              )}
             </article>
           </div>
         </section>
@@ -3762,6 +3869,13 @@ class App extends React.Component {
                   onClick={() => this.setState({ showMenu: false, activeView: "study" })}
                 >
                   Study
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
+                  onClick={() => this.setState({ showMenu: false, activeView: "alg-library" })}
+                >
+                  Alg Library
                 </button>
                 <button
                   type="button"
