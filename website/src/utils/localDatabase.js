@@ -4,6 +4,38 @@ const SCHEMA_VERSION = 3;
 let dbPromise = null;
 let migrationPromise = null;
 
+function resolvePGliteConstructor(moduleExports) {
+  if (!moduleExports) {
+    return null;
+  }
+
+  if (typeof moduleExports === "function") {
+    return moduleExports;
+  }
+
+  if (typeof moduleExports.PGlite === "function") {
+    return moduleExports.PGlite;
+  }
+
+  if (moduleExports.default) {
+    return resolvePGliteConstructor(moduleExports.default);
+  }
+
+  return null;
+}
+
+async function loadPGliteConstructor() {
+  if (typeof require === "function") {
+    const moduleExports = require("@electric-sql/pglite/dist/index.cjs");
+    const PGliteConstructor = resolvePGliteConstructor(moduleExports);
+    if (PGliteConstructor) {
+      return PGliteConstructor;
+    }
+  }
+
+  throw new Error("PGlite could not be loaded in this browser.");
+}
+
 function safeJsonParse(value, fallbackValue) {
   if (!value || typeof value !== "string") {
     return fallbackValue;
@@ -239,7 +271,7 @@ function fromSessionRows(sessionRows, solveRows) {
 async function getDatabase() {
   if (!dbPromise) {
     dbPromise = Promise.resolve().then(async () => {
-      const { PGlite } = require("@electric-sql/pglite/dist/index.cjs");
+      const PGlite = await loadPGliteConstructor();
       const db = new PGlite(DATABASE_PATH);
       return db;
     });
