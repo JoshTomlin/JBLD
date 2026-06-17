@@ -1,3 +1,5 @@
+import * as PGliteModule from "@electric-sql/pglite/dist/index.cjs";
+
 const DATABASE_PATH = "idb://jbld-local-db";
 const SCHEMA_VERSION = 3;
 
@@ -25,12 +27,9 @@ function resolvePGliteConstructor(moduleExports) {
 }
 
 async function loadPGliteConstructor() {
-  if (typeof require === "function") {
-    const moduleExports = require("@electric-sql/pglite/dist/index.cjs");
-    const PGliteConstructor = resolvePGliteConstructor(moduleExports);
-    if (PGliteConstructor) {
-      return PGliteConstructor;
-    }
+  const PGliteConstructor = resolvePGliteConstructor(PGliteModule);
+  if (PGliteConstructor) {
+    return PGliteConstructor;
   }
 
   throw new Error("PGlite could not be loaded in this browser.");
