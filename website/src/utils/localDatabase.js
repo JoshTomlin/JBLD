@@ -1,5 +1,3 @@
-import PGliteModule from "@electric-sql/pglite/dist/index.cjs";
-
 const DATABASE_PATH = "idb://jbld-local-db";
 const SCHEMA_VERSION = 3;
 
@@ -7,24 +5,26 @@ let dbPromise = null;
 let migrationPromise = null;
 
 async function loadPGliteConstructor() {
-  if (typeof PGliteModule === "function") {
-    return PGliteModule;
+  const moduleExports = await import("@electric-sql/pglite/dist/index.cjs");
+
+  if (typeof moduleExports === "function") {
+    return moduleExports;
   }
 
-  if (PGliteModule && typeof PGliteModule.PGlite === "function") {
-    return PGliteModule.PGlite;
+  if (moduleExports && typeof moduleExports.PGlite === "function") {
+    return moduleExports.PGlite;
   }
 
-  if (PGliteModule && PGliteModule.default && typeof PGliteModule.default === "function") {
-    return PGliteModule.default;
+  if (moduleExports && moduleExports.default && typeof moduleExports.default === "function") {
+    return moduleExports.default;
   }
 
   if (
-    PGliteModule &&
-    PGliteModule.default &&
-    typeof PGliteModule.default.PGlite === "function"
+    moduleExports &&
+    moduleExports.default &&
+    typeof moduleExports.default.PGlite === "function"
   ) {
-    return PGliteModule.default.PGlite;
+    return moduleExports.default.PGlite;
   }
 
   throw new Error("PGlite could not be loaded in this browser.");
