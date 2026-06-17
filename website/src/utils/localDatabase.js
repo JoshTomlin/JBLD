@@ -4,30 +4,67 @@ const SCHEMA_VERSION = 3;
 let dbPromise = null;
 let migrationPromise = null;
 
-async function loadPGliteConstructor() {
-  const moduleExports = await import("@electric-sql/pglite/dist/index.cjs");
+function resolvePGliteConstructor(moduleExports, visited = new WeakSet()) {
+  if (!moduleExports) {
+    return null;
+  }
 
   if (typeof moduleExports === "function") {
     return moduleExports;
   }
 
-  if (moduleExports && typeof moduleExports.PGlite === "function") {
+  if (typeof moduleExports !== "object") {
+    return null;
+  }
+
+  if (visited.has(moduleExports)) {
+    return null;
+  }
+  visited.add(moduleExports);
+
+  if (typeof moduleExports.PGlite === "function") {
     return moduleExports.PGlite;
   }
 
-  if (moduleExports && moduleExports.default && typeof moduleExports.default === "function") {
-    return moduleExports.default;
+  if (moduleExports.default) {
+    const nestedDefault = resolvePGliteConstructor(moduleExports.default, visited);
+    if (nestedDefault) {
+      return nestedDefault;
+    }
   }
 
-  if (
-    moduleExports &&
-    moduleExports.default &&
-    typeof moduleExports.default.PGlite === "function"
-  ) {
-    return moduleExports.default.PGlite;
+  const keys = Object.keys(moduleExports);
+  for (const key of keys) {
+    const value = moduleExports[key];
+    if (typeof value === "function" && (key === "PGlite" || value.name === "PGlite")) {
+      return value;
+    }
   }
 
-  throw new Error("PGlite could not be loaded in this browser.");
+  for (const key of keys) {
+    const nestedValue = moduleExports[key];
+    if (nestedValue && typeof nestedValue === "object") {
+      const nestedConstructor = resolvePGliteConstructor(nestedValue, visited);
+      if (nestedConstructor) {
+        return nestedConstructor;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function loadPGliteConstructor() {
+  const moduleExports = await import("@electric-sql/pglite/dist/index.cjs");
+  const PGliteConstructor = resolvePGliteConstructor(moduleExports);
+  if (PGliteConstructor) {
+    return PGliteConstructor;
+  }
+
+  const moduleKeys = moduleExports && typeof moduleExports === "object"
+    ? Object.keys(moduleExports).join(", ")
+    : typeof moduleExports;
+  throw new Error(`PGlite could not be loaded in this browser. Module keys: ${moduleKeys || "(none)"}`);
 }
 
 function safeJsonParse(value, fallbackValue) {
