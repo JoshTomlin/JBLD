@@ -1,828 +1,18233 @@
-import { extractAlgLibraryEntriesFromCsv } from "../utils/algCsvImport";
-
-const BUNDLED_CORNERS_CSV = String.raw`AB,"[R' B' R : [R D R' , U']]"
-AD,"[R' D R U2 : [R' D' R , U]]"
-AF,"[F : [U2 , F' R F R']]"
-AG,"[R' D R , U2]"
-AH,"[U' : [R D' R' , U2]]"
-AI,"[r D' U : [R D R' , U2]]"
-AK,"[D U' : [R D R' , U2]]"
-AL,"[D : [R' D' R , U2]]"
-AN,"[R' U D R2 : [U' , R' D' R]]"
-AO,"[U' : [R D R' , U2]]"
-AP,"[R' D' R , U2]"
-AQ,"[R' U D : [R D R' , U2]]"
-AS,"[D' U' : [R D R' , U2]]"
-AT,"[D U' : [R D' R' , U2]]"
-AU,"[R F' R' U' : [R D R' , U2]]"
-AV,"[R' D R U' R D' R' , U2]"
-AW,"[R D' R' : [R' D R , U2]]"
-AX,"[R' U' D' R : [R U' R' , D]]"
-BA,"[R' B' R : [U' , R D R']]"
-BD,"[R F' R' : [R' D R, U]]"
-BE,"[R : [U , R D R']]"
-BF,"[R2 : [D' , R U' R']]"
-BG,"[R' D R , U]"
-BH,"[U' , R D' R']"
-BI,"[R2 U' : [D' , R U R']]"
-BK,"[D' : [R' D R , U]]"
-BL,"[D : [R' D' R , U]]"
-BO,"[U' , R D R']"
-BP,"[R' D' R , U]"
-BR,"[R2 U : [R' U' R , D]]"
-BS,"[D' : [U' , R D R']]"
-BT,"[D : [U' , R D' R']]"
-BU,"[R F' : [R' U' R , D]]"
-BV,"[R' D R U' R D' R' , U]"
-BW,"[U' , R D' R' U R' D R]"
-BX,"[R' B : [D' , R U R']]"
-DA,"[R' D R U' : [R' D' R , U']]"
-DB,"[R F' R' : [U , R' D R]]"
-DE,"[U' R2 : [D , R' U2 R]]"
-DG,"[R' D R , U']"
-DH,"[U' : [R D' R' , U']]"
-DK,"[D' : [R' D R , U']]"
-DL,"[D : [R' D' R , U']]"
-DN,"[U' R' : [U2 , R' D' R]]"
-DO,"[U' : [R D R' , U']]"
-DP,"[R' D' R , U']"
-DQ,"[R' D' : [U' , R' D R]]"
-DR,"[U' R' : [U' , R' D' R]]"
-DS,"[D : [R' D R , U']]"
-DT,"[D' : [R' D' R , U']]"
-DU,"[R' U' R : [F2' , R' U R U']]"
-DV,"[R' D R U' R D' R' , U']"
-DW,"[R D' R' : [R' D R , U']]"
-DX,"[R' D' R : [R U' R' , D]]"
-EB,"[R2 : [D , R' U R]]"
-ED,"[U' R : [U2 , R D R']]"
-EF,"[U' R' F : [D , R U R']]"
-EG,"[U R' : [U' , R' D R]]"
-EH,"[R D' : [R D R' , U]]"
-EI,"[l' U : [R D' R' , U2]]"
-EK,"[U D' R' : [U' , R' D R]]"
-EL,"[R U : [R' D R , U]]"
-EN,"[R' D R2 D' R2' : [U , R2 D R2' D' R2]]"
-EO,"[U' R : [R U' R' , D']]"
-EP,"[U R' U2 : [R D R' , U]]"
-EQ,"[R' , F' L F]]"
-ES,"[U D R' : [U' , R' D R]]"
-ET,"[R U : [R' D' R , U]]"
-EU,"[D' R : [R D' R' , U]]"
-EV,"[U R' D' : [U' , R' D' R]]"
-EW,"[D R : [R D' R', U]]"
-EX,"[R : [R D' R' , U]]"
-FA,"[F : [R' D' R , U2]]"
-FB,"[R' : [U' , R' D' R]]"
-FE,"[U' R' U , L]"
-FG,"[R' U' : [D , R U R']]"
-FH,"[U' R U' : [D' , R' U R]]"
-FK,"[R : [F , R' U R U']]"
-FL,"[D R' U' : [D' , R U R']]"
-FN,"[R U' D' R' : [D , R' U R]]"
-FO,"[D' R : [F , R' U R U']]"
-FP,"[R' U' : [D' , R U R']]"
-FQ,"[R' F : [R U R' , D]]"
-FR,"[l U' l' , F]"
-FS,"[l U2 l' , F]"
-FT,"[D' R' U' : [D' , R U R']]"
-FU,"[U' R' U : [R U' R' , D]]"
-FV,"[U' D' R' U : [R U' R' , D]]"
-FW,"[R U' R' : [D , R' U R]]"
-FX,"[U' D R' U : [R U' R' , D]]"
-GA,"[U2 , R' D R]"
-GB,"[U , R' D R]"
-GD,"[U' , R' D R]"
-GE,"[U R' : [R' D R , U']]"
-GF,"[R' U' : [R U R' , D]]"
-GH,"[D R' : [F' , R D' R']]"
-GI,"[D R' : [F2 , R D' R' D]]"
-GK,"[U : [D , R U' R']]"
-GN,"[U R U : [R' D R , U2]]"
-GO,"[U D : [R U' R' , D2]]"
-GP,"[U R' D : [R U' R' , D2]]"
-GQ,"[R' U : [R U' R' , D]]"
-GR,"[R B' R' : [R' D R , U]]"
-GS,"[U D : [R U' R' , D]]"
-GT,"[R' D R : [D' , R U R']]"
-GV,"[U D R D' : [U' , R' D R]]"
-GW,"[U R : [D , R U' R']]"
-GX,"[D U R U' : [F2' , U R' U' R]]"
-HA,"[U : [R D' R' , U2]]"
-HB,"[R D' R' , U']"
-HD,"[U2 : [R D' R' , U]]"
-HE,"[R D' : [U , R D R']]"
-HF,"[U' R U' : [R' U R , D']]"
-HG,"[R' D : [F' , D' R D R']]"
-HI,"[R U' D : [R' D R , U2]]"
-HK,"[l' U : [D , R U' R']]"
-HL,"[D2 : [R U R' , D']]"
-HN,"[U R : [R D' R' , U2]]"
-HO,"[R D' : [R' U' R , D2]]"
-HP,"[D2 , R U R']"
-HQ,"[U' L U , R]"
-HR,"[U D R' F' : [D , R U' R']]"
-HT,"[D2 : [R U R' , D]]"
-HU,"[D R U' R' : [R' D R , U2]]"
-HV,"[R U' D R' : [R' D R , U2]]"
-HW,"[R D' R' : [R' D R , U]]"
-IA,"R' D R U' R : [F , R' U R U']"
-IB,"[R2 U' : [R U R' , D']]"
-IE,"[l' U' : [R D' R' , U2]]"
-IG,"[R' D : [F2 , D' R D R']]"
-IH,"[R U D : [R' D R , U2]]"
-IK,"[D' R' D : [F2 , D' R D R']]"
-IL,"[R U : [R' D R , U2]]"
-IN,"[R' F' R D U : [U2 , R' D' R]"
-IO,"[R D' U : [R' D R , U2]]"
-IP,"[D R U : [R' D' R , U2]]"
-IQ,"[R U D' : [R' D' R , U2]]"
-IR,"[R U R' U D : [R D R' , U2]]"
-IS,"[D R' D : [F2 , D' R D R']]"
-IT,"[R U : [R' D' R , U2]]"
-IU,"[D' R : [R D' R' , U2]]"
-IV,"[R U' R' D' : [R' D R , U2]]"
-IW,"[D R : [R D' R' , U2]]"
-IX,"[R : [R D' R' , U2]]"
-KA,"[U D : [R D R' , U2]]"
-KB,"[D' : [U , R' D R]]"
-KD,"[D' : [U' , R' D R]]"
-KE,"[D' U R' : [R' D R , U']]"
-KF,"[U R U' : [F , U R' U' R]]"
-KG,"[U : [R U' R' , D]]"
-KH,"[l' U : [R U' R' , D]]"
-KI,"[R' : [F2 , R D' R' D]]"
-KL,"[R' : [F' , R D' R' D]]"
-KN,"[U' R' U : [R D R' , U2]]"
-KO,"[U : [R U' R' , D']]"
-KQ,"[D' R' U : [R U' R' , D]]"
-KR,"[U' R' U2 : [R D R' , U]]"
-KS,"[U : [R U' R' , D2]]"
-KT,"[R U R' U' : [D' , R U R']]"
-KU,"[U R U' : [F2' , U R' U' R]]"
-KW,"[U R' D' : [U' , R' D R]]"
-KX,"[R' D' R : [R U R' , D]]"
-LA,"[D' U : [R D' R' , U2]]"
-LB,"[D : [U , R' D' R]]"
-LD,"[D : [U' , R' D' R]]"
-LE,"[R U2 : [R' D R , U']]"
-LF,"[D R' U' : [R U R' , D']]"
-LH,"[D : [R U R' , D]]"
-LI,"[R U' : [R' D R , U U]]"
-LK,"[D' R' D : [F' , D' R D R']]"
-LN,"[U R U D : [R' D' R , U2]]"
-LO,"[R D2 : [R' U' R , D']]"
-LP,"[D , R U R']"
-LQ,"[R' F : [R U' R' , D]]"
-LR,"[D R' : [D , R' U R]]"
-LS,"[D' R D' : [R' U' R , D2]]"
-LT,"[D : [R U R' , D2]]"
-LV,"[R U' R' : [R' D R , U2]]"
-LW,"[D R : [R D' R' , U']]"
-LX,"[D R D : [U , R' D' R]]"
-NA,"[R' U D R : [D' , R U' R']]"
-ND,"[U' R2' : [D' , R U2 R']]"
-NE,"[R : [U , R2 D R2 D' R2]]"
-NF,"[R U' D' R' : [R' U R , D]]"
-NG,"[U R U' : [R' D R , U2]]"
-NH,"[U R : [U2 , R D' R']]"
-NI,"[R' F' R D U : [R' D' R , U2]"
-NK,"[U' R' U' : [R D R' , U2]]"
-NL,"[U R U' D : [R' D' R , U2]]"
-NO,"[U R U' : [R' D' R , U2]]"
-NP,"[U' R' D U' : [R D' R' , U2]]"
-NR,"[U R2 U' : [D' , R U R']]"
-NS,"[U' R' U' : [R D' R' , U2]]"
-NT,"[R' F' R D' U : [R' D R , U2]]"
-NU,"[U' R' : [R' D R , U2]]"
-NV,"[D' U' R' : [R' D R , U2]]"
-NW,"[U R U' D' : [R' D R , U2]]"
-NX,"[D U' R' : [R' D R , U2]]"
-OA,"[U : [R D R' , U2]]"
-OB,"[R D R' , U']"
-OD,"[U2 : [R D R' , U]]"
-OE,"[U' R' F R : [R D R' , U']]"
-OF,"[D' R : [R' U R U' , F]]"
-OG,"[U D' : [R U' R' , D2]]"
-OH,"[R D : [R' U' R , D2]]"
-OI,"[R D' U' : [R' D R , U2]]"
-OK,"[U : [D' , R U' R']]"
-OL,"[R D : [R' U' R , D]]"
-ON,"[U R U : [R' D' R , U2]]"
-OP,"[R D' : [R' D R , U]]"
-OQ,"[U' R U : [R' U' R , D]]"
-OR,"[R B' : [R' U' R , D]]"
-OS,"[U' : [R' U' R , D']]"
-OU,"[U' R' : [R' D R , U]]"
-OV,"[D' U R U' : [F2 , U R' U' R]]"
-OX,"[U D' R D' : [U' , R' D R]]"
-PA,"[U2 , R' D' R]"
-PB,"[U , R' D' R]"
-PD,"[U' , R' D' R]"
-PE,"[U R' U' : [R D R' , U']]"
-PF,"[R' U' : [R U R' , D']]"
-PG,"[U R' D' : [R U' R' , D2]]"
-PH,"[R U R' , D2]"
-PI,"[D R U' : [R' D' R , U2]]"
-PL,"[R U R' , D]"
-PN,"[U' R' D U : [R D' R' , U2]]"
-PO,"[R D' : [U , R' D R]]"
-PQ,"[R' U : [R U' R' , D']]"
-PR,"[R' : [D , R' U R]]"
-PS,"[U R' D' : [R U' R' , D']]"
-PT,"[R U R' , D']"
-PU,"[R D : [U , R' D' R]]"
-PW,"[D' R U' R' : [R' D R , U2]]"
-PX,"[R : [R D' R' , U']]"
-QA,"[R' U' D : [R D R' , U2]]"
-QD,"[R' D' : [R' D R , U']]"
-QE,"[F' L F , R']"
-QF,"[R' F : [D , R U R']]"
-QG,"[R' U : [D , R U' R']]"
-QH,"[R , U' L U]"
-QI,"[R D' U' : [R' D' R , U2]]"
-QK,"[D' R' U : [D , R U' R']]"
-QL,"[R' F : [D , R U' R']]"
-QO,"[U' R U : [D , R' U' R]]"
-QP,"[R' U : [D' , R U' R']]"
-QR,"[R , U' L' U]"
-QS,"[D R' U : [D , R U' R']]"
-QT,"[R U' : [R' U R , D]]"
-QU,"[D' R U' : [R' U R , D']]"
-QV,"[U R' U' : [R U R' , D']]"
-QW,"[D R U' : [R' U R , D']]"
-QX,"[R U' : [R' U R , D']]"
-RB,"[R2 U : [D , R' U' R]]"
-RD,"[U' R2' : [D' , R U' R']]"
-RF,"[F , l U' l']"
-RG,"[R B' R' : [U , R' D R]]"
-RH,"[U D R' F' : [R U' R' , D]]"
-RI,"[R U R' D' : [R' D R , U2]]"
-RK,"[U' R' U' : [R D R' , U']]"
-RL,"[D R' : [R' U R , D]]"
-RN,"[U R2 U' : [R U R' , D']]"
-RO,"[R B' : [D , R' U' R]]"
-RP,"[R2' : [U , R D R']]"
-RQ,"[U' L' U , R]"
-RS,"[U' R' U' : [R D' R' , U']]"
-RT,"[D' R2' : [U , R D R']]"
-RU,"[U' R' : [R' D R , U']]"
-RV,"[D' U' R' : [R' D R , U']]"
-RW,"[U R : [D' , R U' R']]"
-RX,"[R2 U : [D' , R' U' R]]"
-SA,"[U D' : [R D R' , U2]]"
-SB,"[D' : [R D R' , U']]"
-SD,"[D : [U' , R' D R]]"
-SE,"[D U R' : [R' D R , U']]"
-SF,"[F , l U2 l']"
-SG,"[U D2 : [R U' R' , D']]"
-SI,"[D R' D : [F2 , D' R D R']]"
-SK,"[U : [D2 , R U' R']]"
-SL,"[D' R D : [R' U' R , D2]]"
-SN,"[U' R' U : [R D' R' , U2]]"
-SO,"[U' : [D' , R' U' R]]"
-SP,"[U R' D' : [D' , R U' R']]"
-SQ,"[D R' U : [R U' R' , D]]"
-SR,"[U' R' U2 : [R D' R' , U]]"
-ST,"[D2' R' : [F' , R D' R' D]]"
-SU,"[U' D' R' D' : [U' , R D R']]"
-SV,"[U' D' R' : [R' D R , U]]"
-SW,"[U R : [D2 , R U' R']]"
-TA,"[U D : [R D' R' , U2]]"
-TB,"[D : [R D' R' , U']]"
-TD,"[D' : [U' , R' D' R]]"
-TE,"[R U2 : [R' D' R , U']]"
-TF,"[D' R' U' : [R U R' , D']]"
-TG,"[R' D R2 : [U , R' D' R]]"
-TH,"[D' : [R U R' , D']]"
-TI,"[R U' : [R' D' R , U2]]"
-TK,"[R U R' U' : [R U R' , D']]"
-TL,"[D' : [R U R' , D2]]"
-TN,"[R' F' R D' U' : [R' D R , U2]]"
-TP,"[D' , R U R']"
-TQ,"[R U' : [D , R' U R]]"
-TR,"[D' R' : [D , R' U R]]"
-TS,"[D R' D : [F' , D' R D R']]"
-TU,"[D' R : [R D' R' , U']]"
-TV,"[D' R D : [U , R' D' R]]"
-TX,"[R U' D : [R' U R , D2]]"
-UA,"[R F' R' U : [R D R' , U2]]"
-UB,"[R F' : [D , R' U' R]]"
-UD,"[U' : [F2' , U R' U' R]]"
-UE,"[D' R : [U , R D' R']]"
-UF,"[U' R' U : [D , R U' R']]"
-UH,"[D R U' R' : [U2 , R' D R]]"
-UI,"[R D U' : [R' D' R , U2]]"
-UK,"[R : [F2 , R' U R U']]"
-UN,"[U' R' : [U2 , R' D R]]"
-UO,"[U' R' : [U , R' D R]]"
-UP,"[R D : [R' D' R , U]]"
-UQ,"[D' R U' : [D' , R' U R]]"
-UR,"[U' R' : [U' , R' D R]]"
-US,"[U' D' R' D' : [R D R' , U']]"
-UT,"[D' R : [U' , R D' R']]"
-UV,"[U' R' U R : [D , R U' R']]"
-UW,"[U' R2' : [D , R2 U R2' U' R2]] inverse"
-UX,"[R U' D2 : [R' U R , D]]"
-VA,"[U2 , R' D R U' R D' R']"
-VB,"[U , R' D R U' R D' R']"
-VD,"[U' , R' D R U' R D' R']"
-VE,"[U R' D' : [R' D' R , U']]"
-VF,"[U' D' R' U : [D , R U' R']]"
-VG,"[U D R D' : [R' D R , U']]"
-VH,"[R U' D R' : [U2 , R' D R]]"
-VI,"[R U' R' U D : [R D R' , U2]]"
-VL,"[R U' R' : [U2 , R' D R]]"
-VN,"[U' D' R' : [U2 , R' D R]]"
-VO,"[D' R : [F2 , R' U R U']]"
-VQ,"[U R' U' : [D' , R U R']]"
-VR,"[D' U' R' : [U' , R' D R]]"
-VS,"[U' D' R' : [U , R' D R]]"
-VT,"[D' R D : [R' D' R , U]]"
-VU,"[U' R' U R : [R U' R' , D]]"
-VW,"[D R U' R' : [R' U R , D']]"
-VX,"[R U' R' U : [R D' R' , U2]]"
-WA,"[R D' R' : [U2 , R' D R]]"
-WB,"[R D' R' U R' D R , U']"
-WD,"[R D' R' : [U' , R' D R]]"
-WE,"[D R : [U , R D' R']]"
-WF,"[R U' R2' : [U , R D R']]"
-WG,"[U R2 : [U' , R' D R]]"
-WH,"[R D' R' : [U , R' D R]]"
-WI,"[D R : [U2 , R D' R']]"
-WK,"[U R D' : [R' D R , U']]"
-WL,"[D' R2 : [R' U' R , D']]"
-WN,"[U R U D' : [R' D R , U2]]"
-WP,"[D' R U' R' : [U2 , R' D R]]"
-WQ,"[D R U' : [D' , R' U R]]"
-WR,"[U R2 : [U' , R' D' R]]"
-WS,"[U R2 : [U' , R' D2 R]]"
-WU,"[U' R2' : [D , R2 U R2' U' R2]]"
-WV,"[D R U' R' : [D' , R' U R]]"
-WX,"[R U' R' : [R' U R , D']]"
-XA,"[R' U' D' R : [D , R U' R']]"
-XB,"[R' B : [R U R' , D']]"
-XD,"[R' D' R : [D , R U' R']]"
-XE,"[R : [U , R D' R']]"
-XF,"[U' D R' U : [D , R U' R']]"
-XG,"[D R : [F2 , R' U R U']]"
-XI,"[R2 U : [R' U R , D']]"
-XK,"[R' D' R : [D ,R U R']]"
-XL,"[D R D : [R' D' R , U]]"
-XN,"[D U' R' : [U2 , R' D R]]"
-XO,"[U D' R D' : [R' D R , U']]"
-XP,"[R2 : [R' U' R , D']]"
-XQ,"[R U' : [D' , R' U R]]"
-XR,"[R2 U : [R' U' R , D']]"
-XT,"[R U' D' : [R' U R , D2]]"
-XU,"[R U' D' : [R' U R , D']]"
-XV,"[R U' R' U' : [R D' R' , U2]]"
-XW,"[R U' R' : [D' , R' U R]]"`;
-
-const BUNDLED_EDGES_CSV = String.raw`AB,"[R2 U' : [S , R2']]"
-AD,"[L2' U : [S' , L2]]"
-AE,"[U' M U' : [M' , U2]]"
-AF,"[U' : [R' E R , U2]]"
-AG,"[U : [L' E' L , U2']]"
-AH,"[U' : [R E' R' , U2]]"
-AJ,"[R' U' : [S , R2']]"
-AK,"[R' F' : [R U R' , E]]"
-AL,"[L U : [S' , L2']]"
-AM,"[U M U : [M' , U2']]"
-AN,"[U : [L' E L , U2']]"
-AO,"[U' : [R E R' , U2]]"
-AP,"[U : [L E' L' , U2']]"
-AR,"[L' U' : [L2 , S']]"
-AS,"[U' R' B R : [S , R2']]"
-AT,"[R U : [R2' , S]]"
-AU,"[U2 , M']"
-AV,"[U' : [S , R2']]"
-AW,"[M , U2]"
-AX,"[U : [S' , L2']]"
-BA,"[R2 U' : [R2' , S]]"
-BD,"[M2' U : [M , U2']]"
-BE,"[S' , L F' L']"
-BF,"[U' , R' E R]"
-BG,"[U : [L' E' L , U]]"
-BH,"[U' , R E' R']"
-BJ,"[E' : [U' , R' E R]]"
-BK,"[r : [U' R' U , M]]"
-BL,"[U' , R E2 R']"
-BN,"[U : [L' E L , U]"
-BO,"[U' , R E R']"
-BP,"[U : [L E' L' , U]"
-BQ,"[r' : [U' R U , M']]"
-BR,"[U' , R' E2 R]"
-BS,(U M U M')2
-BT,"[u' : [R E' R' , U]]"
-BU,"[L F : [L' S' L , F2']]"
-BV,"[R' U R' : [S , R2]]"
-BW,"[r M' : [U' R' U , M2']]"
-BX,U' L' U' L U L U L U' L'
-DA,"[L2' U : [L2 , S']]"
-DB,"[M2' U' : [M , U2]]"
-DF,"[U' : [R' E R , U']]"
-DG,"[U , L' E' L]"
-DH,"[U' : [R E' R' , U']]"
-DJ,"[U , L' E2' L]"
-DK,"[l' : [U L U' , M]]"
-DL,"[U' : [R E2 R' , U']"
-DM,"[S , R' F R]"
-DN,"[U , L' E L]"
-DO,"[U' : [R E R' , U']]"
-DP,"[U , L E' L']"
-DQ,"[L : [M , U L' U']]"
-DR,"[U' : [R E2 R' , U']"
-DS,(U' M U' M')2
-DT,"[U , L E2' L']"
-DU,"[R' F' : [R S R' , F2]]"
-DV,U R U R' U' R' U' R' U R
-DW,"[l' M' : [U L U' , M2']]"
-DX,"[L U' L : [S' , L2']]"
-EA,"[U' M U : [M' , U2]]"
-EB,"[L F' L' , S']"
-EF,"[S : [U' , R' E R]]"
-EG,"[l' U L' : [S' , L2]]"
-EH,"[S : [U' , R E' R']]"
-EJ,"[M' : [U' , R S' R']]"
-EK,"[l' : [M' , U' L U]]"
-EL,"[L' U2 : [L S L' , U]]"
-EM,"[M U : [M' , U2']]"
-EN,"[L' F' : [E , L2]]"
-EO,"[R' F R : [S , R2']]"
-EP,"[R M U : [M' , U2]]"
-EQ,"[L' : [U' L U , M']]"
-ER,"[U' R F : [R2' , E']]"
-ES,M' : (U M' U M)2
-ET,"[M' : [U' , L' E L]]"
-EU,"[L' F' : [L2 , E']]"
-EV,"[L2 : [L' F' L , S]]"
-EW,"[L' M : [U' L U , M2']]"
-EX,"[L F' L' , S]]"
-FA,"[U : [R' E R , U2]]"
-FB,"[R' E R , U']"
-FD,"[U2 : [R' E R , U]]"
-FE,"[S : [R' E R , U']]"
-FG,"[L , U S' U']"
-FH,"[M' U L : [S' , L2']]"
-FJ,"[E , R U' R']"
-FK,"[M2' : [U' L' U , M]]"
-FM,"[M L' U : [M' , U2']]"
-FN,"[r U R' : [E , R2]]"
-FO,"[M' U R' : [E , R2]]"
-FP,"[U E R' : [S , R2]]"
-FQ,"[U' L' U , M']"
-FR,"[E' , L U L']"
-FS,"[U' r' : [R U R' , E]]"
-FT,"[R2' : [E , R U' R']]"
-FU,"[U R' F2 : [R S R' , F]]"
-FV,"[U' E' R : [E' , R2']]"
-FW,"[M : [U' L' U , M2']]"
-FX,"[U E L : [E' , L2']]"
-GA,"[U' : [L' E' L , U2']]"
-GB,"[U2' : [L' E' L , U']]"
-GD,"[L' E' L , U]"
-GE,"[l' U L : [S' , L2']]"
-GF,"[U S' U' , L]"
-GH,"[U S U' , L']"
-GJ,"[L' E' : [L U L' , E']]"
-GK,"[U : [L F L' , S]]"
-GL,"[L f' L' : [S , L2]]"
-GM,"[L F' L : [S' , L2']]"
-GN,"[L F' : [E , L2']]"
-GO,"[R' F R' : [S' , R2]]"
-GP,"[M' U' L' : [E' , L2]]"
-GQ,"[L' : [U' L' U , M']]"
-GR,"[S' U' R' : [E' , R2]]"
-GS,"[U l : [L' U' L , E]]"
-GT,"[L E : [L' U L , E]]"
-GU,"[L F' : [L2' , E']]"
-GV,"[L' F' L , S]"
-GW,"[U : [S' , L B' L']]"
-HA,"[U : [R E' R' , U2]]"
-HB,"[R E' R' , U']"
-HD,"[U2 : [R E' R' , U]]"
-HE,"[S : [R E' R' , U']]"
-HF,"[M' U L' : [S' , L2']]"
-HG,"[L' , U S' U']"
-HJ,"[R2 : [E' , R' U' R]]"
-HK,"[M' : [M' , U' L U]]"
-HL,"[E , L' U L]"
-HM,"[R F : [R2' , E']]"
-HN,"[u' L : [S' , L2']]"
-HO,"[R' F : [R2 , E']]"
-HP,"[l' U' L' : [E' , L2]]"
-HQ,"[U' L U , M']"
-HS,"[U' M : [U , L S L']]"
-HT,"[E' , R' U' R]"
-HU,"[l' U : [S' , L2]]"
-HV,"[u' R' : [E , R2]]"
-HW,"[M : [U' L U , M2']]"
-HX,"[u L' : [E , L2]]"
-JA,"[R' U : [S , R2]]"
-JB,"[E' : [R' E R , U']]"
-JD,"[L' E2' L , U]"
-JE,"[M' : [R S' R' , U']]"
-JF,"[R U' R' , E]"
-JG,"[L' E2' : [L U L' , E]]"
-JH,"[R2 : [R' U' R , E']]"
-JK,"[M' , U' R U]"
-JL,"[R' U' R : [E , R2']]"
-JM,"[R U : [R' S' R , U]]"
-JN,"[R U' R' , E']"
-JO,"[R' f R' : [S' , R2]]"
-JQ,"[M , U' R U]"
-JR,"[R' U' R' : [E' , R2]]"
-JS,"[U2 : [M , U R U']]"
-JT,"[U R' : [S , R2]]"
-JU,"[D' U L : [E' , L2']]"
-JV,U R' U' R' U R U R U R' U2
-JW,"[M2' , U' R U]"
-JX,"[U L : [E' , L2']]"
-KA,"[R' F' : [E , R U R']]"
-KB,"[R : [U' R' U , M']]"
-KD,"[L' : [U L U' , M']]"
-KE,"[l' : [U' L U , M']]"
-KF,"[M' : [U' L' U , M']]"
-KG,"[U : [S , L F L']]"
-KH,"[M' : [U' L U , M']]"
-KJ,"[U' R U , M']"
-KL,"[U L' U' , M']"
-KM,"[r : [U R' U' , M']]"
-KN,"[M' : [U R' U' , M']]"
-KO,"[U' : [S' , R' F' R]]"
-KP,"[M' : [U R U' , M']]"
-KQ,"[U' : [S , R' F' R]]"
-KR,"[U L U' , M']"
-KS,U M' U' M U2 M U M' U
-KT,"[U' R' U , M']"
-KV,"[U R' F' R' : [S , R2]]"
-KW,"[D : [R F R' , S']]"
-KX,"[U' L F L : [S' , L2']]"
-LA,"[L U' : [S' , L2']]"
-LB,"[R E2 R' , U']"
-LD,"[U2 : [R E2 R' , U]]"
-LE,"[L' U' : [L S L' , U']]"
-LG,"[L f' L : [S , L2']]"
-LH,"[L' U L , E]"
-LJ,"[R' U' R' : [E , R2]]"
-LK,"[M' , U L' U']"
-LM,"[M' : [L' S L , U]]"
-LN,"[L' : [U , L' E L]]"
-LO,"[R E2 : [R' U' R , E']]"
-LP,"[L' U L , E']"
-LQ,"[M , U L' U']"
-LR,"[U' L : [S' , L2]]"
-LS,"[U' R' B : [E , R2]]"
-LT,"[R U' R' : [E , R2]]"
-LU,"[U' D R' : [E , R2]]"
-LV,"[U' R' : [E , R2]]"
-LW,"[M2' , U L' U']"
-LX,U' L U L U' L' U' L' U' L U2'
-MA,"[U M U' : [M , U2]]"
-MD,"[R' F R , S]"
-ME,"[M U' : [M' , U2]]"
-MF,"[M L' U' : [M' , U2']]"
-MG,"[L F' L' : [S' , L2]]"
-MH,"[R F : [E' , R2']]"
-MJ,"[R U2' : [R' S' R , U']]"
-MK,"[r : [M' , U R' U']]"
-ML,"[M' : [U , L' S L]]"
-MN,"[S' : [U , L' E L]]"
-MO,"[r U' R : [S , R2']]"
-MP,"[S' : [U , L E' L']]"
-MQ,"[R : [U R' U' , M']]"
-MR,"[M' : [U , R E' R']]"
-MS,M' : (U' M' U' M)2
-MT,"[U L' F' : [L2 , E]]"
-MU,"[R F : [R2' , E]]"
-MV,"[R' F R , S']"
-MW,"[R M : [U R' U' , M2']]"
-MX,"[R2' : [R F R' , S']]"
-NA,"[U' : [L' E L , U2']]"
-NB,"[U2' : [L' E L , U']]"
-ND,"[L' E L , U]"
-NE,"[L' F' : [E , L2]]"
-NF,"[r U R : [E , R2']]"
-NG,"[L F' : [L2' , E]]"
-NH,"[u R' : [S , R2]]"
-NJ,"[E' , R U' R']"
-NK,"[M2' : [U R' U' , M]]"
-NL,"[L2' : [E , L U' L']]"
-NM,"[S' : [L' E L , U]]"
-NO,"[R , U' S U]"
-NP,"[M' U' R' : [S , R2]]"
-NQ,"[U R U' , M']"
-NR,"[E , L U L']"
-NS,"[U M : [U' , l' E l]]"
-NU,"[r U' : [S , R2']]"
-NV,"[u' R : [E' , R2']]"
-NW,"[M : [U R' U' , M2']]"
-NX,"[u L : [E' , L2']]"
-OA,"[U : [R E R' , U2]]"
-OB,"[R E R' , U']"
-OD,"[U2 : [R E R' , U]]"
-OE,"[R' F R' : [S , R2]]"
-OF,"[M' U R : [E , R2']]"
-OG,"[L F' L : [S , L2']]"
-OH,"[R' F : [E' , R2]]"
-OJ,"[R' f R : [S' , R2']]"
-OK,"[U' : [R' F' R , S']]"
-OL,"[R E : [R' U' R , E]]"
-OM,"[r U' R' : [S , R2]]"
-ON,"[U' S U , R]"
-OP,"[U' S U , R']"
-OQ,"[R : [U R U' , M']]"
-OR,"[R' E' : [R U' R' , E']]"
-OS,"[U' r' : [R U R' , E']]"
-OT,"[S U L' : [E , L2]]"
-OU,"[R' F : [E , R2]]"
-OW,"[U' : [S , R' B R]]"
-OX,"[R F R' , S']]"
-PA,"[U' : [L E' L' , U2']]"
-PB,"[U2' : [L E' L' , U']]"
-PD,"[L E' L' , U]"
-PE,"[R M U' : [M' , U2]]"
-PF,"[U' E' L : [S' , L2']]"
-PG,"[M' U' L : [E' , L2']]"
-PH,"[l' U' L : [E' , L2']]"
-PK,"[M2' : [U R U' , M]]"
-PL,"[E' , L' U L]"
-PM,"[S' : [L E' L' , U]]"
-PN,"[M' U' R' : [S , R2]]"
-PO,"[R' , U' S U]"
-PQ,"[U R U' , M']"
-PR,"[L2 : [E' , L' U L]]"
-PS,"[U l : [L' U' L , E']]"
-PT,"[E , R' U' R]"
-PU,"[U' L F2' : [L' S' L , F']]"
-PV,"[U' E' R' : [E , R2]]"
-PW,"[M : [U R U' , M2']]"
-PX,"[U E L' : [E , L2]]"
-QB,"[R' : [U' R U , M]]"
-QD,"[L : [U L' U' , M]]"
-QE,"[l' : [U' L U , M]]"
-QF,"[M' , U' L' U]"
-QG,"[l' : [U' L' U , M]]"
-QH,"[M' , U' L U]"
-QJ,"[U' R U , M]"
-QK,"[U' : [R' F' R , S]"
-QL,"[U L' U' , M]"
-QM,"[r : [U R' U' , M]]"
-QN,"[M' , U R' U']"
-QO,"[r : [U R U' , M]]"
-QP,"[M' , U R U']"
-QR,"[U L U' , M]"
-QS,"[U' : [R B R' , S]]"
-QT,"[U' R' U , M]"
-QU,"[U : [S , R' F' R]]"
-QV,"[R' : [U' R' U , M]]"
-QW,"[U : [S , R B R']]"
-QX,"[L : [U L U' , M]]"
-RA,"[L' U : [L2 , S']]"
-RB,"[R' E2 R , U']"
-RD,"[U2 : [R' E2 R , U]]"
-RE,"[U' R F : [E' , R2']]"
-RF,"[L U L' , E']"
-RG,"[S' U' R : [E' , R2']]"
-RJ,"[R' U' R : [E' , R2']]"
-RK,"[M' , U L U']"
-RL,"[U' L' : [S' , L2]]"
-RM,"[M' : [R E' R' , U]]"
-RN,"[L U L' , E]"
-RO,"[R' E2 : [R U' R' , E]]"
-RP,"[L2 : [L' U L , E']]"
-RQ,"[M , U L U']"
-RS,"[U2' : [M , U' L U]]"
-RT,"[R U' R : [E' , R2']]"
-RU,"[D U' R : [E' , R2']]"
-RV,"[U' R : [E' , R2']]"
-RW,"[M2 , U L U']"
-RX,U' L' U' L' U L U L U L'
-SA,"[U R' B R : [S , R2']]"
-SB,(M U' M' U')2
-SD,(M U M' U)2
-SE,M2' : (U' M U' M')2
-SF,"[U' r' : [E , R U R']]"
-SG,"[U l : [E , L' U' L]]"
-SH,"[U' M : [L S L' , U]]"
-SJ,"[U2' : [U R U' , M]]"
-SK,U M U M' U2 M' U' M U
-SL,"[U' R' B : [R2 , E]]"
-SM,M2' : (U M U M')2
-SN,"[U M : [R' S' R , U']]"
-SO,"[U' r' : [E' , R U R']]"
-SP,"[U l : [E' , L' U' L]]"
-SQ,"[U' : [S , R B R']]"
-SR,"[U2 : [U' L U , M]]"
-ST,"[U2' : [U R' U' , M]]"
-SU,"[D' : [R F R' , S']]"
-SV,"[U L B' L' : [S , L2]]"
-SX,"[U' R' B R : [S' , R2']]"
-TA,"[R U' : [R2' , S]]"
-TB,"[E : [R E' R' , U']]"
-TD,"[L E2' L' , U]"
-TE,"[l' : [E , L U' L']]"
-TF,"[R2' : [R U' R' , E]]"
-TG,"[L E2' : [L' U L , E']]"
-TH,"[R' U' R , E']"
-TJ,"[U R : [S , R2']]"
-TK,"[M' , U' R' U]"
-TL,"[R U' R : [E , R2']]"
-TM,"[R u' R' : [E' , R2]]"
-TO,"[S U L' : [E , L2]]"
-TP,"[R' U' R , E]"
-TQ,"[M , U' R' U]"
-TR,"[R U' R' : [E' , R2]]"
-TS,"[U2 : [M , U R' U']]"
-TU,"[U R' U : [M' , U2]]"
-TV,U R U R U' R' U' R' U' R
-TW,"[M2' , U' R' U]"
-TX,"[U L' : [E , L2]]"
-UA,"[M' , U2]"
-UB,"[L F' : [L' S' L , F2']]"
-UD,"[R' F : [R S R' , F2]]"
-UE,"[L' F' : [E' , L2]]"
-UF,"[U R' F' : [R S R' , F']]"
-UG,"[L F' : [E' , L2']]"
-UH,"[l' U : [L2 , S']]"
-UJ,"[U R U' : [M' , U2]]"
-UL,"[U' D R : [E , R2']]"
-UM,"[R F : [E , R2']]"
-UN,"[r U' : [R2' , S]]"
-UO,"[R' F : [E , R2]]"
-UP,"[U' L F : [L' S' L , F]]"
-UQ,"[U : [R' F' R , S]"
-UR,"[U' L U : [M' , U2']]"
-US,"[D' : [S' , R F R']]"
-UT,"[U R' U' : [M' , U2]]"
-UV,"[R' F : [R S' R' , F2]]"
-UW,u2 M' u2 M'
-UX,"[L F' : [L' S L , F2']]"
-VA,"[U : [S , R2']]"
-VB,"[R U R' : [S , R2]]"
-VD,R' U' R U R U R U R U' R' U'
-VE,"[L2 : [S , L' F' L]]"
-VF,"[U' E' R' : [E' , R2]]"
-VG,"[S , L' F' L]"
-VH,"[u' R : [E , R2']]"
-VJ,U2 R U' R' U' R' U' R U R U'
-VK,"[U R' F' R : [S , R2']]"
-VL,"[U' R : [E , R2']]"
-VM,"[S' , R' F R]"
-VN,"[u' R' : [E' , R2]]"
-VP,"[U' E' R : [E , R2']]"
-VQ,"[r' : [U' R' U , M']]"
-VR,"[U' R' : [E' , R2]]"
-VS,"[U L B' L : [S , L2']]"
-VT,R' U R U R U R' U' R' U'
-VU,"[R' F' : [R S' R' , F2]]"
-VW,"[D' R' F : [R S' R' , F2]]"
-VX,"[U' : [S' , R2']]"
-WA,"[U2 , M]"
-WB,"[R : [U' R' U , M2']]"
-WD,"[l' M' : [U L U' , M2']]"
-WE,"[l' : [U' L U , M2']]"
-WF,"[M' : [U' L' U , M2']]"
-WG,"[U : [L B' L' , S']]"
-WH,"[M' : [U' L U , M2']]"
-WJ,"[U' R U , M2']"
-WK,"[D : [S' , R F R']]"
-WL,"[U L' U' , M2']]"
-WM,"[r : [U R' U' , M2']]"
-WN,"[M' : [U R' U' , M2']]"
-WO,"[U' : [R' B R , S]]"
-WP,"[M' : [U R U' , M2']]"
-WQ,"[U : [R B R' , S]]"
-WR,"[U L U' , M2']"
-WT,"[U' R' U , M2']"
-WU,M' U2 M' U2 M2'
-WV,"[D' R' F' : [R S' R' , F2]]"
-WX,"[D L F : [L' S L , F2']]"
-XA,"[U' : [S' , L2]]"
-XB,L U L' U' L' U' L' U L U
-XD,"[L' U' L : [S' , L2]]"
-XE,"[S , L F' L']"
-XF,"[U E L' : [E' , L2]]"
-XH,"[u L : [E , L2']]"
-XJ,"[U L' : [E' , L2]]"
-XK,"[U' L F L' : [S' , L2]]"
-XL,U2' L' U L U L U L' U' L' U
-XM,"[R2' : [S' , R F R']]"
-XN,"[u L' : [E' , L2]]"
-XO,"[S' , R F R']"
-XP,"[U E L : [E , L2']]"
-XQ,"[l : [U L U' , M']]"
-XR,L U' L' U' L' U' L U L U
-XS,"[U' R' B R' : [S' , R2]]"
-XT,"[U L : [E , L2']]"
-XU,"[L F : [L' S L , F2']]"
-XV,"[U' : [R2' , S']]"
-XW,"[D L F' : [L' S L , F2']]"`;
+const BUNDLED_ALG_LIBRARY_ENTRIES = [
+  {
+    "id": "corner-ab",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 1,
+    "caseCode": "AB",
+    "description": "[R' B' R : [R D R' , U']]",
+    "alg": "R' B' R2 D R' U' R D' R' U R' B R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ad",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 2,
+    "caseCode": "AD",
+    "description": "[R' D R U2 : [R' D' R , U]]",
+    "alg": "R' D R U2 R' D' R U R' D R U R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-af",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 3,
+    "caseCode": "AF",
+    "description": "[F : [U2 , F' R F R']]",
+    "alg": "F U2 F' R F R' U2 R F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ag",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 4,
+    "caseCode": "AG",
+    "description": "[R' D R , U2]",
+    "alg": "R' D R U2 R' D' R U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ah",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 5,
+    "caseCode": "AH",
+    "description": "[U' : [R D' R' , U2]]",
+    "alg": "U' R D' R' U2 R D R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ai",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 6,
+    "caseCode": "AI",
+    "description": "[r D' U : [R D R' , U2]]",
+    "alg": "r D' U R D R' U2 R D' R' U D r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ak",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 7,
+    "caseCode": "AK",
+    "description": "[D U' : [R D R' , U2]]",
+    "alg": "D U' R D R' U2 R D' R' U' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-al",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 8,
+    "caseCode": "AL",
+    "description": "[D : [R' D' R , U2]]",
+    "alg": "D R' D' R U2 R' D R U2 D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-an",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 9,
+    "caseCode": "AN",
+    "description": "[R' U D R2 : [U' , R' D' R]]",
+    "alg": "R' U D R2 U' R' D' R U R' D R' D' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ao",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 10,
+    "caseCode": "AO",
+    "description": "[U' : [R D R' , U2]]",
+    "alg": "U' R D R' U2 R D' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ap",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 11,
+    "caseCode": "AP",
+    "description": "[R' D' R , U2]",
+    "alg": "R' D' R U2 R' D R U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-aq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 12,
+    "caseCode": "AQ",
+    "description": "[R' U D : [R D R' , U2]]",
+    "alg": "R' U D R D R' U2 R D' R' U2 D' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-as",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 13,
+    "caseCode": "AS",
+    "description": "[D' U' : [R D R' , U2]]",
+    "alg": "D' U' R D R' U2 R D' R' U' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-at",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 14,
+    "caseCode": "AT",
+    "description": "[D U' : [R D' R' , U2]]",
+    "alg": "D U' R D' R' U2 R D R' U' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-au",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 15,
+    "caseCode": "AU",
+    "description": "[R F' R' U' : [R D R' , U2]]",
+    "alg": "R F' R' U' R D R' U2 R D' R' U' R F R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-av",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 16,
+    "caseCode": "AV",
+    "description": "[R' D R U' R D' R' , U2]",
+    "alg": "R' D R U' R D' R' U2 R D R' U R' D' R U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-aw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 17,
+    "caseCode": "AW",
+    "description": "[R D' R' : [R' D R , U2]]",
+    "alg": "R D' R2 D R U2 R' D' R U2 R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ax",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 18,
+    "caseCode": "AX",
+    "description": "[R' U' D' R : [R U' R' , D]]",
+    "alg": "R' U' D' R2 U' R' D R U R' D' R' D U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ba",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 19,
+    "caseCode": "BA",
+    "description": "[R' B' R : [U' , R D R']]",
+    "alg": "R' B' R U' R D R' U R D' R2 B R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 20,
+    "caseCode": "BD",
+    "description": "[R F' R' : [R' D R, U]]",
+    "alg": "R F' R2 D R U R' D' R U' R F R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-be",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 21,
+    "caseCode": "BE",
+    "description": "[R : [U , R D R']]",
+    "alg": "R U R D R' U' R D' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 22,
+    "caseCode": "BF",
+    "description": "[R2 : [D' , R U' R']]",
+    "alg": "R2 D' R U' R' D R U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 23,
+    "caseCode": "BG",
+    "description": "[R' D R , U]",
+    "alg": "R' D R U R' D' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 24,
+    "caseCode": "BH",
+    "description": "[U' , R D' R']",
+    "alg": "U' R D' R' U R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 25,
+    "caseCode": "BI",
+    "description": "[R2 U' : [D' , R U R']]",
+    "alg": "R2 U' D' R U R' D R U' R' U R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 26,
+    "caseCode": "BK",
+    "description": "[D' : [R' D R , U]]",
+    "alg": "D' R' D R U R' D' R U' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 27,
+    "caseCode": "BL",
+    "description": "[D : [R' D' R , U]]",
+    "alg": "D R' D' R U R' D R U' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 28,
+    "caseCode": "BO",
+    "description": "[U' , R D R']",
+    "alg": "U' R D R' U R D' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 29,
+    "caseCode": "BP",
+    "description": "[R' D' R , U]",
+    "alg": "R' D' R U R' D R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-br",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 30,
+    "caseCode": "BR",
+    "description": "[R2 U : [R' U' R , D]]",
+    "alg": "R2 U R' U' R D R' U R D' U' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bs",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 31,
+    "caseCode": "BS",
+    "description": "[D' : [U' , R D R']]",
+    "alg": "D' U' R D R' U R D' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 32,
+    "caseCode": "BT",
+    "description": "[D : [U' , R D' R']]",
+    "alg": "D U' R D' R' U R D R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 33,
+    "caseCode": "BU",
+    "description": "[R F' : [R' U' R , D]]",
+    "alg": "R F' R' U' R D R' U R D' F R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 34,
+    "caseCode": "BV",
+    "description": "[R' D R U' R D' R' , U]",
+    "alg": "R' D R U' R D' R' U R D R' U R' D' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 35,
+    "caseCode": "BW",
+    "description": "[U' , R D' R' U R' D R]",
+    "alg": "U' R D' R' U R' D R U R' D' R U' R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-bx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 36,
+    "caseCode": "BX",
+    "description": "[R' B : [D' , R U R']]",
+    "alg": "R' B D' R U R' D R U' R' B' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-da",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 37,
+    "caseCode": "DA",
+    "description": "[R' D R U' : [R' D' R , U']]",
+    "alg": "R' D R U' R' D' R U' R' D R U2 R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-db",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 38,
+    "caseCode": "DB",
+    "description": "[R F' R' : [U , R' D R]]",
+    "alg": "R F' R' U R' D R U' R' D' R2 F R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-de",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 39,
+    "caseCode": "DE",
+    "description": "[U' R2 : [D , R' U2 R]]",
+    "alg": "U' R2 D R' U2 R D' R' U2 R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 40,
+    "caseCode": "DG",
+    "description": "[R' D R , U']",
+    "alg": "R' D R U' R' D' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 41,
+    "caseCode": "DH",
+    "description": "[U' : [R D' R' , U']]",
+    "alg": "U' R D' R' U' R D R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 42,
+    "caseCode": "DK",
+    "description": "[D' : [R' D R , U']]",
+    "alg": "D' R' D R U' R' D' R U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 43,
+    "caseCode": "DL",
+    "description": "[D : [R' D' R , U']]",
+    "alg": "D R' D' R U' R' D R U D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 44,
+    "caseCode": "DN",
+    "description": "[U' R' : [U2 , R' D' R]]",
+    "alg": "U' R' U2 R' D' R U2 R' D R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-do",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 45,
+    "caseCode": "DO",
+    "description": "[U' : [R D R' , U']]",
+    "alg": "U' R D R' U' R D' R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 46,
+    "caseCode": "DP",
+    "description": "[R' D' R , U']",
+    "alg": "R' D' R U' R' D R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 47,
+    "caseCode": "DQ",
+    "description": "[R' D' : [U' , R' D R]]",
+    "alg": "R' D' U' R' D R U R' D' R D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 48,
+    "caseCode": "DR",
+    "description": "[U' R' : [U' , R' D' R]]",
+    "alg": "U' R' U' R' D' R U R' D R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ds",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 49,
+    "caseCode": "DS",
+    "description": "[D : [R' D R , U']]",
+    "alg": "D R' D R U' R' D' R U D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 50,
+    "caseCode": "DT",
+    "description": "[D' : [R' D' R , U']]",
+    "alg": "D' R' D' R U' R' D R U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-du",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 51,
+    "caseCode": "DU",
+    "description": "[R' U' R : [F2' , R' U R U']]",
+    "alg": "R' U' R F2' R' U R U' F2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 52,
+    "caseCode": "DV",
+    "description": "[R' D R U' R D' R' , U']",
+    "alg": "R' D R U' R D' R' U' R D R' U R' D' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 53,
+    "caseCode": "DW",
+    "description": "[R D' R' : [R' D R , U']]",
+    "alg": "R D' R2 D R U' R' D' R U R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-dx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 54,
+    "caseCode": "DX",
+    "description": "[R' D' R : [R U' R' , D]]",
+    "alg": "R' D' R2 U' R' D R U R' D' R' D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-eb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 55,
+    "caseCode": "EB",
+    "description": "[R2 : [D , R' U R]]",
+    "alg": "R2 D R' U R D' R' U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ed",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 56,
+    "caseCode": "ED",
+    "description": "[U' R : [U2 , R D R']]",
+    "alg": "U' R U2 R D R' U2 R D' R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ef",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 57,
+    "caseCode": "EF",
+    "description": "[U' R' F : [D , R U R']]",
+    "alg": "U' R' F D R U R' D' R U' R' F' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-eg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 58,
+    "caseCode": "EG",
+    "description": "[U R' : [U' , R' D R]]",
+    "alg": "U R' U' R' D R U R' D' R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-eh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 59,
+    "caseCode": "EH",
+    "description": "[R D' : [R D R' , U]]",
+    "alg": "R D' R D R' U R D' R' U' D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ei",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 60,
+    "caseCode": "EI",
+    "description": "[l' U : [R D' R' , U2]]",
+    "alg": "l' U R D' R' U2 R D R' U l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ek",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 61,
+    "caseCode": "EK",
+    "description": "[U D' R' : [U' , R' D R]]",
+    "alg": "U D' R' U' R' D R U R' D' R2 D U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-el",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 62,
+    "caseCode": "EL",
+    "description": "[R U : [R' D R , U]]",
+    "alg": "R U R' D R U R' D' R U2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-en",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 63,
+    "caseCode": "EN",
+    "description": "[R' D R2 D' R2' : [U , R2 D R2' D' R2]]",
+    "alg": "R' D R2 D' R2' U R2 D R2' D' R2 U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-eo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 64,
+    "caseCode": "EO",
+    "description": "[U' R : [R U' R' , D']]",
+    "alg": "U' R2 U' R' D' R U R' D R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ep",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 65,
+    "caseCode": "EP",
+    "description": "[U R' U2 : [R D R' , U]]",
+    "alg": "U R' U2 R D R' U R D' R' U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-eq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 66,
+    "caseCode": "EQ",
+    "description": "[R' , F' L F]",
+    "alg": "R' F' L F R F' L' F",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-es",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 67,
+    "caseCode": "ES",
+    "description": "[U D R' : [U' , R' D R]]",
+    "alg": "U D R' U' R' D R U R' D' R2 D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-et",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 68,
+    "caseCode": "ET",
+    "description": "[R U : [R' D' R , U]]",
+    "alg": "R U R' D' R U R' D R U2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-eu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 69,
+    "caseCode": "EU",
+    "description": "[D' R : [R D' R' , U]]",
+    "alg": "D' R2 D' R' U R D R' U' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ev",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 70,
+    "caseCode": "EV",
+    "description": "[U R' D' : [U' , R' D' R]]",
+    "alg": "U R' D' U' R' D' R U R' D R D R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ew",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 71,
+    "caseCode": "EW",
+    "description": "[D R : [R D' R', U]]",
+    "alg": "D R2 D' R' U R D R' U' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ex",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 72,
+    "caseCode": "EX",
+    "description": "[R : [R D' R' , U]]",
+    "alg": "R2 D' R' U R D R' U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 73,
+    "caseCode": "FA",
+    "description": "[F : [R' D' R , U2]]",
+    "alg": "F R' D' R U2 R' D R U2 F'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 74,
+    "caseCode": "FB",
+    "description": "[R' : [U' , R' D' R]]",
+    "alg": "R' U' R' D' R U R' D R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fe",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 75,
+    "caseCode": "FE",
+    "description": "[U' R' U , L]",
+    "alg": "U' R' U L U' R U L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 76,
+    "caseCode": "FG",
+    "description": "[R' U' : [D , R U R']]",
+    "alg": "R' U' D R U R' D' R U' R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 77,
+    "caseCode": "FH",
+    "description": "[U' R U' : [D' , R' U R]]",
+    "alg": "U' R U' D' R' U R D R' U' R U R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 78,
+    "caseCode": "FK",
+    "description": "[R : [F , R' U R U']]",
+    "alg": "R F R' U R U' F' U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 79,
+    "caseCode": "FL",
+    "description": "[D R' U' : [D' , R U R']]",
+    "alg": "D R' U' D' R U R' D R U' R' U R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 80,
+    "caseCode": "FN",
+    "description": "[R U' D' R' : [D , R' U R]]",
+    "alg": "R U' D' R' D R' U R D' R' U' R2 D U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 81,
+    "caseCode": "FO",
+    "description": "[D' R : [F , R' U R U']]",
+    "alg": "D' R F R' U R U' F' U R' U' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 82,
+    "caseCode": "FP",
+    "description": "[R' U' : [D' , R U R']]",
+    "alg": "R' U' D' R U R' D R U' R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 83,
+    "caseCode": "FQ",
+    "description": "[R' F : [R U R' , D]]",
+    "alg": "R' F R U R' D R U' R' D' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 84,
+    "caseCode": "FR",
+    "description": "[l U' l' , F]",
+    "alg": "l U' l' F l U l' F'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fs",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 85,
+    "caseCode": "FS",
+    "description": "[l U2 l' , F]",
+    "alg": "l U2 l' F l U2 l' F'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ft",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 86,
+    "caseCode": "FT",
+    "description": "[D' R' U' : [D' , R U R']]",
+    "alg": "D' R' U' D' R U R' D R U' R' U R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 87,
+    "caseCode": "FU",
+    "description": "[U' R' U : [R U' R' , D]]",
+    "alg": "U' R' U R U' R' D R U R' D' U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 88,
+    "caseCode": "FV",
+    "description": "[U' D' R' U : [R U' R' , D]]",
+    "alg": "U' D' R' U R U' R' D R U R' D' U' R D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 89,
+    "caseCode": "FW",
+    "description": "[R U' R' : [D , R' U R]]",
+    "alg": "R U' R' D R' U R D' R' U' R2 U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-fx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 90,
+    "caseCode": "FX",
+    "description": "[U' D R' U : [R U' R' , D]]",
+    "alg": "U' D R' U R U' R' D R U R' D' U' R D' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ga",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 91,
+    "caseCode": "GA",
+    "description": "[U2 , R' D R]",
+    "alg": "U2 R' D R U2 R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 92,
+    "caseCode": "GB",
+    "description": "[U , R' D R]",
+    "alg": "U R' D R U' R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 93,
+    "caseCode": "GD",
+    "description": "[U' , R' D R]",
+    "alg": "U' R' D R U R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ge",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 94,
+    "caseCode": "GE",
+    "description": "[U R' : [R' D R , U']]",
+    "alg": "U R2 D R U' R' D' R U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 95,
+    "caseCode": "GF",
+    "description": "[R' U' : [R U R' , D]]",
+    "alg": "R' U' R U R' D R U' R' D' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 96,
+    "caseCode": "GH",
+    "description": "[D R' : [F' , R D' R']]",
+    "alg": "D R' F' R D' R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 97,
+    "caseCode": "GI",
+    "description": "[D R' : [F2 , R D' R' D]]",
+    "alg": "D R' F2 R D' R' D F2 D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 98,
+    "caseCode": "GK",
+    "description": "[U : [D , R U' R']]",
+    "alg": "U D R U' R' D' R U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 99,
+    "caseCode": "GN",
+    "description": "[U R U : [R' D R , U2]]",
+    "alg": "U R U R' D R U2 R' D' R U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-go",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 100,
+    "caseCode": "GO",
+    "description": "[U D : [R U' R' , D2]]",
+    "alg": "U D R U' R' D2 R U R' D U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 101,
+    "caseCode": "GP",
+    "description": "[U R' D : [R U' R' , D2]]",
+    "alg": "U R' D R U' R' D2 R U R' D R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 102,
+    "caseCode": "GQ",
+    "description": "[R' U : [R U' R' , D]]",
+    "alg": "R' U R U' R' D R U R' D' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 103,
+    "caseCode": "GR",
+    "description": "[R B' R' : [R' D R , U]]",
+    "alg": "R B' R2 D R U R' D' R U' R B R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gs",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 104,
+    "caseCode": "GS",
+    "description": "[U D : [R U' R' , D]]",
+    "alg": "U D R U' R' D R U R' D2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 105,
+    "caseCode": "GT",
+    "description": "[R' D R : [D' , R U R']]",
+    "alg": "R' D R D' R U R' D R U' R2 D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 106,
+    "caseCode": "GV",
+    "description": "[U D R D' : [U' , R' D R]]",
+    "alg": "U D R D' U' R' D R U R' D' R D R' D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 107,
+    "caseCode": "GW",
+    "description": "[U R : [D , R U' R']]",
+    "alg": "U R D R U' R' D' R U R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-gx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 108,
+    "caseCode": "GX",
+    "description": "[D U R U' : [F2' , U R' U' R]]",
+    "alg": "D U R U' F2' U R' U' R F2 R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ha",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 109,
+    "caseCode": "HA",
+    "description": "[U : [R D' R' , U2]]",
+    "alg": "U R D' R' U2 R D R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 110,
+    "caseCode": "HB",
+    "description": "[R D' R' , U']",
+    "alg": "R D' R' U' R D R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 111,
+    "caseCode": "HD",
+    "description": "[U2 : [R D' R' , U]]",
+    "alg": "U2 R D' R' U R D R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-he",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 112,
+    "caseCode": "HE",
+    "description": "[R D' : [U , R D R']]",
+    "alg": "R D' U R D R' U' R D' R' D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 113,
+    "caseCode": "HF",
+    "description": "[U' R U' : [R' U R , D']]",
+    "alg": "U' R U' R' U R D' R' U' R D U R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 114,
+    "caseCode": "HG",
+    "description": "[R' D : [F' , D' R D R']]",
+    "alg": "R' D F' D' R D R' F R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 115,
+    "caseCode": "HI",
+    "description": "[R U' D : [R' D R , U2]]",
+    "alg": "R U' D R' D R U2 R' D' R U2 D' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 116,
+    "caseCode": "HK",
+    "description": "[l' U : [D , R U' R']]",
+    "alg": "l' U D R U' R' D' R U R' U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 117,
+    "caseCode": "HL",
+    "description": "[D2 : [R U R' , D']]",
+    "alg": "D2 R U R' D' R U' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 118,
+    "caseCode": "HN",
+    "description": "[U R : [R D' R' , U2]]",
+    "alg": "U R2 D' R' U2 R D R' U2 R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ho",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 119,
+    "caseCode": "HO",
+    "description": "[R D' : [R' U' R , D2]]",
+    "alg": "R D' R' U' R D2 R' U R D' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 120,
+    "caseCode": "HP",
+    "description": "[D2 , R U R']",
+    "alg": "D2 R U R' D2 R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 121,
+    "caseCode": "HQ",
+    "description": "[U' L U , R]",
+    "alg": "U' L U R U' L' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 122,
+    "caseCode": "HR",
+    "description": "[U D R' F' : [D , R U' R']]",
+    "alg": "U D R' F' D R U' R' D' R U R' F R D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ht",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 123,
+    "caseCode": "HT",
+    "description": "[D2 : [R U R' , D]]",
+    "alg": "D2 R U R' D R U' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 124,
+    "caseCode": "HU",
+    "description": "[D R U' R' : [R' D R , U2]]",
+    "alg": "D R U' R2 D R U2 R' D' R U2 R U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 125,
+    "caseCode": "HV",
+    "description": "[R U' D R' : [R' D R , U2]]",
+    "alg": "R U' D R2 D R U2 R' D' R U2 R D' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-hw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 126,
+    "caseCode": "HW",
+    "description": "[R D' R' : [R' D R , U]]",
+    "alg": "R D' R2 D R U R' D' R U' R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ia",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 127,
+    "caseCode": "IA",
+    "description": "R' D R U' R : [F , R' U R U']",
+    "alg": "R' D R U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ib",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 128,
+    "caseCode": "IB",
+    "description": "[R2 U' : [R U R' , D']]",
+    "alg": "R2 U' R U R' D' R U' R' D U R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ie",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 129,
+    "caseCode": "IE",
+    "description": "[l' U' : [R D' R' , U2]]",
+    "alg": "l' U' R D' R' U2 R D R' U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ig",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 130,
+    "caseCode": "IG",
+    "description": "[R' D : [F2 , D' R D R']]",
+    "alg": "R' D F2 D' R D R' F2 R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ih",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 131,
+    "caseCode": "IH",
+    "description": "[R U D : [R' D R , U2]]",
+    "alg": "R U D R' D R U2 R' D' R U2 D' U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ik",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 132,
+    "caseCode": "IK",
+    "description": "[D' R' D : [F2 , D' R D R']]",
+    "alg": "D' R' D F2 D' R D R' F2 R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-il",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 133,
+    "caseCode": "IL",
+    "description": "[R U : [R' D R , U2]]",
+    "alg": "R U R' D R U2 R' D' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-in",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 134,
+    "caseCode": "IN",
+    "description": "[R' F' R D U : [U2 , R' D' R]]",
+    "alg": "R' F' R D U' R' D' R U2 R' D R U' D' R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-io",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 135,
+    "caseCode": "IO",
+    "description": "[R D' U : [R' D R , U2]]",
+    "alg": "R D' U R' D R U2 R' D' R U D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ip",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 136,
+    "caseCode": "IP",
+    "description": "[D R U : [R' D' R , U2]]",
+    "alg": "D R U R' D' R U2 R' D R U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-iq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 137,
+    "caseCode": "IQ",
+    "description": "[R U D' : [R' D' R , U2]]",
+    "alg": "R U D' R' D' R U2 R' D R U2 D U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ir",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 138,
+    "caseCode": "IR",
+    "description": "[R U R' U D : [R D R' , U2]]",
+    "alg": "R U R' U D R D R' U2 R D' R' U2 D' U' R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-is",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 139,
+    "caseCode": "IS",
+    "description": "[D R' D : [F2 , D' R D R']]",
+    "alg": "D R' D F2 D' R D R' F2 R D2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-it",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 140,
+    "caseCode": "IT",
+    "description": "[R U : [R' D' R , U2]]",
+    "alg": "R U R' D' R U2 R' D R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-iu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 141,
+    "caseCode": "IU",
+    "description": "[D' R : [R D' R' , U2]]",
+    "alg": "D' R2 D' R' U2 R D R' U2 R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-iv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 142,
+    "caseCode": "IV",
+    "description": "[R U' R' D' : [R' D R , U2]]",
+    "alg": "R U' R' D' R' D R U2 R' D' R U2 D R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-iw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 143,
+    "caseCode": "IW",
+    "description": "[D R : [R D' R' , U2]]",
+    "alg": "D R2 D' R' U2 R D R' U2 R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ix",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 144,
+    "caseCode": "IX",
+    "description": "[R : [R D' R' , U2]]",
+    "alg": "R2 D' R' U2 R D R' U2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ka",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 145,
+    "caseCode": "KA",
+    "description": "[U D : [R D R' , U2]]",
+    "alg": "U D R D R' U2 R D' R' U2 D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 146,
+    "caseCode": "KB",
+    "description": "[D' : [U , R' D R]]",
+    "alg": "D' U R' D R U' R' D' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 147,
+    "caseCode": "KD",
+    "description": "[D' : [U' , R' D R]]",
+    "alg": "D' U' R' D R U R' D' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ke",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 148,
+    "caseCode": "KE",
+    "description": "[D' U R' : [R' D R , U']]",
+    "alg": "D' U R2 D R U' R' D' R U R U' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 149,
+    "caseCode": "KF",
+    "description": "[U R U' : [F , U R' U' R]]",
+    "alg": "U R U' F U R' U' R F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 150,
+    "caseCode": "KG",
+    "description": "[U : [R U' R' , D]]",
+    "alg": "U R U' R' D R U R' D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 151,
+    "caseCode": "KH",
+    "description": "[l' U : [R U' R' , D]]",
+    "alg": "l' U R U' R' D R U R' D' U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ki",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 152,
+    "caseCode": "KI",
+    "description": "[R' : [F2 , R D' R' D]]",
+    "alg": "R' F2 R D' R' D F2 D' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 153,
+    "caseCode": "KL",
+    "description": "[R' : [F' , R D' R' D]]",
+    "alg": "R' F' R D' R' D F D' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 154,
+    "caseCode": "KN",
+    "description": "[U' R' U : [R D R' , U2]]",
+    "alg": "U' R' U R D R' U2 R D' R' U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ko",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 155,
+    "caseCode": "KO",
+    "description": "[U : [R U' R' , D']]",
+    "alg": "U R U' R' D' R U R' D U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 156,
+    "caseCode": "KQ",
+    "description": "[D' R' U : [R U' R' , D]]",
+    "alg": "D' R' U R U' R' D R U R' D' U' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 157,
+    "caseCode": "KR",
+    "description": "[U' R' U2 : [R D R' , U]]",
+    "alg": "U' R' U2 R D R' U R D' R' U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ks",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 158,
+    "caseCode": "KS",
+    "description": "[U : [R U' R' , D2]]",
+    "alg": "U R U' R' D2 R U R' D2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 159,
+    "caseCode": "KT",
+    "description": "[R U R' U' : [D' , R U R']]",
+    "alg": "R U R' U' D' R U R' D R U' R' U R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ku",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 160,
+    "caseCode": "KU",
+    "description": "[U R U' : [F2' , U R' U' R]]",
+    "alg": "U R U' F2' U R' U' R F2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 161,
+    "caseCode": "KW",
+    "description": "[U R' D' : [U' , R' D R]]",
+    "alg": "U R' D' U' R' D R U R' D' R D R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-kx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 162,
+    "caseCode": "KX",
+    "description": "[R' D' R : [R U R' , D]]",
+    "alg": "R' D' R2 U R' D R U' R' D' R' D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-la",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 163,
+    "caseCode": "LA",
+    "description": "[D' U : [R D' R' , U2]]",
+    "alg": "D' U R D' R' U2 R D R' U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 164,
+    "caseCode": "LB",
+    "description": "[D : [U , R' D' R]]",
+    "alg": "D U R' D' R U' R' D R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ld",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 165,
+    "caseCode": "LD",
+    "description": "[D : [U' , R' D' R]]",
+    "alg": "D U' R' D' R U R' D R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-le",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 166,
+    "caseCode": "LE",
+    "description": "[R U2 : [R' D R , U']]",
+    "alg": "R U2 R' D R U' R' D' R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 167,
+    "caseCode": "LF",
+    "description": "[D R' U' : [R U R' , D']]",
+    "alg": "D R' U' R U R' D' R U' R' D U R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 168,
+    "caseCode": "LH",
+    "description": "[D : [R U R' , D]]",
+    "alg": "D R U R' D R U' R' D2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-li",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 169,
+    "caseCode": "LI",
+    "description": "[R U' : [R' D R , U U]]",
+    "alg": "R U' R' D R U2 R' D' R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 170,
+    "caseCode": "LK",
+    "description": "[D' R' D : [F' , D' R D R']]",
+    "alg": "D' R' D F' D' R D R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ln",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 171,
+    "caseCode": "LN",
+    "description": "[U R U D : [R' D' R , U2]]",
+    "alg": "U R U D R' D' R U2 R' D R U2 D' U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 172,
+    "caseCode": "LO",
+    "description": "[R D2 : [R' U' R , D']]",
+    "alg": "R D2 R' U' R D' R' U R D' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 173,
+    "caseCode": "LP",
+    "description": "[D , R U R']",
+    "alg": "D R U R' D' R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 174,
+    "caseCode": "LQ",
+    "description": "[R' F : [R U' R' , D]]",
+    "alg": "R' F R U' R' D R U R' D' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 175,
+    "caseCode": "LR",
+    "description": "[D R' : [D , R' U R]]",
+    "alg": "D R' D R' U R D' R' U' R2 D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ls",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 176,
+    "caseCode": "LS",
+    "description": "[D' R D' : [R' U' R , D2]]",
+    "alg": "D' R D' R' U' R D2 R' U R D' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 177,
+    "caseCode": "LT",
+    "description": "[D : [R U R' , D2]]",
+    "alg": "D R U R' D2 R U' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 178,
+    "caseCode": "LV",
+    "description": "[R U' R' : [R' D R , U2]]",
+    "alg": "R U' R2 D R U2 R' D' R U2 R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 179,
+    "caseCode": "LW",
+    "description": "[D R : [R D' R' , U']]",
+    "alg": "D R2 D' R' U' R D R' U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-lx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 180,
+    "caseCode": "LX",
+    "description": "[D R D : [U , R' D' R]]",
+    "alg": "D R D U R' D' R U' R' D R D' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-na",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 181,
+    "caseCode": "NA",
+    "description": "[R' U D R : [D' , R U' R']]",
+    "alg": "R' U D R D' R U' R' D R U R2 D' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 182,
+    "caseCode": "ND",
+    "description": "[U' R2' : [D' , R U2 R']]",
+    "alg": "U' R2' D' R U2 R' D R U2 R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ne",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 183,
+    "caseCode": "NE",
+    "description": "[R : [U , R2 D R2 D' R2]]",
+    "alg": "R U R2 D R2 D' R2 U' R2 D R2 D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 184,
+    "caseCode": "NF",
+    "description": "[R U' D' R' : [R' U R , D]]",
+    "alg": "R U' D' R2 U R D R' U' R D' R D U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ng",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 185,
+    "caseCode": "NG",
+    "description": "[U R U' : [R' D R , U2]]",
+    "alg": "U R U' R' D R U2 R' D' R U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 186,
+    "caseCode": "NH",
+    "description": "[U R : [U2 , R D' R']]",
+    "alg": "U R U2 R D' R' U2 R D R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ni",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 187,
+    "caseCode": "NI",
+    "description": "[R' F' R D U : [R' D' R , U2]]",
+    "alg": "R' F' R D U R' D' R U2 R' D R U D' R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 188,
+    "caseCode": "NK",
+    "description": "[U' R' U' : [R D R' , U2]]",
+    "alg": "U' R' U' R D R' U2 R D' R' U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 189,
+    "caseCode": "NL",
+    "description": "[U R U' D : [R' D' R , U2]]",
+    "alg": "U R U' D R' D' R U2 R' D R U2 D' U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-no",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 190,
+    "caseCode": "NO",
+    "description": "[U R U' : [R' D' R , U2]]",
+    "alg": "U R U' R' D' R U2 R' D R U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-np",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 191,
+    "caseCode": "NP",
+    "description": "[U' R' D U' : [R D' R' , U2]]",
+    "alg": "U' R' D U' R D' R' U2 R D R' U' D' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 192,
+    "caseCode": "NR",
+    "description": "[U R2 U' : [D' , R U R']]",
+    "alg": "U R2 U' D' R U R' D R U' R' U R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ns",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 193,
+    "caseCode": "NS",
+    "description": "[U' R' U' : [R D' R' , U2]]",
+    "alg": "U' R' U' R D' R' U2 R D R' U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 194,
+    "caseCode": "NT",
+    "description": "[R' F' R D' U : [R' D R , U2]]",
+    "alg": "R' F' R D' U R' D R U2 R' D' R U D R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 195,
+    "caseCode": "NU",
+    "description": "[U' R' : [R' D R , U2]]",
+    "alg": "U' R2 D R U2 R' D' R U2 R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 196,
+    "caseCode": "NV",
+    "description": "[D' U' R' : [R' D R , U2]]",
+    "alg": "D' U' R2 D R U2 R' D' R U2 R U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 197,
+    "caseCode": "NW",
+    "description": "[U R U' D' : [R' D R , U2]]",
+    "alg": "U R U' D' R' D R U2 R' D' R U2 D U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-nx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 198,
+    "caseCode": "NX",
+    "description": "[D U' R' : [R' D R , U2]]",
+    "alg": "D U' R2 D R U2 R' D' R U2 R U D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-oa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 199,
+    "caseCode": "OA",
+    "description": "[U : [R D R' , U2]]",
+    "alg": "U R D R' U2 R D' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ob",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 200,
+    "caseCode": "OB",
+    "description": "[R D R' , U']",
+    "alg": "R D R' U' R D' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-od",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 201,
+    "caseCode": "OD",
+    "description": "[U2 : [R D R' , U]]",
+    "alg": "U2 R D R' U R D' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-oe",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 202,
+    "caseCode": "OE",
+    "description": "[U' R' F R : [R D R' , U']]",
+    "alg": "U' R' F R2 D R' U' R D' R' U R' F' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-of",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 203,
+    "caseCode": "OF",
+    "description": "[D' R : [R' U R U' , F]]",
+    "alg": "D' U R U' F U R' U' R F' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-og",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 204,
+    "caseCode": "OG",
+    "description": "[U D' : [R U' R' , D2]]",
+    "alg": "U D' R U' R' D2 R U R' D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-oh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 205,
+    "caseCode": "OH",
+    "description": "[R D : [R' U' R , D2]]",
+    "alg": "R D R' U' R D2 R' U R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-oi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 206,
+    "caseCode": "OI",
+    "description": "[R D' U' : [R' D R , U2]]",
+    "alg": "R D' U' R' D R U2 R' D' R U' D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ok",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 207,
+    "caseCode": "OK",
+    "description": "[U : [D' , R U' R']]",
+    "alg": "U D' R U' R' D R U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ol",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 208,
+    "caseCode": "OL",
+    "description": "[R D : [R' U' R , D]]",
+    "alg": "R D R' U' R D R' U R D2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-on",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 209,
+    "caseCode": "ON",
+    "description": "[U R U : [R' D' R , U2]]",
+    "alg": "U R U R' D' R U2 R' D R U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-op",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 210,
+    "caseCode": "OP",
+    "description": "[R D' : [R' D R , U]]",
+    "alg": "R D' R' D R U R' D' R U' D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-oq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 211,
+    "caseCode": "OQ",
+    "description": "[U' R U : [R' U' R , D]]",
+    "alg": "U' R U R' U' R D R' U R D' U' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-or",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 212,
+    "caseCode": "OR",
+    "description": "[R B' : [R' U' R , D]]",
+    "alg": "R B' R' U' R D R' U R D' B R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-os",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 213,
+    "caseCode": "OS",
+    "description": "[U' : [R' U' R , D']]",
+    "alg": "U' R' U' R D' R' U R D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ou",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 214,
+    "caseCode": "OU",
+    "description": "[U' R' : [R' D R , U]]",
+    "alg": "U' R2 D R U R' D' R U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ov",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 215,
+    "caseCode": "OV",
+    "description": "[D' U R U' : [F2 , U R' U' R]]",
+    "alg": "D' U R U' F2 U R' U' R F2 R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ox",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 216,
+    "caseCode": "OX",
+    "description": "[U D' R D' : [U' , R' D R]]",
+    "alg": "U D' R D' U' R' D R U R' D' R D R' D U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 217,
+    "caseCode": "PA",
+    "description": "[U2 , R' D' R]",
+    "alg": "U2 R' D' R U2 R' D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 218,
+    "caseCode": "PB",
+    "description": "[U , R' D' R]",
+    "alg": "U R' D' R U' R' D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 219,
+    "caseCode": "PD",
+    "description": "[U' , R' D' R]",
+    "alg": "U' R' D' R U R' D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pe",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 220,
+    "caseCode": "PE",
+    "description": "[U R' U' : [R D R' , U']]",
+    "alg": "U R' U' R D R' U' R D' R' U2 R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 221,
+    "caseCode": "PF",
+    "description": "[R' U' : [R U R' , D']]",
+    "alg": "R' U' R U R' D' R U' R' D U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 222,
+    "caseCode": "PG",
+    "description": "[U R' D' : [R U' R' , D2]]",
+    "alg": "U R' D' R U' R' D2 R U R' D' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ph",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 223,
+    "caseCode": "PH",
+    "description": "[R U R' , D2]",
+    "alg": "R U R' D2 R U' R' D2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 224,
+    "caseCode": "PI",
+    "description": "[D R U' : [R' D' R , U2]]",
+    "alg": "D R U' R' D' R U2 R' D R U' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 225,
+    "caseCode": "PL",
+    "description": "[R U R' , D]",
+    "alg": "R U R' D R U' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 226,
+    "caseCode": "PN",
+    "description": "[U' R' D U : [R D' R' , U2]]",
+    "alg": "U' R' D U R D' R' U2 R D R' U D' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-po",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 227,
+    "caseCode": "PO",
+    "description": "[R D' : [U , R' D R]]",
+    "alg": "R D' U R' D R U' R' D' R D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 228,
+    "caseCode": "PQ",
+    "description": "[R' U : [R U' R' , D']]",
+    "alg": "R' U R U' R' D' R U R' D U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 229,
+    "caseCode": "PR",
+    "description": "[R' : [D , R' U R]]",
+    "alg": "R' D R' U R D' R' U' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ps",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 230,
+    "caseCode": "PS",
+    "description": "[U R' D' : [R U' R' , D']]",
+    "alg": "U R' D' R U' R' D' R U R' D2 R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 231,
+    "caseCode": "PT",
+    "description": "[R U R' , D']",
+    "alg": "R U R' D' R U' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 232,
+    "caseCode": "PU",
+    "description": "[R D : [U , R' D' R]]",
+    "alg": "R D U R' D' R U' R' D R D' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-pw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 233,
+    "caseCode": "PW",
+    "description": "[D' R U' R' : [R' D R , U2]]",
+    "alg": "D' R U' R2 D R U2 R' D' R U2 R U R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-px",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 234,
+    "caseCode": "PX",
+    "description": "[R : [R D' R' , U']]",
+    "alg": "R2 D' R' U' R D R' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 235,
+    "caseCode": "QA",
+    "description": "[R' U' D : [R D R' , U2]]",
+    "alg": "R' U' D R D R' U2 R D' R' U2 D' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 236,
+    "caseCode": "QD",
+    "description": "[R' D' : [R' D R , U']]",
+    "alg": "R' D' R' D R U' R' D' R U D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qe",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 237,
+    "caseCode": "QE",
+    "description": "[F' L F , R']",
+    "alg": "F' L F R' F' L' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 238,
+    "caseCode": "QF",
+    "description": "[R' F : [D , R U R']]",
+    "alg": "R' F D R U R' D' R U' R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 239,
+    "caseCode": "QG",
+    "description": "[R' U : [D , R U' R']]",
+    "alg": "R' U D R U' R' D' R U R' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 240,
+    "caseCode": "QH",
+    "description": "[R , U' L U]",
+    "alg": "R U' L U R' U' L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 241,
+    "caseCode": "QI",
+    "description": "[R D' U' : [R' D' R , U2]]",
+    "alg": "R D' U' R' D' R U2 R' D R U' D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 242,
+    "caseCode": "QK",
+    "description": "[D' R' U : [D , R U' R']]",
+    "alg": "D' R' U D R U' R' D' R U R' U' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ql",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 243,
+    "caseCode": "QL",
+    "description": "[R' F : [D , R U' R']]",
+    "alg": "R' F D R U' R' D' R U R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 244,
+    "caseCode": "QO",
+    "description": "[U' R U : [D , R' U' R]]",
+    "alg": "U' R U D R' U' R D' R' U R U' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 245,
+    "caseCode": "QP",
+    "description": "[R' U : [D' , R U' R']]",
+    "alg": "R' U D' R U' R' D R U R' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 246,
+    "caseCode": "QR",
+    "description": "[R , U' L' U]",
+    "alg": "R U' L' U R' U' L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qs",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 247,
+    "caseCode": "QS",
+    "description": "[D R' U : [D , R U' R']]",
+    "alg": "D R' U D R U' R' D' R U R' U' R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 248,
+    "caseCode": "QT",
+    "description": "[R U' : [R' U R , D]]",
+    "alg": "R U' R' U R D R' U' R D' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 249,
+    "caseCode": "QU",
+    "description": "[D' R U' : [R' U R , D']]",
+    "alg": "D' R U' R' U R D' R' U' R D U R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 250,
+    "caseCode": "QV",
+    "description": "[U R' U' : [R U R' , D']]",
+    "alg": "U R' U' R U R' D' R U' R' D U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 251,
+    "caseCode": "QW",
+    "description": "[D R U' : [R' U R , D']]",
+    "alg": "D R U' R' U R D' R' U' R D U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-qx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 252,
+    "caseCode": "QX",
+    "description": "[R U' : [R' U R , D']]",
+    "alg": "R U' R' U R D' R' U' R D U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 253,
+    "caseCode": "RB",
+    "description": "[R2 U : [D , R' U' R]]",
+    "alg": "R2 U D R' U' R D' R' U R U' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 254,
+    "caseCode": "RD",
+    "description": "[U' R2' : [D' , R U' R']]",
+    "alg": "U' R2' D' R U' R' D R U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 255,
+    "caseCode": "RF",
+    "description": "[F , l U' l']",
+    "alg": "F l U' l' F' l U l'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 256,
+    "caseCode": "RG",
+    "description": "[R B' R' : [U , R' D R]]",
+    "alg": "R B' R' U R' D R U' R' D' R2 B R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 257,
+    "caseCode": "RH",
+    "description": "[U D R' F' : [R U' R' , D]]",
+    "alg": "U D R' F' R U' R' D R U R' D' F R D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ri",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 258,
+    "caseCode": "RI",
+    "description": "[R U R' D' : [R' D R , U2]]",
+    "alg": "R U R' D' R' D R U2 R' D' R U2 D R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 259,
+    "caseCode": "RK",
+    "description": "[U' R' U' : [R D R' , U']]",
+    "alg": "U' R' U' R D R' U' R D' R' U2 R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 260,
+    "caseCode": "RL",
+    "description": "[D R' : [R' U R , D]]",
+    "alg": "D R2 U R D R' U' R D' R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 261,
+    "caseCode": "RN",
+    "description": "[U R2 U' : [R U R' , D']]",
+    "alg": "U R2 U' R U R' D' R U' R' D U R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ro",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 262,
+    "caseCode": "RO",
+    "description": "[R B' : [D , R' U' R]]",
+    "alg": "R B' D R' U' R D' R' U R B R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 263,
+    "caseCode": "RP",
+    "description": "[R2' : [U , R D R']]",
+    "alg": "R2' U R D R' U' R D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 264,
+    "caseCode": "RQ",
+    "description": "[U' L' U , R]",
+    "alg": "U' L' U R U' L U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rs",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 265,
+    "caseCode": "RS",
+    "description": "[U' R' U' : [R D' R' , U']]",
+    "alg": "U' R' U' R D' R' U' R D R' U2 R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 266,
+    "caseCode": "RT",
+    "description": "[D' R2' : [U , R D R']]",
+    "alg": "D' R2' U R D R' U' R D' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ru",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 267,
+    "caseCode": "RU",
+    "description": "[U' R' : [R' D R , U']]",
+    "alg": "U' R2 D R U' R' D' R U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 268,
+    "caseCode": "RV",
+    "description": "[D' U' R' : [R' D R , U']]",
+    "alg": "D' U' R2 D R U' R' D' R U R U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 269,
+    "caseCode": "RW",
+    "description": "[U R : [D' , R U' R']]",
+    "alg": "U R D' R U' R' D R U R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-rx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 270,
+    "caseCode": "RX",
+    "description": "[R2 U : [D' , R' U' R]]",
+    "alg": "R2 U D' R' U' R D R' U R U' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 271,
+    "caseCode": "SA",
+    "description": "[U D' : [R D R' , U2]]",
+    "alg": "U D' R D R' U2 R D' R' U2 D U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 272,
+    "caseCode": "SB",
+    "description": "[D' : [R D R' , U']]",
+    "alg": "D' R D R' U' R D' R' U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 273,
+    "caseCode": "SD",
+    "description": "[D : [U' , R' D R]]",
+    "alg": "D U' R' D R U R' D' R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-se",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 274,
+    "caseCode": "SE",
+    "description": "[D U R' : [R' D R , U']]",
+    "alg": "D U R2 D R U' R' D' R U R U' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 275,
+    "caseCode": "SF",
+    "description": "[F , l U2 l']",
+    "alg": "F l U2 l' F' l U2 l'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 276,
+    "caseCode": "SG",
+    "description": "[U D2 : [R U' R' , D']]",
+    "alg": "U D2 R U' R' D' R U R' D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-si",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 277,
+    "caseCode": "SI",
+    "description": "[D R' D : [F2 , D' R D R']]",
+    "alg": "D R' D F2 D' R D R' F2 R D2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 278,
+    "caseCode": "SK",
+    "description": "[U : [D2 , R U' R']]",
+    "alg": "U D2 R U' R' D2 R U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 279,
+    "caseCode": "SL",
+    "description": "[D' R D : [R' U' R , D2]]",
+    "alg": "D' R D R' U' R D2 R' U R D R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 280,
+    "caseCode": "SN",
+    "description": "[U' R' U : [R D' R' , U2]]",
+    "alg": "U' R' U R D' R' U2 R D R' U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-so",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 281,
+    "caseCode": "SO",
+    "description": "[U' : [D' , R' U' R]]",
+    "alg": "U' D' R' U' R D R' U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 282,
+    "caseCode": "SP",
+    "description": "[U R' D' : [D' , R U' R']]",
+    "alg": "U R' D2 R U' R' D R U R' D R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 283,
+    "caseCode": "SQ",
+    "description": "[D R' U : [R U' R' , D]]",
+    "alg": "D R' U R U' R' D R U R' D' U' R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 284,
+    "caseCode": "SR",
+    "description": "[U' R' U2 : [R D' R' , U]]",
+    "alg": "U' R' U2 R D' R' U R D R' U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-st",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 285,
+    "caseCode": "ST",
+    "description": "[D2' R' : [F' , R D' R' D]]",
+    "alg": "D2' R' F' R D' R' D F D' R D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-su",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 286,
+    "caseCode": "SU",
+    "description": "[U' D' R' D' : [U' , R D R']]",
+    "alg": "U' D' R' D' U' R D R' U R D' R' D R D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 287,
+    "caseCode": "SV",
+    "description": "[U' D' R' : [R' D R , U]]",
+    "alg": "U' D' R2 D R U R' D' R U' R D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-sw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 288,
+    "caseCode": "SW",
+    "description": "[U R : [D2 , R U' R']]",
+    "alg": "U R D2 R U' R' D2 R U R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ta",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 289,
+    "caseCode": "TA",
+    "description": "[U D : [R D' R' , U2]]",
+    "alg": "U D R D' R' U2 R D R' U2 D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 290,
+    "caseCode": "TB",
+    "description": "[D : [R D' R' , U']]",
+    "alg": "D R D' R' U' R D R' U D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-td",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 291,
+    "caseCode": "TD",
+    "description": "[D' : [U' , R' D' R]]",
+    "alg": "D' U' R' D' R U R' D R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-te",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 292,
+    "caseCode": "TE",
+    "description": "[R U2 : [R' D' R , U']]",
+    "alg": "R U2 R' D' R U' R' D R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 293,
+    "caseCode": "TF",
+    "description": "[D' R' U' : [R U R' , D']]",
+    "alg": "D' R' U' R U R' D' R U' R' D U R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 294,
+    "caseCode": "TG",
+    "description": "[R' D R2 : [U , R' D' R]]",
+    "alg": "R' D R2 U R' D' R U' R' D R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-th",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 295,
+    "caseCode": "TH",
+    "description": "[D' : [R U R' , D']]",
+    "alg": "D' R U R' D' R U' R' D2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ti",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 296,
+    "caseCode": "TI",
+    "description": "[R U' : [R' D' R , U2]]",
+    "alg": "R U' R' D' R U2 R' D R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 297,
+    "caseCode": "TK",
+    "description": "[R U R' U' : [R U R' , D']]",
+    "alg": "R U R' U' R U R' D' R U' R' D U R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 298,
+    "caseCode": "TL",
+    "description": "[D' : [R U R' , D2]]",
+    "alg": "D' R U R' D2 R U' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 299,
+    "caseCode": "TN",
+    "description": "[R' F' R D' U' : [R' D R , U2]]",
+    "alg": "R' F' R D' U' R' D R U2 R' D' R U' D R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 300,
+    "caseCode": "TP",
+    "description": "[D' , R U R']",
+    "alg": "D' R U R' D R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 301,
+    "caseCode": "TQ",
+    "description": "[R U' : [D , R' U R]]",
+    "alg": "R U' D R' U R D' R' U' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 302,
+    "caseCode": "TR",
+    "description": "[D' R' : [D , R' U R]]",
+    "alg": "D' R' D R' U R D' R' U' R2 D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ts",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 303,
+    "caseCode": "TS",
+    "description": "[D R' D : [F' , D' R D R']]",
+    "alg": "D R' D F' D' R D R' F R D2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 304,
+    "caseCode": "TU",
+    "description": "[D' R : [R D' R' , U']]",
+    "alg": "D' R2 D' R' U' R D R' U R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 305,
+    "caseCode": "TV",
+    "description": "[D' R D : [U , R' D' R]]",
+    "alg": "D' R D U R' D' R U' R' D R D' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-tx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 306,
+    "caseCode": "TX",
+    "description": "[R U' D : [R' U R , D2]]",
+    "alg": "R U' D R' U R D2 R' U' R D U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ua",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 307,
+    "caseCode": "UA",
+    "description": "[R F' R' U : [R D R' , U2]]",
+    "alg": "R F' R' U R D R' U2 R D' R' U R F R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ub",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 308,
+    "caseCode": "UB",
+    "description": "[R F' : [D , R' U' R]]",
+    "alg": "R F' D R' U' R D' R' U R F R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ud",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 309,
+    "caseCode": "UD",
+    "description": "[U' : [F2' , U R' U' R]]",
+    "alg": "U' F2' U R' U' R F2 R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ue",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 310,
+    "caseCode": "UE",
+    "description": "[D' R : [U , R D' R']]",
+    "alg": "D' R U R D' R' U' R D R2 D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 311,
+    "caseCode": "UF",
+    "description": "[U' R' U : [D , R U' R']]",
+    "alg": "U' R' U D R U' R' D' R U R' U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 312,
+    "caseCode": "UH",
+    "description": "[D R U' R' : [U2 , R' D R]]",
+    "alg": "D R U' R' U2 R' D R U2 R' D' R2 U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ui",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 313,
+    "caseCode": "UI",
+    "description": "[R D U' : [R' D' R , U2]]",
+    "alg": "R D U' R' D' R U2 R' D R U' D' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 314,
+    "caseCode": "UK",
+    "description": "[R : [F2 , R' U R U']]",
+    "alg": "R F2 R' U R U' F2 U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-un",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 315,
+    "caseCode": "UN",
+    "description": "[U' R' : [U2 , R' D R]]",
+    "alg": "U' R' U2 R' D R U2 R' D' R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 316,
+    "caseCode": "UO",
+    "description": "[U' R' : [U , R' D R]]",
+    "alg": "U' R' U R' D R U' R' D' R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-up",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 317,
+    "caseCode": "UP",
+    "description": "[R D : [R' D' R , U]]",
+    "alg": "R D R' D' R U R' D R U' D' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 318,
+    "caseCode": "UQ",
+    "description": "[D' R U' : [D' , R' U R]]",
+    "alg": "D' R U' D' R' U R D R' U' R U R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ur",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 319,
+    "caseCode": "UR",
+    "description": "[U' R' : [U' , R' D R]]",
+    "alg": "U' R' U' R' D R U R' D' R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-us",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 320,
+    "caseCode": "US",
+    "description": "[U' D' R' D' : [R D R' , U']]",
+    "alg": "U' D' R' D' R D R' U' R D' R' U D R D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ut",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 321,
+    "caseCode": "UT",
+    "description": "[D' R : [U' , R D' R']]",
+    "alg": "D' R U' R D' R' U R D R2 D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 322,
+    "caseCode": "UV",
+    "description": "[U' R' U R : [D , R U' R']]",
+    "alg": "U' R' U R D R U' R' D' R U R2 U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-uw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 323,
+    "caseCode": "UW",
+    "description": "[U' R2' : [D , R2 U R2' U' R2]] inverse",
+    "alg": "U' R2' D R2 U R2' U' R2 D' R2 U R2 inverse",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ux",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 324,
+    "caseCode": "UX",
+    "description": "[R U' D2 : [R' U R , D]]",
+    "alg": "R U' D2 R' U R D R' U' R D U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-va",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 325,
+    "caseCode": "VA",
+    "description": "[U2 , R' D R U' R D' R']",
+    "alg": "U2 R' D R U' R D' R' U2 R D R' U R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 326,
+    "caseCode": "VB",
+    "description": "[U , R' D R U' R D' R']",
+    "alg": "U R' D R U' R D' R' U' R D R' U R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 327,
+    "caseCode": "VD",
+    "description": "[U' , R' D R U' R D' R']",
+    "alg": "U' R' D R U' R D' R' U R D R' U R' D' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ve",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 328,
+    "caseCode": "VE",
+    "description": "[U R' D' : [R' D' R , U']]",
+    "alg": "U R' D' R' D' R U' R' D R U D R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 329,
+    "caseCode": "VF",
+    "description": "[U' D' R' U : [D , R U' R']]",
+    "alg": "U' D' R' U D R U' R' D' R U R' U' R D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 330,
+    "caseCode": "VG",
+    "description": "[U D R D' : [R' D R , U']]",
+    "alg": "U D R D' R' D R U' R' D' R U D R' D' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 331,
+    "caseCode": "VH",
+    "description": "[R U' D R' : [U2 , R' D R]]",
+    "alg": "R U' D R' U2 R' D R U2 R' D' R2 D' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 332,
+    "caseCode": "VI",
+    "description": "[R U' R' U D : [R D R' , U2]]",
+    "alg": "R U' R' U D R D R' U2 R D' R' U2 D' U' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 333,
+    "caseCode": "VL",
+    "description": "[R U' R' : [U2 , R' D R]]",
+    "alg": "R U' R' U2 R' D R U2 R' D' R2 U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 334,
+    "caseCode": "VN",
+    "description": "[U' D' R' : [U2 , R' D R]]",
+    "alg": "U' D' R' U2 R' D R U2 R' D' R2 D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 335,
+    "caseCode": "VO",
+    "description": "[D' R : [F2 , R' U R U']]",
+    "alg": "D' R F2 R' U R U' F2 U R' U' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 336,
+    "caseCode": "VQ",
+    "description": "[U R' U' : [D' , R U R']]",
+    "alg": "U R' U' D' R U R' D R U' R' U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 337,
+    "caseCode": "VR",
+    "description": "[D' U' R' : [U' , R' D R]]",
+    "alg": "D' U' R' U' R' D R U R' D' R2 U D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vs",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 338,
+    "caseCode": "VS",
+    "description": "[U' D' R' : [U , R' D R]]",
+    "alg": "U' D' R' U R' D R U' R' D' R2 D U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 339,
+    "caseCode": "VT",
+    "description": "[D' R D : [R' D' R , U]]",
+    "alg": "D' R D R' D' R U R' D R U' D' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 340,
+    "caseCode": "VU",
+    "description": "[U' R' U R : [R U' R' , D]]",
+    "alg": "U' R' U R2 U' R' D R U R' D' R' U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 341,
+    "caseCode": "VW",
+    "description": "[D R U' R' : [R' U R , D']]",
+    "alg": "D R U' R2 U R D' R' U' R D R U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-vx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 342,
+    "caseCode": "VX",
+    "description": "[R U' R' U : [R D' R' , U2]]",
+    "alg": "R U' R' U R D' R' U2 R D R' U R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 343,
+    "caseCode": "WA",
+    "description": "[R D' R' : [U2 , R' D R]]",
+    "alg": "R D' R' U2 R' D R U2 R' D' R2 D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 344,
+    "caseCode": "WB",
+    "description": "[R D' R' U R' D R , U']",
+    "alg": "R D' R' U R' D R U' R' D' R U' R D R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 345,
+    "caseCode": "WD",
+    "description": "[R D' R' : [U' , R' D R]]",
+    "alg": "R D' R' U' R' D R U R' D' R2 D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-we",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 346,
+    "caseCode": "WE",
+    "description": "[D R : [U , R D' R']]",
+    "alg": "D R U R D' R' U' R D R2 D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 347,
+    "caseCode": "WF",
+    "description": "[R U' R2' : [U , R D R']]",
+    "alg": "R U' R2' U R D R' U' R D' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 348,
+    "caseCode": "WG",
+    "description": "[U R2 : [U' , R' D R]]",
+    "alg": "U R2 U' R' D R U R' D' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wh",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 349,
+    "caseCode": "WH",
+    "description": "[R D' R' : [U , R' D R]]",
+    "alg": "R D' R' U R' D R U' R' D' R2 D R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 350,
+    "caseCode": "WI",
+    "description": "[D R : [U2 , R D' R']]",
+    "alg": "D R U2 R D' R' U2 R D R2 D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 351,
+    "caseCode": "WK",
+    "description": "[U R D' : [R' D R , U']]",
+    "alg": "U R D' R' D R U' R' D' R U D R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 352,
+    "caseCode": "WL",
+    "description": "[D' R2 : [R' U' R , D']]",
+    "alg": "D' R U' R D' R' U R D R2 D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 353,
+    "caseCode": "WN",
+    "description": "[U R U D' : [R' D R , U2]]",
+    "alg": "U R U D' R' D R U2 R' D' R U2 D U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 354,
+    "caseCode": "WP",
+    "description": "[D' R U' R' : [U2 , R' D R]]",
+    "alg": "D' R U' R' U2 R' D R U2 R' D' R2 U R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 355,
+    "caseCode": "WQ",
+    "description": "[D R U' : [D' , R' U R]]",
+    "alg": "D R U' D' R' U R D R' U' R U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 356,
+    "caseCode": "WR",
+    "description": "[U R2 : [U' , R' D' R]]",
+    "alg": "U R2 U' R' D' R U R' D R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-ws",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 357,
+    "caseCode": "WS",
+    "description": "[U R2 : [U' , R' D2 R]]",
+    "alg": "U R2 U' R' D2 R U R' D2 R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 358,
+    "caseCode": "WU",
+    "description": "[U' R2' : [D , R2 U R2' U' R2]]",
+    "alg": "U' R2' D R2 U R2' U' R2 D' R2 U R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 359,
+    "caseCode": "WV",
+    "description": "[D R U' R' : [D' , R' U R]]",
+    "alg": "D R U' R' D' R' U R D R' U' R2 U R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-wx",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 360,
+    "caseCode": "WX",
+    "description": "[R U' R' : [R' U R , D']]",
+    "alg": "R U' R2 U R D' R' U' R D R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xa",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 361,
+    "caseCode": "XA",
+    "description": "[R' U' D' R : [D , R U' R']]",
+    "alg": "R' U' D' R D R U' R' D' R U R2 D U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xb",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 362,
+    "caseCode": "XB",
+    "description": "[R' B : [R U R' , D']]",
+    "alg": "R' B R U R' D' R U' R' D B' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xd",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 363,
+    "caseCode": "XD",
+    "description": "[R' D' R : [D , R U' R']]",
+    "alg": "R' D' R D R U' R' D' R U R2 D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xe",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 364,
+    "caseCode": "XE",
+    "description": "[R : [U , R D' R']]",
+    "alg": "R U R D' R' U' R D R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xf",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 365,
+    "caseCode": "XF",
+    "description": "[U' D R' U : [D , R U' R']]",
+    "alg": "U' D R' U D R U' R' D' R U R' U' R D' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xg",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 366,
+    "caseCode": "XG",
+    "description": "[D R : [F2 , R' U R U']]",
+    "alg": "D R F2 R' U R U' F2 U R' U' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xi",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 367,
+    "caseCode": "XI",
+    "description": "[R2 U : [R' U R , D']]",
+    "alg": "R2 U R' U R D' R' U' R D U' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xk",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 368,
+    "caseCode": "XK",
+    "description": "[R' D' R : [D ,R U R']]",
+    "alg": "R' D' R D R U R' D' R U' R2 D R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xl",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 369,
+    "caseCode": "XL",
+    "description": "[D R D : [R' D' R , U]]",
+    "alg": "D R D R' D' R U R' D R U' D' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xn",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 370,
+    "caseCode": "XN",
+    "description": "[D U' R' : [U2 , R' D R]]",
+    "alg": "D U' R' U2 R' D R U2 R' D' R2 U D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xo",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 371,
+    "caseCode": "XO",
+    "description": "[U D' R D' : [R' D R , U']]",
+    "alg": "U D' R D' R' D R U' R' D' R U D R' D U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xp",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 372,
+    "caseCode": "XP",
+    "description": "[R2 : [R' U' R , D']]",
+    "alg": "R U' R D' R' U R D R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xq",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 373,
+    "caseCode": "XQ",
+    "description": "[R U' : [D' , R' U R]]",
+    "alg": "R U' D' R' U R D R' U' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xr",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 374,
+    "caseCode": "XR",
+    "description": "[R2 U : [R' U' R , D']]",
+    "alg": "R2 U R' U' R D' R' U R D U' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xt",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 375,
+    "caseCode": "XT",
+    "description": "[R U' D' : [R' U R , D2]]",
+    "alg": "R U' D' R' U R D2 R' U' R D' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xu",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 376,
+    "caseCode": "XU",
+    "description": "[R U' D' : [R' U R , D']]",
+    "alg": "R U' D' R' U R D' R' U' R D2 U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xv",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 377,
+    "caseCode": "XV",
+    "description": "[R U' R' U' : [R D' R' , U2]]",
+    "alg": "R U' R' U' R D' R' U2 R D R' U' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner-xw",
+    "pieceType": "corner",
+    "sheetName": "bundled-corners.csv",
+    "rowIndex": 378,
+    "caseCode": "XW",
+    "description": "[R U' R' : [D' , R' U R]]",
+    "alg": "R U' R' D' R' U R D R' U' R2 U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ab",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 1,
+    "caseCode": "AB",
+    "description": "[R2 U' : [S , R2']]",
+    "alg": "R2 U' S R2' S' R2 U R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ad",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 2,
+    "caseCode": "AD",
+    "description": "[L2' U : [S' , L2]]",
+    "alg": "L2' U S' L2 S L2 U' L2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ae",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 3,
+    "caseCode": "AE",
+    "description": "[U' M U' : [M' , U2]]",
+    "alg": "U' M U' M' U2 M U' M' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-af",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 4,
+    "caseCode": "AF",
+    "description": "[U' : [R' E R , U2]]",
+    "alg": "U' R' E R U2 R' E' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ag",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 5,
+    "caseCode": "AG",
+    "description": "[U : [L' E' L , U2']]",
+    "alg": "U L' E' L U2' L' E L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ah",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 6,
+    "caseCode": "AH",
+    "description": "[U' : [R E' R' , U2]]",
+    "alg": "U' R E' R' U2 R E R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-aj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 7,
+    "caseCode": "AJ",
+    "description": "[R' U' : [S , R2']]",
+    "alg": "R' U' S R2' S' R2 U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ak",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 8,
+    "caseCode": "AK",
+    "description": "[R' F' : [R U R' , E]]",
+    "alg": "R' F' R U R' E R U' R' E' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-al",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 9,
+    "caseCode": "AL",
+    "description": "[L U : [S' , L2']]",
+    "alg": "L U S' L2' S L2 U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-am",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 10,
+    "caseCode": "AM",
+    "description": "[U M U : [M' , U2']]",
+    "alg": "U M U M' U2' M U M' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-an",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 11,
+    "caseCode": "AN",
+    "description": "[U : [L' E L , U2']]",
+    "alg": "U L' E L U2' L' E' L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ao",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 12,
+    "caseCode": "AO",
+    "description": "[U' : [R E R' , U2]]",
+    "alg": "U' R E R' U2 R E' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ap",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 13,
+    "caseCode": "AP",
+    "description": "[U : [L E' L' , U2']]",
+    "alg": "U L E' L' U2' L E L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ar",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 14,
+    "caseCode": "AR",
+    "description": "[L' U' : [L2 , S']]",
+    "alg": "L' U' L2 S' L2 S U L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-as",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 15,
+    "caseCode": "AS",
+    "description": "[U' R' B R : [S , R2']]",
+    "alg": "U' R' B R S R2' S' R B' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-at",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 16,
+    "caseCode": "AT",
+    "description": "[R U : [R2' , S]]",
+    "alg": "R U R2' S R2 S' U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-au",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 17,
+    "caseCode": "AU",
+    "description": "[U2 , M']",
+    "alg": "U2 M' U2 M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-av",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 18,
+    "caseCode": "AV",
+    "description": "[U' : [S , R2']]",
+    "alg": "U' S R2' S' R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-aw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 19,
+    "caseCode": "AW",
+    "description": "[M , U2]",
+    "alg": "M U2 M' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ax",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 20,
+    "caseCode": "AX",
+    "description": "[U : [S' , L2']]",
+    "alg": "U S' L2' S L2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ba",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 21,
+    "caseCode": "BA",
+    "description": "[R2 U' : [R2' , S]]",
+    "alg": "R2 U' R2' S R2 S' U R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 22,
+    "caseCode": "BD",
+    "description": "[M2' U : [M , U2']]",
+    "alg": "M2' U M U2' M' U M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-be",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 23,
+    "caseCode": "BE",
+    "description": "[S' , L F' L']",
+    "alg": "S' L F' L' S L F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 24,
+    "caseCode": "BF",
+    "description": "[U' , R' E R]",
+    "alg": "U' R' E R U R' E' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 25,
+    "caseCode": "BG",
+    "description": "[U : [L' E' L , U]]",
+    "alg": "U L' E' L U L' E L U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 26,
+    "caseCode": "BH",
+    "description": "[U' , R E' R']",
+    "alg": "U' R E' R' U R E R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 27,
+    "caseCode": "BJ",
+    "description": "[E' : [U' , R' E R]]",
+    "alg": "E' U' R' E R U R' E' R E",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 28,
+    "caseCode": "BK",
+    "description": "[r : [U' R' U , M]]",
+    "alg": "r U' R' U M U' R U M' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 29,
+    "caseCode": "BL",
+    "description": "[U' , R E2 R']",
+    "alg": "U' R E2 R' U R E2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 30,
+    "caseCode": "BN",
+    "description": "[U : [L' E L , U]]",
+    "alg": "U L' E L U L' E' L U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 31,
+    "caseCode": "BO",
+    "description": "[U' , R E R']",
+    "alg": "U' R E R' U R E' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 32,
+    "caseCode": "BP",
+    "description": "[U : [L E' L' , U]]",
+    "alg": "U L E' L' U L E L' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 33,
+    "caseCode": "BQ",
+    "description": "[r' : [U' R U , M']]",
+    "alg": "r' U' R U M' U' R' U M r",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-br",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 34,
+    "caseCode": "BR",
+    "description": "[U' , R' E2 R]",
+    "alg": "U' R' E2 R U R' E2 R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 35,
+    "caseCode": "BS",
+    "description": "(U M U M')2",
+    "alg": "(U M U M')2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 36,
+    "caseCode": "BT",
+    "description": "[u' : [R E' R' , U]]",
+    "alg": "u' R E' R' U R E R' U' u",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 37,
+    "caseCode": "BU",
+    "description": "[L F : [L' S' L , F2']]",
+    "alg": "L F L' S' L F2' L' S L F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 38,
+    "caseCode": "BV",
+    "description": "[R' U R' : [S , R2]]",
+    "alg": "R' U R' S R2 S' R' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 39,
+    "caseCode": "BW",
+    "description": "[r M' : [U' R' U , M2']]",
+    "alg": "r M' U' R' U M2' U' R U M' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-bx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 40,
+    "caseCode": "BX",
+    "description": "U' L' U' L U L U L U' L'",
+    "alg": "U' L' U' L U L U L U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-da",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 41,
+    "caseCode": "DA",
+    "description": "[L2' U : [L2 , S']]",
+    "alg": "L2' U L2 S' L2 S U' L2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-db",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 42,
+    "caseCode": "DB",
+    "description": "[M2' U' : [M , U2]]",
+    "alg": "M2' U' M U2 M' U' M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-df",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 43,
+    "caseCode": "DF",
+    "description": "[U' : [R' E R , U']]",
+    "alg": "U' R' E R U' R' E' R U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 44,
+    "caseCode": "DG",
+    "description": "[U , L' E' L]",
+    "alg": "U L' E' L U' L' E L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 45,
+    "caseCode": "DH",
+    "description": "[U' : [R E' R' , U']]",
+    "alg": "U' R E' R' U' R E R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 46,
+    "caseCode": "DJ",
+    "description": "[U , L' E2' L]",
+    "alg": "U L' E2' L U' L' E2 L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 47,
+    "caseCode": "DK",
+    "description": "[l' : [U L U' , M]]",
+    "alg": "l' U L U' M U L' U' M' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 48,
+    "caseCode": "DL",
+    "description": "[U' : [R E2 R' , U']]",
+    "alg": "U' R E2 R' U' R E2 R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 49,
+    "caseCode": "DM",
+    "description": "[S , R' F R]",
+    "alg": "S R' F R S' R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 50,
+    "caseCode": "DN",
+    "description": "[U , L' E L]",
+    "alg": "U L' E L U' L' E' L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-do",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 51,
+    "caseCode": "DO",
+    "description": "[U' : [R E R' , U']]",
+    "alg": "U' R E R' U' R E' R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 52,
+    "caseCode": "DP",
+    "description": "[U , L E' L']",
+    "alg": "U L E' L' U' L E L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 53,
+    "caseCode": "DQ",
+    "description": "[L : [M , U L' U']]",
+    "alg": "L M U L' U' M' U L U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 54,
+    "caseCode": "DR",
+    "description": "[U' : [R E2 R' , U']]",
+    "alg": "U' R E2 R' U' R E2 R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ds",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 55,
+    "caseCode": "DS",
+    "description": "(U' M U' M')2",
+    "alg": "(U' M U' M')2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 56,
+    "caseCode": "DT",
+    "description": "[U , L E2' L']",
+    "alg": "U L E2' L' U' L E2 L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-du",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 57,
+    "caseCode": "DU",
+    "description": "[R' F' : [R S R' , F2]]",
+    "alg": "R' F' R S R' F2 R S' R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 58,
+    "caseCode": "DV",
+    "description": "U R U R' U' R' U' R' U R",
+    "alg": "U R U R' U' R' U' R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 59,
+    "caseCode": "DW",
+    "description": "[l' M' : [U L U' , M2']]",
+    "alg": "l' M' U L U' M2' U L' U' M' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-dx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 60,
+    "caseCode": "DX",
+    "description": "[L U' L : [S' , L2']]",
+    "alg": "L U' L S' L2' S L U L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ea",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 61,
+    "caseCode": "EA",
+    "description": "[U' M U : [M' , U2]]",
+    "alg": "U' M U M' U2 M U M' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-eb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 62,
+    "caseCode": "EB",
+    "description": "[L F' L' , S']",
+    "alg": "L F' L' S' L F L' S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ef",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 63,
+    "caseCode": "EF",
+    "description": "[S : [U' , R' E R]]",
+    "alg": "S U' R' E R U R' E' R S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-eg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 64,
+    "caseCode": "EG",
+    "description": "[l' U L' : [S' , L2]]",
+    "alg": "l' U L' S' L2 S L' U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-eh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 65,
+    "caseCode": "EH",
+    "description": "[S : [U' , R E' R']]",
+    "alg": "S U' R E' R' U R E R' S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ej",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 66,
+    "caseCode": "EJ",
+    "description": "[M' : [U' , R S' R']]",
+    "alg": "M' U' R S' R' U R S R' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ek",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 67,
+    "caseCode": "EK",
+    "description": "[l' : [M' , U' L U]]",
+    "alg": "l' M' U' L U M U' L' U l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-el",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 68,
+    "caseCode": "EL",
+    "description": "[L' U2 : [L S L' , U]]",
+    "alg": "L' U2 L S L' U L S' L' U L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-em",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 69,
+    "caseCode": "EM",
+    "description": "[M U : [M' , U2']]",
+    "alg": "M U M' U2' M U M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-en",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 70,
+    "caseCode": "EN",
+    "description": "[L' F' : [E , L2]]",
+    "alg": "L' F' E L2 E' L2 F L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-eo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 71,
+    "caseCode": "EO",
+    "description": "[R' F R : [S , R2']]",
+    "alg": "R' F R S R2' S' R F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ep",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 72,
+    "caseCode": "EP",
+    "description": "[R M U : [M' , U2]]",
+    "alg": "R M U M' U2 M U M' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-eq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 73,
+    "caseCode": "EQ",
+    "description": "[L' : [U' L U , M']]",
+    "alg": "L' U' L U M' U' L' U M L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-er",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 74,
+    "caseCode": "ER",
+    "description": "[U' R F : [R2' , E']]",
+    "alg": "U' R F R2' E' R2 E F' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-es",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 75,
+    "caseCode": "ES",
+    "description": "M' : (U M' U M)2",
+    "alg": "M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-et",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 76,
+    "caseCode": "ET",
+    "description": "[M' : [U' , L' E L]]",
+    "alg": "M' U' L' E L U L' E' L M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-eu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 77,
+    "caseCode": "EU",
+    "description": "[L' F' : [L2 , E']]",
+    "alg": "L' F' L2 E' L2 E F L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ev",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 78,
+    "caseCode": "EV",
+    "description": "[L2 : [L' F' L , S]]",
+    "alg": "L F' L S L' F L S' L2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ew",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 79,
+    "caseCode": "EW",
+    "description": "[L' M : [U' L U , M2']]",
+    "alg": "L' M U' L U M2' U' L' U M L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ex",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 80,
+    "caseCode": "EX",
+    "description": "[L F' L' , S]",
+    "alg": "L F' L' S L F L' S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fa",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 81,
+    "caseCode": "FA",
+    "description": "[U : [R' E R , U2]]",
+    "alg": "U R' E R U2 R' E' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 82,
+    "caseCode": "FB",
+    "description": "[R' E R , U']",
+    "alg": "R' E R U' R' E' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 83,
+    "caseCode": "FD",
+    "description": "[U2 : [R' E R , U]]",
+    "alg": "U2 R' E R U R' E' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fe",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 84,
+    "caseCode": "FE",
+    "description": "[S : [R' E R , U']]",
+    "alg": "S R' E R U' R' E' R U S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 85,
+    "caseCode": "FG",
+    "description": "[L , U S' U']",
+    "alg": "L U S' U' L' U S U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 86,
+    "caseCode": "FH",
+    "description": "[M' U L : [S' , L2']]",
+    "alg": "M' U L S' L2' S L U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 87,
+    "caseCode": "FJ",
+    "description": "[E , R U' R']",
+    "alg": "E R U' R' E' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 88,
+    "caseCode": "FK",
+    "description": "[M2' : [U' L' U , M]]",
+    "alg": "M2' U' L' U M U' L U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 89,
+    "caseCode": "FM",
+    "description": "[M L' U : [M' , U2']]",
+    "alg": "M L' U M' U2' M U L M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 90,
+    "caseCode": "FN",
+    "description": "[r U R' : [E , R2]]",
+    "alg": "r U R' E R2 E' R' U' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 91,
+    "caseCode": "FO",
+    "description": "[M' U R' : [E , R2]]",
+    "alg": "M' U R' E R2 E' R' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 92,
+    "caseCode": "FP",
+    "description": "[U E R' : [S , R2]]",
+    "alg": "U E R' S R2 S' R' E' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 93,
+    "caseCode": "FQ",
+    "description": "[U' L' U , M']",
+    "alg": "U' L' U M' U' L U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 94,
+    "caseCode": "FR",
+    "description": "[E' , L U L']",
+    "alg": "E' L U L' E L U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 95,
+    "caseCode": "FS",
+    "description": "[U' r' : [R U R' , E]]",
+    "alg": "U' r' R U R' E R U' R' E' r U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ft",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 96,
+    "caseCode": "FT",
+    "description": "[R2' : [E , R U' R']]",
+    "alg": "R2' E R U' R' E' R U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 97,
+    "caseCode": "FU",
+    "description": "[U R' F2 : [R S R' , F]]",
+    "alg": "U R' F2 R S R' F R S' R' F R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 98,
+    "caseCode": "FV",
+    "description": "[U' E' R : [E' , R2']]",
+    "alg": "U' E' R E' R2' E R E U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 99,
+    "caseCode": "FW",
+    "description": "[M : [U' L' U , M2']]",
+    "alg": "M U' L' U M2' U' L U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-fx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 100,
+    "caseCode": "FX",
+    "description": "[U E L : [E' , L2']]",
+    "alg": "U E L E' L2' E L E' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ga",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 101,
+    "caseCode": "GA",
+    "description": "[U' : [L' E' L , U2']]",
+    "alg": "U' L' E' L U2' L' E L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 102,
+    "caseCode": "GB",
+    "description": "[U2' : [L' E' L , U']]",
+    "alg": "U2' L' E' L U' L' E L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 103,
+    "caseCode": "GD",
+    "description": "[L' E' L , U]",
+    "alg": "L' E' L U L' E L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ge",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 104,
+    "caseCode": "GE",
+    "description": "[l' U L : [S' , L2']]",
+    "alg": "l' U L S' L2' S L U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 105,
+    "caseCode": "GF",
+    "description": "[U S' U' , L]",
+    "alg": "U S' U' L U S U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 106,
+    "caseCode": "GH",
+    "description": "[U S U' , L']",
+    "alg": "U S U' L' U S' U' L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 107,
+    "caseCode": "GJ",
+    "description": "[L' E' : [L U L' , E']]",
+    "alg": "L' E' L U L' E' L U' L' E2 L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 108,
+    "caseCode": "GK",
+    "description": "[U : [L F L' , S]]",
+    "alg": "U L F L' S L F' L' S' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 109,
+    "caseCode": "GL",
+    "description": "[L f' L' : [S , L2]]",
+    "alg": "L f' L' S L2 S' L' f L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 110,
+    "caseCode": "GM",
+    "description": "[L F' L : [S' , L2']]",
+    "alg": "L F' L S' L2' S L F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 111,
+    "caseCode": "GN",
+    "description": "[L F' : [E , L2']]",
+    "alg": "L F' E L2' E' L2 F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-go",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 112,
+    "caseCode": "GO",
+    "description": "[R' F R' : [S' , R2]]",
+    "alg": "R' F R' S' R2 S R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 113,
+    "caseCode": "GP",
+    "description": "[M' U' L' : [E' , L2]]",
+    "alg": "M' U' L' E' L2 E L' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 114,
+    "caseCode": "GQ",
+    "description": "[L' : [U' L' U , M']]",
+    "alg": "L' U' L' U M' U' L U M L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 115,
+    "caseCode": "GR",
+    "description": "[S' U' R' : [E' , R2]]",
+    "alg": "S' U' R' E' R2 E R' U S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 116,
+    "caseCode": "GS",
+    "description": "[U l : [L' U' L , E]]",
+    "alg": "U l L' U' L E L' U L E' l' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 117,
+    "caseCode": "GT",
+    "description": "[L E : [L' U L , E]]",
+    "alg": "L E L' U L E L' U' L E2 L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 118,
+    "caseCode": "GU",
+    "description": "[L F' : [L2' , E']]",
+    "alg": "L F' L2' E' L2 E F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 119,
+    "caseCode": "GV",
+    "description": "[L' F' L , S]",
+    "alg": "L' F' L S L' F L S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-gw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 120,
+    "caseCode": "GW",
+    "description": "[U : [S' , L B' L']]",
+    "alg": "U S' L B' L' S L B L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ha",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 121,
+    "caseCode": "HA",
+    "description": "[U : [R E' R' , U2]]",
+    "alg": "U R E' R' U2 R E R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 122,
+    "caseCode": "HB",
+    "description": "[R E' R' , U']",
+    "alg": "R E' R' U' R E R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 123,
+    "caseCode": "HD",
+    "description": "[U2 : [R E' R' , U]]",
+    "alg": "U2 R E' R' U R E R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-he",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 124,
+    "caseCode": "HE",
+    "description": "[S : [R E' R' , U']]",
+    "alg": "S R E' R' U' R E R' U S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 125,
+    "caseCode": "HF",
+    "description": "[M' U L' : [S' , L2']]",
+    "alg": "M' U L' S' L2' S L' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 126,
+    "caseCode": "HG",
+    "description": "[L' , U S' U']",
+    "alg": "L' U S' U' L U S U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 127,
+    "caseCode": "HJ",
+    "description": "[R2 : [E' , R' U' R]]",
+    "alg": "R2 E' R' U' R E R' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 128,
+    "caseCode": "HK",
+    "description": "[M' : [M' , U' L U]]",
+    "alg": "M2 U' L U M U' L' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 129,
+    "caseCode": "HL",
+    "description": "[E , L' U L]",
+    "alg": "E L' U L E' L' U' L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 130,
+    "caseCode": "HM",
+    "description": "[R F : [R2' , E']]",
+    "alg": "R F R2' E' R2 E F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 131,
+    "caseCode": "HN",
+    "description": "[u' L : [S' , L2']]",
+    "alg": "u' L S' L2' S L u",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ho",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 132,
+    "caseCode": "HO",
+    "description": "[R' F : [R2 , E']]",
+    "alg": "R' F R2 E' R2 E F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 133,
+    "caseCode": "HP",
+    "description": "[l' U' L' : [E' , L2]]",
+    "alg": "l' U' L' E' L2 E L' U l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 134,
+    "caseCode": "HQ",
+    "description": "[U' L U , M']",
+    "alg": "U' L U M' U' L' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 135,
+    "caseCode": "HS",
+    "description": "[U' M : [U , L S L']]",
+    "alg": "U' M U L S L' U' L S' L' M' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ht",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 136,
+    "caseCode": "HT",
+    "description": "[E' , R' U' R]",
+    "alg": "E' R' U' R E R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 137,
+    "caseCode": "HU",
+    "description": "[l' U : [S' , L2]]",
+    "alg": "l' U S' L2 S L2 U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 138,
+    "caseCode": "HV",
+    "description": "[u' R' : [E , R2]]",
+    "alg": "u' R' E R2 E' R' u",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 139,
+    "caseCode": "HW",
+    "description": "[M : [U' L U , M2']]",
+    "alg": "M U' L U M2' U' L' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-hx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 140,
+    "caseCode": "HX",
+    "description": "[u L' : [E , L2]]",
+    "alg": "u L' E L2 E' L' u'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ja",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 141,
+    "caseCode": "JA",
+    "description": "[R' U : [S , R2]]",
+    "alg": "R' U S R2 S' R2 U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 142,
+    "caseCode": "JB",
+    "description": "[E' : [R' E R , U']]",
+    "alg": "E' R' E R U' R' E' R U E",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 143,
+    "caseCode": "JD",
+    "description": "[L' E2' L , U]",
+    "alg": "L' E2' L U L' E2 L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-je",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 144,
+    "caseCode": "JE",
+    "description": "[M' : [R S' R' , U']]",
+    "alg": "M' R S' R' U' R S R' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 145,
+    "caseCode": "JF",
+    "description": "[R U' R' , E]",
+    "alg": "R U' R' E R U R' E'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 146,
+    "caseCode": "JG",
+    "description": "[L' E2' : [L U L' , E]]",
+    "alg": "L' E2' L U L' E L U' L' E L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 147,
+    "caseCode": "JH",
+    "description": "[R2 : [R' U' R , E']]",
+    "alg": "R U' R E' R' U R E R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 148,
+    "caseCode": "JK",
+    "description": "[M' , U' R U]",
+    "alg": "M' U' R U M U' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 149,
+    "caseCode": "JL",
+    "description": "[R' U' R : [E , R2']]",
+    "alg": "R' U' R E R2' E' R U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 150,
+    "caseCode": "JM",
+    "description": "[R U : [R' S' R , U]]",
+    "alg": "R U R' S' R U R' S R U2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 151,
+    "caseCode": "JN",
+    "description": "[R U' R' , E']",
+    "alg": "R U' R' E' R U R' E",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 152,
+    "caseCode": "JO",
+    "description": "[R' f R' : [S' , R2]]",
+    "alg": "R' f R' S' R2 S R' f' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 153,
+    "caseCode": "JQ",
+    "description": "[M , U' R U]",
+    "alg": "M U' R U M' U' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 154,
+    "caseCode": "JR",
+    "description": "[R' U' R' : [E' , R2]]",
+    "alg": "R' U' R' E' R2 E R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-js",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 155,
+    "caseCode": "JS",
+    "description": "[U2 : [M , U R U']]",
+    "alg": "U2 M U R U' M' U R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 156,
+    "caseCode": "JT",
+    "description": "[U R' : [S , R2]]",
+    "alg": "U R' S R2 S' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ju",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 157,
+    "caseCode": "JU",
+    "description": "[D' U L : [E' , L2']]",
+    "alg": "D' U L E' L2' E L U' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 158,
+    "caseCode": "JV",
+    "description": "U R' U' R' U R U R U R' U2",
+    "alg": "U R' U' R' U R U R U R' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 159,
+    "caseCode": "JW",
+    "description": "[M2' , U' R U]",
+    "alg": "M2' U' R U M2 U' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-jx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 160,
+    "caseCode": "JX",
+    "description": "[U L : [E' , L2']]",
+    "alg": "U L E' L2' E L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ka",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 161,
+    "caseCode": "KA",
+    "description": "[R' F' : [E , R U R']]",
+    "alg": "R' F' E R U R' E' R U' R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 162,
+    "caseCode": "KB",
+    "description": "[R : [U' R' U , M']]",
+    "alg": "R U' R' U M' U' R U M R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 163,
+    "caseCode": "KD",
+    "description": "[L' : [U L U' , M']]",
+    "alg": "L' U L U' M' U L' U' M L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ke",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 164,
+    "caseCode": "KE",
+    "description": "[l' : [U' L U , M']]",
+    "alg": "l' U' L U M' U' L' U M l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 165,
+    "caseCode": "KF",
+    "description": "[M' : [U' L' U , M']]",
+    "alg": "M' U' L' U M' U' L U M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 166,
+    "caseCode": "KG",
+    "description": "[U : [S , L F L']]",
+    "alg": "U S L F L' S' L F' L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 167,
+    "caseCode": "KH",
+    "description": "[M' : [U' L U , M']]",
+    "alg": "M' U' L U M' U' L' U M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 168,
+    "caseCode": "KJ",
+    "description": "[U' R U , M']",
+    "alg": "U' R U M' U' R' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 169,
+    "caseCode": "KL",
+    "description": "[U L' U' , M']",
+    "alg": "U L' U' M' U L U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-km",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 170,
+    "caseCode": "KM",
+    "description": "[r : [U R' U' , M']]",
+    "alg": "r U R' U' M' U R U' M r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 171,
+    "caseCode": "KN",
+    "description": "[M' : [U R' U' , M']]",
+    "alg": "M' U R' U' M' U R U' M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ko",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 172,
+    "caseCode": "KO",
+    "description": "[U' : [S' , R' F' R]]",
+    "alg": "U' S' R' F' R S R' F R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 173,
+    "caseCode": "KP",
+    "description": "[M' : [U R U' , M']]",
+    "alg": "M' U R U' M' U R' U' M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 174,
+    "caseCode": "KQ",
+    "description": "[U' : [S , R' F' R]]",
+    "alg": "U' S R' F' R S' R' F R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 175,
+    "caseCode": "KR",
+    "description": "[U L U' , M']",
+    "alg": "U L U' M' U L' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ks",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 176,
+    "caseCode": "KS",
+    "description": "U M' U' M U2 M U M' U",
+    "alg": "U M' U' M U2 M U M' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 177,
+    "caseCode": "KT",
+    "description": "[U' R' U , M']",
+    "alg": "U' R' U M' U' R U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 178,
+    "caseCode": "KV",
+    "description": "[U R' F' R' : [S , R2]]",
+    "alg": "U R' F' R' S R2 S' R' F R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 179,
+    "caseCode": "KW",
+    "description": "[D : [R F R' , S']]",
+    "alg": "D R F R' S' R F' R' S D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-kx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 180,
+    "caseCode": "KX",
+    "description": "[U' L F L : [S' , L2']]",
+    "alg": "U' L F L S' L2' S L F' L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-la",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 181,
+    "caseCode": "LA",
+    "description": "[L U' : [S' , L2']]",
+    "alg": "L U' S' L2' S L2 U L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 182,
+    "caseCode": "LB",
+    "description": "[R E2 R' , U']",
+    "alg": "R E2 R' U' R E2 R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ld",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 183,
+    "caseCode": "LD",
+    "description": "[U2 : [R E2 R' , U]]",
+    "alg": "U2 R E2 R' U R E2 R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-le",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 184,
+    "caseCode": "LE",
+    "description": "[L' U' : [L S L' , U']]",
+    "alg": "L' U' L S L' U' L S' L' U2 L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 185,
+    "caseCode": "LG",
+    "description": "[L f' L : [S , L2']]",
+    "alg": "L f' L S L2' S' L f L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 186,
+    "caseCode": "LH",
+    "description": "[L' U L , E]",
+    "alg": "L' U L E L' U' L E'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 187,
+    "caseCode": "LJ",
+    "description": "[R' U' R' : [E , R2]]",
+    "alg": "R' U' R' E R2 E' R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 188,
+    "caseCode": "LK",
+    "description": "[M' , U L' U']",
+    "alg": "M' U L' U' M U L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 189,
+    "caseCode": "LM",
+    "description": "[M' : [L' S L , U]]",
+    "alg": "M' L' S L U L' S' L U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ln",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 190,
+    "caseCode": "LN",
+    "description": "[L' : [U , L' E L]]",
+    "alg": "L' U L' E L U' L' E' L2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 191,
+    "caseCode": "LO",
+    "description": "[R E2 : [R' U' R , E']]",
+    "alg": "R E2 R' U' R E' R' U R E' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 192,
+    "caseCode": "LP",
+    "description": "[L' U L , E']",
+    "alg": "L' U L E' L' U' L E",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 193,
+    "caseCode": "LQ",
+    "description": "[M , U L' U']",
+    "alg": "M U L' U' M' U L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 194,
+    "caseCode": "LR",
+    "description": "[U' L : [S' , L2']]",
+    "alg": "U' L S' L2' S L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ls",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 195,
+    "caseCode": "LS",
+    "description": "[U' R' B : [E , R2]]",
+    "alg": "U' R' B E R2 E' R2 B' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 196,
+    "caseCode": "LT",
+    "description": "[R U' R' : [E , R2]]",
+    "alg": "R U' R' E R2 E' R' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 197,
+    "caseCode": "LU",
+    "description": "[U' D R' : [E , R2]]",
+    "alg": "U' D R' E R2 E' R' D' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 198,
+    "caseCode": "LV",
+    "description": "[U' R' : [E , R2]]",
+    "alg": "U' R' E R2 E' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 199,
+    "caseCode": "LW",
+    "description": "[M2' , U L' U']",
+    "alg": "M2' U L' U' M2 U L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-lx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 200,
+    "caseCode": "LX",
+    "description": "U' L U L U' L' U' L' U' L U2'",
+    "alg": "U' L U L U' L' U' L' U' L U2'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ma",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 201,
+    "caseCode": "MA",
+    "description": "[U M U' : [M , U2]]",
+    "alg": "U M U' M U2 M' U' M' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-md",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 202,
+    "caseCode": "MD",
+    "description": "[R' F R , S]",
+    "alg": "R' F R S R' F' R S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-me",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 203,
+    "caseCode": "ME",
+    "description": "[M U' : [M' , U2]]",
+    "alg": "M U' M' U2 M U' M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 204,
+    "caseCode": "MF",
+    "description": "[M L' U' : [M' , U2']]",
+    "alg": "M L' U' M' U2' M U' L M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 205,
+    "caseCode": "MG",
+    "description": "[L F' L' : [S' , L2]]",
+    "alg": "L F' L' S' L2 S L' F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 206,
+    "caseCode": "MH",
+    "description": "[R F : [E' , R2']]",
+    "alg": "R F E' R2' E R2 F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 207,
+    "caseCode": "MJ",
+    "description": "[R U2' : [R' S' R , U']]",
+    "alg": "R U2' R' S' R U' R' S R U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 208,
+    "caseCode": "MK",
+    "description": "[r : [M' , U R' U']]",
+    "alg": "r M' U R' U' M U R U' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ml",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 209,
+    "caseCode": "ML",
+    "description": "[M' : [U , L' S L]]",
+    "alg": "M' U L' S L U' L' S' L M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 210,
+    "caseCode": "MN",
+    "description": "[S' : [U , L' E L]]",
+    "alg": "S' U L' E L U' L' E' L S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 211,
+    "caseCode": "MO",
+    "description": "[r U' R : [S , R2']]",
+    "alg": "r U' R S R2' S' R U r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 212,
+    "caseCode": "MP",
+    "description": "[S' : [U , L E' L']]",
+    "alg": "S' U L E' L' U' L E L' S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 213,
+    "caseCode": "MQ",
+    "description": "[R : [U R' U' , M']]",
+    "alg": "R U R' U' M' U R U' M R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 214,
+    "caseCode": "MR",
+    "description": "[M' : [U , R E' R']]",
+    "alg": "M' U R E' R' U' R E R' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ms",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 215,
+    "caseCode": "MS",
+    "description": "M' : (U' M' U' M)2",
+    "alg": "M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 216,
+    "caseCode": "MT",
+    "description": "[U L' F' : [L2 , E]]",
+    "alg": "U L' F' L2 E L2 E' F L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 217,
+    "caseCode": "MU",
+    "description": "[R F : [R2' , E]]",
+    "alg": "R F R2' E R2 E' F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 218,
+    "caseCode": "MV",
+    "description": "[R' F R , S']",
+    "alg": "R' F R S' R' F' R S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 219,
+    "caseCode": "MW",
+    "description": "[R M : [U R' U' , M2']]",
+    "alg": "R M U R' U' M2' U R U' M R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-mx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 220,
+    "caseCode": "MX",
+    "description": "[R2' : [R F R' , S']]",
+    "alg": "R' F R' S' R F' R' S R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-na",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 221,
+    "caseCode": "NA",
+    "description": "[U' : [L' E L , U2']]",
+    "alg": "U' L' E L U2' L' E' L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 222,
+    "caseCode": "NB",
+    "description": "[U2' : [L' E L , U']]",
+    "alg": "U2' L' E L U' L' E' L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 223,
+    "caseCode": "ND",
+    "description": "[L' E L , U]",
+    "alg": "L' E L U L' E' L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ne",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 224,
+    "caseCode": "NE",
+    "description": "[L' F' : [E , L2]]",
+    "alg": "L' F' E L2 E' L2 F L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 225,
+    "caseCode": "NF",
+    "description": "[r U R : [E , R2']]",
+    "alg": "r U R E R2' E' R U' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ng",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 226,
+    "caseCode": "NG",
+    "description": "[L F' : [L2' , E]]",
+    "alg": "L F' L2' E L2 E' F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 227,
+    "caseCode": "NH",
+    "description": "[u R' : [S , R2]]",
+    "alg": "u R' S R2 S' R' u'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 228,
+    "caseCode": "NJ",
+    "description": "[E' , R U' R']",
+    "alg": "E' R U' R' E R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 229,
+    "caseCode": "NK",
+    "description": "[M2' : [U R' U' , M]]",
+    "alg": "M2' U R' U' M U R U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 230,
+    "caseCode": "NL",
+    "description": "[L2' : [E , L U' L']]",
+    "alg": "L2' E L U' L' E' L U L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 231,
+    "caseCode": "NM",
+    "description": "[S' : [L' E L , U]]",
+    "alg": "S' L' E L U L' E' L U' S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-no",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 232,
+    "caseCode": "NO",
+    "description": "[R , U' S U]",
+    "alg": "R U' S U R' U' S' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-np",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 233,
+    "caseCode": "NP",
+    "description": "[M' U' R : [S , R2']]",
+    "alg": "M' U' R S R2' S' R U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 234,
+    "caseCode": "NQ",
+    "description": "[U R' U' , M']",
+    "alg": "U R' U' M' U R U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 235,
+    "caseCode": "NR",
+    "description": "[E , L U L']",
+    "alg": "E L U L' E' L U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ns",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 236,
+    "caseCode": "NS",
+    "description": "[U M : [U' , l' E l]]",
+    "alg": "U M U' l' E l U l' E' l M' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 237,
+    "caseCode": "NU",
+    "description": "[r U' : [S , R2']]",
+    "alg": "r U' S R2' S' R2 U r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 238,
+    "caseCode": "NV",
+    "description": "[u' R : [E' , R2']]",
+    "alg": "u' R E' R2' E R u",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 239,
+    "caseCode": "NW",
+    "description": "[M : [U R' U' , M2']]",
+    "alg": "M U R' U' M2' U R U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-nx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 240,
+    "caseCode": "NX",
+    "description": "[u L : [E' , L2']]",
+    "alg": "u L E' L2' E L u'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-oa",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 241,
+    "caseCode": "OA",
+    "description": "[U : [R E R' , U2]]",
+    "alg": "U R E R' U2 R E' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ob",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 242,
+    "caseCode": "OB",
+    "description": "[R E R' , U']",
+    "alg": "R E R' U' R E' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-od",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 243,
+    "caseCode": "OD",
+    "description": "[U2 : [R E R' , U]]",
+    "alg": "U2 R E R' U R E' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-oe",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 244,
+    "caseCode": "OE",
+    "description": "[R' F R' : [S , R2]]",
+    "alg": "R' F R' S R2 S' R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-of",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 245,
+    "caseCode": "OF",
+    "description": "[M' U R : [E , R2']]",
+    "alg": "M' U R E R2' E' R U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-og",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 246,
+    "caseCode": "OG",
+    "description": "[L F' L : [S , L2']]",
+    "alg": "L F' L S L2' S' L F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-oh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 247,
+    "caseCode": "OH",
+    "description": "[R' F : [E' , R2]]",
+    "alg": "R' F E' R2 E R2 F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-oj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 248,
+    "caseCode": "OJ",
+    "description": "[R' f R : [S' , R2']]",
+    "alg": "R' f R S' R2' S R f' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ok",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 249,
+    "caseCode": "OK",
+    "description": "[U' : [R' F' R , S']]",
+    "alg": "U' R' F' R S' R' F R S U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ol",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 250,
+    "caseCode": "OL",
+    "description": "[R E : [R' U' R , E]]",
+    "alg": "R E R' U' R E R' U R E2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-om",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 251,
+    "caseCode": "OM",
+    "description": "[r U' R' : [S , R2]]",
+    "alg": "r U' R' S R2 S' R' U r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-on",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 252,
+    "caseCode": "ON",
+    "description": "[U' S U , R]",
+    "alg": "U' S U R U' S' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-op",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 253,
+    "caseCode": "OP",
+    "description": "[U' S U , R']",
+    "alg": "U' S U R' U' S' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-oq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 254,
+    "caseCode": "OQ",
+    "description": "[R : [U R U' , M']]",
+    "alg": "R U R U' M' U R' U' M R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-or",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 255,
+    "caseCode": "OR",
+    "description": "[R' E' : [R U' R' , E']]",
+    "alg": "R' E' R U' R' E' R U R' E2 R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-os",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 256,
+    "caseCode": "OS",
+    "description": "[U' r' : [R U R' , E']]",
+    "alg": "U' r' R U R' E' R U' R' E r U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ot",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 257,
+    "caseCode": "OT",
+    "description": "[S U L : [E , L2']]",
+    "alg": "S U L E L2' E' L U' S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ou",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 258,
+    "caseCode": "OU",
+    "description": "[R' F : [E , R2]]",
+    "alg": "R' F E R2 E' R2 F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ow",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 259,
+    "caseCode": "OW",
+    "description": "[U' : [S , R' B R]]",
+    "alg": "U' S R' B R S' R' B' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ox",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 260,
+    "caseCode": "OX",
+    "description": "[R F R' , S']",
+    "alg": "R F R' S' R F' R' S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pa",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 261,
+    "caseCode": "PA",
+    "description": "[U' : [L E' L' , U2']]",
+    "alg": "U' L E' L' U2' L E L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 262,
+    "caseCode": "PB",
+    "description": "[U2' : [L E' L' , U']]",
+    "alg": "U2' L E' L' U' L E L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 263,
+    "caseCode": "PD",
+    "description": "[L E' L' , U]",
+    "alg": "L E' L' U L E L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pe",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 264,
+    "caseCode": "PE",
+    "description": "[R M U' : [M' , U2]]",
+    "alg": "R M U' M' U2 M U' M' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 265,
+    "caseCode": "PF",
+    "description": "[U' E' L : [S' , L2']]",
+    "alg": "U' E' L S' L2' S L E U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 266,
+    "caseCode": "PG",
+    "description": "[M' U' L : [E' , L2']]",
+    "alg": "M' U' L E' L2' E L U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ph",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 267,
+    "caseCode": "PH",
+    "description": "[l' U' L : [E' , L2']]",
+    "alg": "l' U' L E' L2' E L U l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 268,
+    "caseCode": "PK",
+    "description": "[M2' : [U R U' , M]]",
+    "alg": "M2' U R U' M U R' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 269,
+    "caseCode": "PL",
+    "description": "[E' , L' U L]",
+    "alg": "E' L' U L E L' U' L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 270,
+    "caseCode": "PM",
+    "description": "[S' : [L E' L' , U]]",
+    "alg": "S' L E' L' U L E L' U' S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 271,
+    "caseCode": "PN",
+    "description": "[M' U' R' : [S , R2]]",
+    "alg": "M' U' R' S R2 S' R' U M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-po",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 272,
+    "caseCode": "PO",
+    "description": "[R' , U' S U]",
+    "alg": "R' U' S U R U' S' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 273,
+    "caseCode": "PQ",
+    "description": "[U R U' , M']",
+    "alg": "U R U' M' U R' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 274,
+    "caseCode": "PR",
+    "description": "[L2 : [E' , L' U L]]",
+    "alg": "L2 E' L' U L E L' U' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ps",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 275,
+    "caseCode": "PS",
+    "description": "[U l : [L' U' L , E']]",
+    "alg": "U l L' U' L E' L' U L E l' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 276,
+    "caseCode": "PT",
+    "description": "[E , R' U' R]",
+    "alg": "E R' U' R E' R' U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 277,
+    "caseCode": "PU",
+    "description": "[U' L F2' : [L' S' L , F']]",
+    "alg": "U' L F2' L' S' L F' L' S L F' L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 278,
+    "caseCode": "PV",
+    "description": "[U' E' R' : [E , R2]]",
+    "alg": "U' E' R' E R2 E' R' E U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-pw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 279,
+    "caseCode": "PW",
+    "description": "[M : [U R U' , M2']]",
+    "alg": "M U R U' M2' U R' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-px",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 280,
+    "caseCode": "PX",
+    "description": "[U E L' : [E , L2]]",
+    "alg": "U E L' E L2 E' L' E' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 281,
+    "caseCode": "QB",
+    "description": "[R' : [U' R U , M]]",
+    "alg": "R' U' R U M U' R' U M' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 282,
+    "caseCode": "QD",
+    "description": "[L : [U L' U' , M]]",
+    "alg": "L U L' U' M U L U' M' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qe",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 283,
+    "caseCode": "QE",
+    "description": "[l' : [U' L U , M]]",
+    "alg": "l' U' L U M U' L' U M' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 284,
+    "caseCode": "QF",
+    "description": "[M' , U' L' U]",
+    "alg": "M' U' L' U M U' L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 285,
+    "caseCode": "QG",
+    "description": "[l' : [U' L' U , M]]",
+    "alg": "l' U' L' U M U' L U M' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 286,
+    "caseCode": "QH",
+    "description": "[M' , U' L U]",
+    "alg": "M' U' L U M U' L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 287,
+    "caseCode": "QJ",
+    "description": "[U' R U , M]",
+    "alg": "U' R U M U' R' U M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 288,
+    "caseCode": "QK",
+    "description": "[U' : [R' F' R , S]]",
+    "alg": "U' R' F' R S R' F R S' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ql",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 289,
+    "caseCode": "QL",
+    "description": "[U L' U' , M]",
+    "alg": "U L' U' M U L U' M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 290,
+    "caseCode": "QM",
+    "description": "[r : [U R' U' , M]]",
+    "alg": "r U R' U' M U R U' M' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 291,
+    "caseCode": "QN",
+    "description": "[M' , U R' U']",
+    "alg": "M' U R' U' M U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 292,
+    "caseCode": "QO",
+    "description": "[r : [U R U' , M]]",
+    "alg": "r U R U' M U R' U' M' r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 293,
+    "caseCode": "QP",
+    "description": "[M' , U R U']",
+    "alg": "M' U R U' M U R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 294,
+    "caseCode": "QR",
+    "description": "[U L U' , M]",
+    "alg": "U L U' M U L' U' M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 295,
+    "caseCode": "QS",
+    "description": "[U' : [R B R' , S]]",
+    "alg": "U' R B R' S R B' R' S' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 296,
+    "caseCode": "QT",
+    "description": "[U' R' U , M]",
+    "alg": "U' R' U M U' R U M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 297,
+    "caseCode": "QU",
+    "description": "[U : [S , R' F' R]]",
+    "alg": "U S R' F' R S' R' F R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 298,
+    "caseCode": "QV",
+    "description": "[R' : [U' R' U , M]]",
+    "alg": "R' U' R' U M U' R U M' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 299,
+    "caseCode": "QW",
+    "description": "[U : [S , R B R']]",
+    "alg": "U S R B R' S' R B' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-qx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 300,
+    "caseCode": "QX",
+    "description": "[L : [U L U' , M]]",
+    "alg": "L U L U' M U L' U' M' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ra",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 301,
+    "caseCode": "RA",
+    "description": "[L' U : [L2 , S']]",
+    "alg": "L' U L2 S' L2 S U' L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 302,
+    "caseCode": "RB",
+    "description": "[R' E2 R , U']",
+    "alg": "R' E2 R U' R' E2 R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 303,
+    "caseCode": "RD",
+    "description": "[U2 : [R' E2 R , U]]",
+    "alg": "U2 R' E2 R U R' E2 R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-re",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 304,
+    "caseCode": "RE",
+    "description": "[U' R F : [E' , R2']]",
+    "alg": "U' R F E' R2' E R2 F' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 305,
+    "caseCode": "RF",
+    "description": "[L U L' , E']",
+    "alg": "L U L' E' L U' L' E",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 306,
+    "caseCode": "RG",
+    "description": "[S' U' R : [E' , R2']]",
+    "alg": "S' U' R E' R2' E R U S",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 307,
+    "caseCode": "RJ",
+    "description": "[R' U' R : [E' , R2']]",
+    "alg": "R' U' R E' R2' E R U R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 308,
+    "caseCode": "RK",
+    "description": "[M' , U L U']",
+    "alg": "M' U L U' M U L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 309,
+    "caseCode": "RL",
+    "description": "[U' L' : [S' , L2]]",
+    "alg": "U' L' S' L2 S L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 310,
+    "caseCode": "RM",
+    "description": "[M' : [R E' R' , U]]",
+    "alg": "M' R E' R' U R E R' U' M",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 311,
+    "caseCode": "RN",
+    "description": "[L U L' , E]",
+    "alg": "L U L' E L U' L' E'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ro",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 312,
+    "caseCode": "RO",
+    "description": "[R' E2 : [R U' R' , E]]",
+    "alg": "R' E2 R U' R' E R U R' E R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 313,
+    "caseCode": "RP",
+    "description": "[L2 : [L' U L , E']]",
+    "alg": "L U L E' L' U' L E L2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 314,
+    "caseCode": "RQ",
+    "description": "[M , U L U']",
+    "alg": "M U L U' M' U L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 315,
+    "caseCode": "RS",
+    "description": "[U2' : [M , U' L U]]",
+    "alg": "U2' M U' L U M' U' L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 316,
+    "caseCode": "RT",
+    "description": "[R U' R : [E' , R2']]",
+    "alg": "R U' R E' R2' E R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ru",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 317,
+    "caseCode": "RU",
+    "description": "[D U' R : [E' , R2']]",
+    "alg": "D U' R E' R2' E R U D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 318,
+    "caseCode": "RV",
+    "description": "[U' R : [E' , R2']]",
+    "alg": "U' R E' R2' E R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 319,
+    "caseCode": "RW",
+    "description": "[M2 , U L U']",
+    "alg": "M2 U L U' M2 U L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-rx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 320,
+    "caseCode": "RX",
+    "description": "U' L' U' L' U L U L U L'",
+    "alg": "U' L' U' L' U L U L U L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sa",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 321,
+    "caseCode": "SA",
+    "description": "[U R' B R : [S , R2']]",
+    "alg": "U R' B R S R2' S' R B' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 322,
+    "caseCode": "SB",
+    "description": "(M U' M' U')2",
+    "alg": "(M U' M' U')2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 323,
+    "caseCode": "SD",
+    "description": "(M U M' U)2",
+    "alg": "(M U M' U)2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-se",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 324,
+    "caseCode": "SE",
+    "description": "M2' : (U' M U' M')2",
+    "alg": "M2'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 325,
+    "caseCode": "SF",
+    "description": "[U' r' : [E , R U R']]",
+    "alg": "U' r' E R U R' E' R U' R' r U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 326,
+    "caseCode": "SG",
+    "description": "[U l : [E , L' U' L]]",
+    "alg": "U l E L' U' L E' L' U L l' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 327,
+    "caseCode": "SH",
+    "description": "[U' M : [L S L' , U]]",
+    "alg": "U' M L S L' U L S' L' U' M' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 328,
+    "caseCode": "SJ",
+    "description": "[U2' : [U R U' , M]]",
+    "alg": "U' R U' M U R' U' M' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 329,
+    "caseCode": "SK",
+    "description": "U M U M' U2 M' U' M U",
+    "alg": "U M U M' U2 M' U' M U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 330,
+    "caseCode": "SL",
+    "description": "[U' R' B : [R2 , E]]",
+    "alg": "U' R' B R2 E R2 E' B' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 331,
+    "caseCode": "SM",
+    "description": "M2' : (U M U M')2",
+    "alg": "M2'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 332,
+    "caseCode": "SN",
+    "description": "[U M : [R' S' R , U']]",
+    "alg": "U M R' S' R U' R' S R U M' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-so",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 333,
+    "caseCode": "SO",
+    "description": "[U' r' : [E' , R U R']]",
+    "alg": "U' r' E' R U R' E R U' R' r U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 334,
+    "caseCode": "SP",
+    "description": "[U l : [E' , L' U' L]]",
+    "alg": "U l E' L' U' L E L' U L l' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 335,
+    "caseCode": "SQ",
+    "description": "[U' : [S , R B R']]",
+    "alg": "U' S R B R' S' R B' R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 336,
+    "caseCode": "SR",
+    "description": "[U2 : [U' L U , M]]",
+    "alg": "U L U M U' L' U M' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-st",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 337,
+    "caseCode": "ST",
+    "description": "[U2' : [U R' U' , M]]",
+    "alg": "U' R' U' M U R U' M' U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-su",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 338,
+    "caseCode": "SU",
+    "description": "[D' : [R F R' , S']]",
+    "alg": "D' R F R' S' R F' R' S D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 339,
+    "caseCode": "SV",
+    "description": "[U L B' L' : [S , L2]]",
+    "alg": "U L B' L' S L2 S' L' B L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-sx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 340,
+    "caseCode": "SX",
+    "description": "[U' R' B R : [S' , R2']]",
+    "alg": "U' R' B R S' R2' S R B' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ta",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 341,
+    "caseCode": "TA",
+    "description": "[R U' : [R2' , S]]",
+    "alg": "R U' R2' S R2 S' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 342,
+    "caseCode": "TB",
+    "description": "[E : [R E' R' , U']]",
+    "alg": "E R E' R' U' R E R' U E'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-td",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 343,
+    "caseCode": "TD",
+    "description": "[L E2' L' , U]",
+    "alg": "L E2' L' U L E2 L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-te",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 344,
+    "caseCode": "TE",
+    "description": "[l' : [E , L U' L']]",
+    "alg": "l' E L U' L' E' L U L' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 345,
+    "caseCode": "TF",
+    "description": "[R2' : [R U' R' , E]]",
+    "alg": "R' U' R' E R U R' E' R2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 346,
+    "caseCode": "TG",
+    "description": "[L E2' : [L' U L , E']]",
+    "alg": "L E2' L' U L E' L' U' L E' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-th",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 347,
+    "caseCode": "TH",
+    "description": "[R' U' R , E']",
+    "alg": "R' U' R E' R' U R E",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 348,
+    "caseCode": "TJ",
+    "description": "[U R : [S , R2']]",
+    "alg": "U R S R2' S' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 349,
+    "caseCode": "TK",
+    "description": "[M' , U' R' U]",
+    "alg": "M' U' R' U M U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 350,
+    "caseCode": "TL",
+    "description": "[R U' R : [E , R2']]",
+    "alg": "R U' R E R2' E' R U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 351,
+    "caseCode": "TM",
+    "description": "[R u' R' : [E' , R2]]",
+    "alg": "R u' R' E' R2 E R' u R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-to",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 352,
+    "caseCode": "TO",
+    "description": "[S U L' : [E , L2]]",
+    "alg": "S U L' E L2 E' L' U' S'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 353,
+    "caseCode": "TP",
+    "description": "[R' U' R , E]",
+    "alg": "R' U' R E R' U R E'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 354,
+    "caseCode": "TQ",
+    "description": "[M , U' R' U]",
+    "alg": "M U' R' U M' U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 355,
+    "caseCode": "TR",
+    "description": "[R U' R' : [E' , R2]]",
+    "alg": "R U' R' E' R2 E R' U R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ts",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 356,
+    "caseCode": "TS",
+    "description": "[U2 : [M , U R' U']]",
+    "alg": "U2 M U R' U' M' U R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 357,
+    "caseCode": "TU",
+    "description": "[U R' U : [M' , U2]]",
+    "alg": "U R' U M' U2 M U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 358,
+    "caseCode": "TV",
+    "description": "U R U R U' R' U' R' U' R",
+    "alg": "U R U R U' R' U' R' U' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 359,
+    "caseCode": "TW",
+    "description": "[M2' , U' R' U]",
+    "alg": "M2' U' R' U M2 U' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-tx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 360,
+    "caseCode": "TX",
+    "description": "[U L' : [E , L2]]",
+    "alg": "U L' E L2 E' L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ua",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 361,
+    "caseCode": "UA",
+    "description": "[M' , U2]",
+    "alg": "M' U2 M U2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ub",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 362,
+    "caseCode": "UB",
+    "description": "[L F' : [L' S' L , F2']]",
+    "alg": "L F' L' S' L F2' L' S L F' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ud",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 363,
+    "caseCode": "UD",
+    "description": "[R' F : [R S R' , F2]]",
+    "alg": "R' F R S R' F2 R S' R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ue",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 364,
+    "caseCode": "UE",
+    "description": "[L' F' : [E' , L2]]",
+    "alg": "L' F' E' L2 E L2 F L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 365,
+    "caseCode": "UF",
+    "description": "[U R' F' : [R S R' , F']]",
+    "alg": "U R' F' R S R' F' R S' R' F2 R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ug",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 366,
+    "caseCode": "UG",
+    "description": "[L F' : [E' , L2']]",
+    "alg": "L F' E' L2' E L2 F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 367,
+    "caseCode": "UH",
+    "description": "[l' U : [L2 , S']]",
+    "alg": "l' U L2 S' L2 S U' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 368,
+    "caseCode": "UJ",
+    "description": "[U R U' : [M' , U2]]",
+    "alg": "U R U' M' U2 M U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ul",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 369,
+    "caseCode": "UL",
+    "description": "[U' D R : [E , R2']]",
+    "alg": "U' D R E R2' E' R D' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-um",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 370,
+    "caseCode": "UM",
+    "description": "[R F : [E , R2']]",
+    "alg": "R F E R2' E' R2 F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-un",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 371,
+    "caseCode": "UN",
+    "description": "[r U' : [R2' , S]]",
+    "alg": "r U' R2' S R2 S' U r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 372,
+    "caseCode": "UO",
+    "description": "[R' F : [E , R2]]",
+    "alg": "R' F E R2 E' R2 F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-up",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 373,
+    "caseCode": "UP",
+    "description": "[U' L F : [L' S' L , F]]",
+    "alg": "U' L F L' S' L F L' S L F2 L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 374,
+    "caseCode": "UQ",
+    "description": "[U : [R' F' R , S]]",
+    "alg": "U R' F' R S R' F R S' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ur",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 375,
+    "caseCode": "UR",
+    "description": "[U' L U : [M' , U2']]",
+    "alg": "U' L U M' U2' M U L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-us",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 376,
+    "caseCode": "US",
+    "description": "[D' : [S' , R F R']]",
+    "alg": "D' S' R F R' S R F' R' D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ut",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 377,
+    "caseCode": "UT",
+    "description": "[U R' U' : [M' , U2]]",
+    "alg": "U R' U' M' U2 M U' R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 378,
+    "caseCode": "UV",
+    "description": "[R' F : [R S' R' , F2]]",
+    "alg": "R' F R S' R' F2 R S R' F R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-uw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 379,
+    "caseCode": "UW",
+    "description": "u2 M' u2 M'",
+    "alg": "u2 M' u2 M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ux",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 380,
+    "caseCode": "UX",
+    "description": "[L F' : [L' S L , F2']]",
+    "alg": "L F' L' S L F2' L' S' L F' L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-va",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 381,
+    "caseCode": "VA",
+    "description": "[U : [S , R2']]",
+    "alg": "U S R2' S' R2 U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 382,
+    "caseCode": "VB",
+    "description": "[R U R' : [S , R2]]",
+    "alg": "R U R' S R2 S' R' U' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 383,
+    "caseCode": "VD",
+    "description": "R' U' R U R U R U R U' R' U'",
+    "alg": "R' U' R U R U R U R U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-ve",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 384,
+    "caseCode": "VE",
+    "description": "[L2 : [S , L' F' L]]",
+    "alg": "L2 S L' F' L S' L' F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 385,
+    "caseCode": "VF",
+    "description": "[U' E' R' : [E' , R2]]",
+    "alg": "U' E' R' E' R2 E R' E U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 386,
+    "caseCode": "VG",
+    "description": "[S , L' F' L]",
+    "alg": "S L' F' L S' L' F L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 387,
+    "caseCode": "VH",
+    "description": "[u' R : [E , R2']]",
+    "alg": "u' R E R2' E' R u",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 388,
+    "caseCode": "VJ",
+    "description": "U2 R U' R' U' R' U' R U R U'",
+    "alg": "U2 R U' R' U' R' U' R U R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 389,
+    "caseCode": "VK",
+    "description": "[U R' F' R : [S , R2']]",
+    "alg": "U R' F' R S R2' S' R F R U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 390,
+    "caseCode": "VL",
+    "description": "[U' R : [E , R2']]",
+    "alg": "U' R E R2' E' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 391,
+    "caseCode": "VM",
+    "description": "[S' , R' F R]",
+    "alg": "S' R' F R S R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 392,
+    "caseCode": "VN",
+    "description": "[u' R' : [E' , R2]]",
+    "alg": "u' R' E' R2 E R' u",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 393,
+    "caseCode": "VP",
+    "description": "[U' E' R : [E , R2']]",
+    "alg": "U' E' R E R2' E' R E U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 394,
+    "caseCode": "VQ",
+    "description": "[r' : [U' R' U , M']]",
+    "alg": "r' U' R' U M' U' R U M r",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 395,
+    "caseCode": "VR",
+    "description": "[U' R' : [E' , R2]]",
+    "alg": "U' R' E' R2 E R' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 396,
+    "caseCode": "VS",
+    "description": "[U L B' L : [S , L2']]",
+    "alg": "U L B' L S L2' S' L B L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 397,
+    "caseCode": "VT",
+    "description": "R' U R U R U R' U' R' U'",
+    "alg": "R' U R U R U R' U' R' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 398,
+    "caseCode": "VU",
+    "description": "[R' F' : [R S' R' , F2]]",
+    "alg": "R' F' R S' R' F2 R S R' F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 399,
+    "caseCode": "VW",
+    "description": "[D' R' F : [R S' R' , F2]]",
+    "alg": "D' R' F R S' R' F2 R S R' F R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-vx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 400,
+    "caseCode": "VX",
+    "description": "[U' : [S' , R2']]",
+    "alg": "U' S' R2' S R2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wa",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 401,
+    "caseCode": "WA",
+    "description": "[U2 , M]",
+    "alg": "U2 M U2 M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 402,
+    "caseCode": "WB",
+    "description": "[R : [U' R' U , M2']]",
+    "alg": "R U' R' U M2' U' R U M2 R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 403,
+    "caseCode": "WD",
+    "description": "[l' M' : [U L U' , M2']]",
+    "alg": "l' M' U L U' M2' U L' U' M' l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-we",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 404,
+    "caseCode": "WE",
+    "description": "[l' : [U' L U , M2']]",
+    "alg": "l' U' L U M2' U' L' U M2 l",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 405,
+    "caseCode": "WF",
+    "description": "[M' : [U' L' U , M2']]",
+    "alg": "M' U' L' U M2' U' L U M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wg",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 406,
+    "caseCode": "WG",
+    "description": "[U : [L B' L' , S']]",
+    "alg": "U L B' L' S' L B L' S U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 407,
+    "caseCode": "WH",
+    "description": "[M' : [U' L U , M2']]",
+    "alg": "M' U' L U M2' U' L' U M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 408,
+    "caseCode": "WJ",
+    "description": "[U' R U , M2']",
+    "alg": "U' R U M2' U' R' U M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 409,
+    "caseCode": "WK",
+    "description": "[D : [S' , R F R']]",
+    "alg": "D S' R F R' S R F' R' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 410,
+    "caseCode": "WL",
+    "description": "[U L' U' , M2']",
+    "alg": "U L' U' M2' U L U' M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 411,
+    "caseCode": "WM",
+    "description": "[r : [U R' U' , M2']]",
+    "alg": "r U R' U' M2' U R U' M2 r'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 412,
+    "caseCode": "WN",
+    "description": "[M' : [U R' U' , M2']]",
+    "alg": "M' U R' U' M2' U R U' M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 413,
+    "caseCode": "WO",
+    "description": "[U' : [R' B R , S]]",
+    "alg": "U' R' B R S R' B' R S' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 414,
+    "caseCode": "WP",
+    "description": "[M' : [U R U' , M2']]",
+    "alg": "M' U R U' M2' U R' U' M'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 415,
+    "caseCode": "WQ",
+    "description": "[U : [R B R' , S]]",
+    "alg": "U R B R' S R B' R' S' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 416,
+    "caseCode": "WR",
+    "description": "[U L U' , M2']",
+    "alg": "U L U' M2' U L' U' M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 417,
+    "caseCode": "WT",
+    "description": "[U' R' U , M2']",
+    "alg": "U' R' U M2' U' R U M2",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 418,
+    "caseCode": "WU",
+    "description": "M' U2 M' U2 M2'",
+    "alg": "M' U2 M' U2 M2'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 419,
+    "caseCode": "WV",
+    "description": "[D' R' F' : [R S' R' , F2]]",
+    "alg": "D' R' F' R S' R' F2 R S R' F' R D",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-wx",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 420,
+    "caseCode": "WX",
+    "description": "[D L F : [L' S L , F2']]",
+    "alg": "D L F L' S L F2' L' S' L F L' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xa",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 421,
+    "caseCode": "XA",
+    "description": "[U' : [S' , L2]]",
+    "alg": "U' S' L2 S L2 U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xb",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 422,
+    "caseCode": "XB",
+    "description": "L U L' U' L' U' L' U L U",
+    "alg": "L U L' U' L' U' L' U L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xd",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 423,
+    "caseCode": "XD",
+    "description": "[L' U' L : [S' , L2]]",
+    "alg": "L' U' L S' L2 S L U L",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xe",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 424,
+    "caseCode": "XE",
+    "description": "[S , L F' L']",
+    "alg": "S L F' L' S' L F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xf",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 425,
+    "caseCode": "XF",
+    "description": "[U E L' : [E' , L2]]",
+    "alg": "U E L' E' L2 E L' E' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xh",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 426,
+    "caseCode": "XH",
+    "description": "[u L : [E , L2']]",
+    "alg": "u L E L2' E' L u'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xj",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 427,
+    "caseCode": "XJ",
+    "description": "[U L' : [E' , L2]]",
+    "alg": "U L' E' L2 E L' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xk",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 428,
+    "caseCode": "XK",
+    "description": "[U' L F L' : [S' , L2]]",
+    "alg": "U' L F L' S' L2 S L' F' L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xl",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 429,
+    "caseCode": "XL",
+    "description": "U2' L' U L U L U L' U' L' U",
+    "alg": "U2' L' U L U L U L' U' L' U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xm",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 430,
+    "caseCode": "XM",
+    "description": "[R2' : [S' , R F R']]",
+    "alg": "R2' S' R F R' S R F' R",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xn",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 431,
+    "caseCode": "XN",
+    "description": "[u L' : [E' , L2]]",
+    "alg": "u L' E' L2 E L' u'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xo",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 432,
+    "caseCode": "XO",
+    "description": "[S' , R F R']",
+    "alg": "S' R F R' S R F' R'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xp",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 433,
+    "caseCode": "XP",
+    "description": "[U E L : [E , L2']]",
+    "alg": "U E L E L2' E' L E' U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xq",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 434,
+    "caseCode": "XQ",
+    "description": "[l : [U L U' , M']]",
+    "alg": "l U L U' M' U L' U' M l'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xr",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 435,
+    "caseCode": "XR",
+    "description": "L U' L' U' L' U' L U L U",
+    "alg": "L U' L' U' L' U' L U L U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xs",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 436,
+    "caseCode": "XS",
+    "description": "[U' R' B R' : [S' , R2]]",
+    "alg": "U' R' B R' S' R2 S R' B' R U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xt",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 437,
+    "caseCode": "XT",
+    "description": "[U L : [E , L2']]",
+    "alg": "U L E L2' E' L U'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xu",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 438,
+    "caseCode": "XU",
+    "description": "[L F : [L' S L , F2']]",
+    "alg": "L F L' S L F2' L' S' L F L'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xv",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 439,
+    "caseCode": "XV",
+    "description": "[U' : [R2' , S']]",
+    "alg": "U' R2' S' R2 S U",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge-xw",
+    "pieceType": "edge",
+    "sheetName": "bundled-edges.csv",
+    "rowIndex": 440,
+    "caseCode": "XW",
+    "description": "[D L F' : [L' S L , F2']]",
+    "alg": "D L F' L' S L F2' L' S' L F' L' D'",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ab",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 1,
+    "caseCode": "AB",
+    "description": "Abe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ad",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 2,
+    "caseCode": "AD",
+    "description": "Aid",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-af",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 3,
+    "caseCode": "AF",
+    "description": "Afro",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ag",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 4,
+    "caseCode": "AG",
+    "description": "Age",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ah",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 5,
+    "caseCode": "AH",
+    "description": "Arthur",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ai",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 6,
+    "caseCode": "AI",
+    "description": "Alli",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ak",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 7,
+    "caseCode": "AK",
+    "description": "Ace",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-al",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 8,
+    "caseCode": "AL",
+    "description": "Al",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-an",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 9,
+    "caseCode": "AN",
+    "description": "Anne",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ao",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 10,
+    "caseCode": "AO",
+    "description": "Aoli",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ap",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 11,
+    "caseCode": "AP",
+    "description": "Apple",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-aq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 12,
+    "caseCode": "AQ",
+    "description": "Aqua",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-as",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 13,
+    "caseCode": "AS",
+    "description": "Ass",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-at",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 14,
+    "caseCode": "AT",
+    "description": "At",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-au",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 15,
+    "caseCode": "AU",
+    "description": "Aus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-av",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 16,
+    "caseCode": "AV",
+    "description": "Ave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-aw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 17,
+    "caseCode": "AW",
+    "description": "Aww",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ax",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 18,
+    "caseCode": "AX",
+    "description": "Ax",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ba",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 19,
+    "caseCode": "BA",
+    "description": "Barb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 20,
+    "caseCode": "BD",
+    "description": "Bed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-be",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 21,
+    "caseCode": "BE",
+    "description": "Bee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 22,
+    "caseCode": "BF",
+    "description": "Beef",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 23,
+    "caseCode": "BG",
+    "description": "Bag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 24,
+    "caseCode": "BH",
+    "description": "Bath",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 25,
+    "caseCode": "BI",
+    "description": "Bib",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 26,
+    "caseCode": "BK",
+    "description": "Bike",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 27,
+    "caseCode": "BL",
+    "description": "Bill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 28,
+    "caseCode": "BO",
+    "description": "Boob",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 29,
+    "caseCode": "BP",
+    "description": "Bop",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-br",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 30,
+    "caseCode": "BR",
+    "description": "Bar",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bs",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 31,
+    "caseCode": "BS",
+    "description": "Bus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 32,
+    "caseCode": "BT",
+    "description": "Bat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 33,
+    "caseCode": "BU",
+    "description": "Bub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 34,
+    "caseCode": "BV",
+    "description": "Bev",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 35,
+    "caseCode": "BW",
+    "description": "Bow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-bx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 36,
+    "caseCode": "BX",
+    "description": "Box",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-da",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 37,
+    "caseCode": "DA",
+    "description": "Dada",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-db",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 38,
+    "caseCode": "DB",
+    "description": "Deb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-de",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 39,
+    "caseCode": "DE",
+    "description": "Deed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 40,
+    "caseCode": "DG",
+    "description": "Dog",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 41,
+    "caseCode": "DH",
+    "description": "Death",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 42,
+    "caseCode": "DK",
+    "description": "Duck",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 43,
+    "caseCode": "DL",
+    "description": "Doll",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 44,
+    "caseCode": "DN",
+    "description": "Dean",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-do",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 45,
+    "caseCode": "DO",
+    "description": "Dodo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 46,
+    "caseCode": "DP",
+    "description": "Dip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 47,
+    "caseCode": "DQ",
+    "description": "Dutch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 48,
+    "caseCode": "DR",
+    "description": "Door",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ds",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 49,
+    "caseCode": "DS",
+    "description": "Desk",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 50,
+    "caseCode": "DT",
+    "description": "Dot",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-du",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 51,
+    "caseCode": "DU",
+    "description": "Due",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 52,
+    "caseCode": "DV",
+    "description": "Dev",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 53,
+    "caseCode": "DW",
+    "description": "Dew",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-dx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 54,
+    "caseCode": "DX",
+    "description": "Dex, Dash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-eb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 55,
+    "caseCode": "EB",
+    "description": "Elbow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ed",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 56,
+    "caseCode": "ED",
+    "description": "Ed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ef",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 57,
+    "caseCode": "EF",
+    "description": "Effile",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-eg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 58,
+    "caseCode": "EG",
+    "description": "Egg",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-eh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 59,
+    "caseCode": "EH",
+    "description": "Earth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ei",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 60,
+    "caseCode": "EI",
+    "description": "Eli",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ek",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 61,
+    "caseCode": "EK",
+    "description": "Elk",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-el",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 62,
+    "caseCode": "EL",
+    "description": "Elle",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-en",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 63,
+    "caseCode": "EN",
+    "description": "Ender",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-eo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 64,
+    "caseCode": "EO",
+    "description": "Elmo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ep",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 65,
+    "caseCode": "EP",
+    "description": "Epee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-eq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 66,
+    "caseCode": "EQ",
+    "description": "Etch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-es",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 67,
+    "caseCode": "ES",
+    "description": "Yes",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-et",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 68,
+    "caseCode": "ET",
+    "description": "ET (Eat)",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-eu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 69,
+    "caseCode": "EU",
+    "description": "Europe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ev",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 70,
+    "caseCode": "EV",
+    "description": "Eve",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ew",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 71,
+    "caseCode": "EW",
+    "description": "Ewe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ex",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 72,
+    "caseCode": "EX",
+    "description": "Eshay",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 73,
+    "caseCode": "FA",
+    "description": "Fay",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 74,
+    "caseCode": "FB",
+    "description": "Ferb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fe",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 75,
+    "caseCode": "FE",
+    "description": "Free",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 76,
+    "caseCode": "FG",
+    "description": "Fag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 77,
+    "caseCode": "FH",
+    "description": "Faith",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 78,
+    "caseCode": "FK",
+    "description": "Fuck",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 79,
+    "caseCode": "FL",
+    "description": "Fail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 80,
+    "caseCode": "FN",
+    "description": "Fan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 81,
+    "caseCode": "FO",
+    "description": "Floof",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 82,
+    "caseCode": "FP",
+    "description": "Fap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 83,
+    "caseCode": "FQ",
+    "description": "Filch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 84,
+    "caseCode": "FR",
+    "description": "Four",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fs",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 85,
+    "caseCode": "FS",
+    "description": "Fuzz",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ft",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 86,
+    "caseCode": "FT",
+    "description": "Fat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 87,
+    "caseCode": "FU",
+    "description": "Fugu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 88,
+    "caseCode": "FV",
+    "description": "Five",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 89,
+    "caseCode": "FW",
+    "description": "Fawn",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-fx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 90,
+    "caseCode": "FX",
+    "description": "Fox",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ga",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 91,
+    "caseCode": "GA",
+    "description": "Gag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 92,
+    "caseCode": "GB",
+    "description": "Gib",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 93,
+    "caseCode": "GD",
+    "description": "God",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ge",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 94,
+    "caseCode": "GE",
+    "description": "Geese",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 95,
+    "caseCode": "GF",
+    "description": "Golf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 96,
+    "caseCode": "GH",
+    "description": "Goth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 97,
+    "caseCode": "GI",
+    "description": "Giga",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 98,
+    "caseCode": "GK",
+    "description": "Goku",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 99,
+    "caseCode": "GN",
+    "description": "Gun",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-go",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 100,
+    "caseCode": "GO",
+    "description": "Go",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 101,
+    "caseCode": "GP",
+    "description": "Gypsy",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 102,
+    "caseCode": "GQ",
+    "description": "Gulch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 103,
+    "caseCode": "GR",
+    "description": "Gear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gs",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 104,
+    "caseCode": "GS",
+    "description": "Gus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 105,
+    "caseCode": "GT",
+    "description": "Got",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 106,
+    "caseCode": "GV",
+    "description": "Gav",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 107,
+    "caseCode": "GW",
+    "description": "Gwent",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-gx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 108,
+    "caseCode": "GX",
+    "description": "Gaisha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ha",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 109,
+    "caseCode": "HA",
+    "description": "Haha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 110,
+    "caseCode": "HB",
+    "description": "Hubby",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 111,
+    "caseCode": "HD",
+    "description": "Head",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-he",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 112,
+    "caseCode": "HE",
+    "description": "Helium",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 113,
+    "caseCode": "HF",
+    "description": "Hoof",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 114,
+    "caseCode": "HG",
+    "description": "Hog",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 115,
+    "caseCode": "HI",
+    "description": "High",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 116,
+    "caseCode": "HK",
+    "description": "Hack",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 117,
+    "caseCode": "HL",
+    "description": "Hill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 118,
+    "caseCode": "HN",
+    "description": "Hen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ho",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 119,
+    "caseCode": "HO",
+    "description": "Hobo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 120,
+    "caseCode": "HP",
+    "description": "Hop",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 121,
+    "caseCode": "HQ",
+    "description": "Hatcher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 122,
+    "caseCode": "HR",
+    "description": "Hare",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ht",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 123,
+    "caseCode": "HT",
+    "description": "Hot",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 124,
+    "caseCode": "HU",
+    "description": "Hula",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 125,
+    "caseCode": "HV",
+    "description": "Hive",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-hw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 126,
+    "caseCode": "HW",
+    "description": "Hawk",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ia",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 127,
+    "caseCode": "IA",
+    "description": "India",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ib",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 128,
+    "caseCode": "IB",
+    "description": "Ibis",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ie",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 129,
+    "caseCode": "IE",
+    "description": "Int. Exp/isle",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ig",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 130,
+    "caseCode": "IG",
+    "description": "Ing",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ih",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 131,
+    "caseCode": "IH",
+    "description": "Isiah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ik",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 132,
+    "caseCode": "IK",
+    "description": "Ike",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-il",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 133,
+    "caseCode": "IL",
+    "description": "Ill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-in",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 134,
+    "caseCode": "IN",
+    "description": "Inn",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-io",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 135,
+    "caseCode": "IO",
+    "description": "Igloo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ip",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 136,
+    "caseCode": "IP",
+    "description": "Imp",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-iq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 137,
+    "caseCode": "IQ",
+    "description": "Itch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ir",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 138,
+    "caseCode": "IR",
+    "description": "Ireland",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-is",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 139,
+    "caseCode": "IS",
+    "description": "Izzy",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-it",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 140,
+    "caseCode": "IT",
+    "description": "It",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-iu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 141,
+    "caseCode": "IU",
+    "description": "Inu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-iv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 142,
+    "caseCode": "IV",
+    "description": "Ivy",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-iw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 143,
+    "caseCode": "IW",
+    "description": "Inkwell",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ix",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 144,
+    "caseCode": "IX",
+    "description": "Index",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ka",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 145,
+    "caseCode": "KA",
+    "description": "Koala",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 146,
+    "caseCode": "KB",
+    "description": "Kebab",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 147,
+    "caseCode": "KD",
+    "description": "Kid",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ke",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 148,
+    "caseCode": "KE",
+    "description": "Key",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 149,
+    "caseCode": "KF",
+    "description": "Coffee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 150,
+    "caseCode": "KG",
+    "description": "Keg",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 151,
+    "caseCode": "KH",
+    "description": "Keith",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ki",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 152,
+    "caseCode": "KI",
+    "description": "Kiri",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 153,
+    "caseCode": "KL",
+    "description": "Kale",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 154,
+    "caseCode": "KN",
+    "description": "Ken",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ko",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 155,
+    "caseCode": "KO",
+    "description": "Coco",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 156,
+    "caseCode": "KQ",
+    "description": "Katchi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 157,
+    "caseCode": "KR",
+    "description": "Car",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ks",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 158,
+    "caseCode": "KS",
+    "description": "Kiss",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 159,
+    "caseCode": "KT",
+    "description": "Kitkat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ku",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 160,
+    "caseCode": "KU",
+    "description": "Kuck",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 161,
+    "caseCode": "KW",
+    "description": "Kiwi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-kx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 162,
+    "caseCode": "KX",
+    "description": "Kesha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-la",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 163,
+    "caseCode": "LA",
+    "description": "Lala",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 164,
+    "caseCode": "LB",
+    "description": "Lebron",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ld",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 165,
+    "caseCode": "LD",
+    "description": "Lead",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-le",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 166,
+    "caseCode": "LE",
+    "description": "Lee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 167,
+    "caseCode": "LF",
+    "description": "Loaf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 168,
+    "caseCode": "LH",
+    "description": "Leah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-li",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 169,
+    "caseCode": "LI",
+    "description": "Lilly",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 170,
+    "caseCode": "LK",
+    "description": "Lake",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ln",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 171,
+    "caseCode": "LN",
+    "description": "Lan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 172,
+    "caseCode": "LO",
+    "description": "Loo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 173,
+    "caseCode": "LP",
+    "description": "Lip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 174,
+    "caseCode": "LQ",
+    "description": "Leach",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 175,
+    "caseCode": "LR",
+    "description": "Larry",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ls",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 176,
+    "caseCode": "LS",
+    "description": "Lisa",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 177,
+    "caseCode": "LT",
+    "description": "Lit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 178,
+    "caseCode": "LV",
+    "description": "Love",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 179,
+    "caseCode": "LW",
+    "description": "Law",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-lx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 180,
+    "caseCode": "LX",
+    "description": "Lash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-na",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 181,
+    "caseCode": "NA",
+    "description": "Nana",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 182,
+    "caseCode": "ND",
+    "description": "Ned",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ne",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 183,
+    "caseCode": "NE",
+    "description": "Knee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 184,
+    "caseCode": "NF",
+    "description": "Knife",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ng",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 185,
+    "caseCode": "NG",
+    "description": "Knight",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 186,
+    "caseCode": "NH",
+    "description": "Noah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ni",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 187,
+    "caseCode": "NI",
+    "description": "Nine",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 188,
+    "caseCode": "NK",
+    "description": "Nike",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 189,
+    "caseCode": "NL",
+    "description": "Nile",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-no",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 190,
+    "caseCode": "NO",
+    "description": "No",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-np",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 191,
+    "caseCode": "NP",
+    "description": "Nip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 192,
+    "caseCode": "NR",
+    "description": "Nora",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ns",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 193,
+    "caseCode": "NS",
+    "description": "Nose",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 194,
+    "caseCode": "NT",
+    "description": "Knit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 195,
+    "caseCode": "NU",
+    "description": "Nut",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 196,
+    "caseCode": "NV",
+    "description": "Knave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 197,
+    "caseCode": "NW",
+    "description": "Newt",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-nx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 198,
+    "caseCode": "NX",
+    "description": "Nashi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-oa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 199,
+    "caseCode": "OA",
+    "description": "Oasis",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ob",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 200,
+    "caseCode": "OB",
+    "description": "Oboe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-od",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 201,
+    "caseCode": "OD",
+    "description": "Odd",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-oe",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 202,
+    "caseCode": "OE",
+    "description": "One",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-of",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 203,
+    "caseCode": "OF",
+    "description": "Olaf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-og",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 204,
+    "caseCode": "OG",
+    "description": "Ogre",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-oh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 205,
+    "caseCode": "OH",
+    "description": "Oath",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-oi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 206,
+    "caseCode": "OI",
+    "description": "Oni",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ok",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 207,
+    "caseCode": "OK",
+    "description": "Oak",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ol",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 208,
+    "caseCode": "OL",
+    "description": "Oil",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-on",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 209,
+    "caseCode": "ON",
+    "description": "On",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-op",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 210,
+    "caseCode": "OP",
+    "description": "Oprah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-oq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 211,
+    "caseCode": "OQ",
+    "description": "Ostrich",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-or",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 212,
+    "caseCode": "OR",
+    "description": "Oar",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-os",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 213,
+    "caseCode": "OS",
+    "description": "Oz",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ou",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 214,
+    "caseCode": "OU",
+    "description": "Out",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ov",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 215,
+    "caseCode": "OV",
+    "description": "Oval",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ox",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 216,
+    "caseCode": "OX",
+    "description": "Ox",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 217,
+    "caseCode": "PA",
+    "description": "Papaya",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 218,
+    "caseCode": "PB",
+    "description": "Pub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 219,
+    "caseCode": "PD",
+    "description": "Pad",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pe",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 220,
+    "caseCode": "PE",
+    "description": "Peas",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 221,
+    "caseCode": "PF",
+    "description": "Puff",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 222,
+    "caseCode": "PG",
+    "description": "Pug",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ph",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 223,
+    "caseCode": "PH",
+    "description": "Path",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 224,
+    "caseCode": "PI",
+    "description": "Pip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 225,
+    "caseCode": "PL",
+    "description": "Pill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 226,
+    "caseCode": "PN",
+    "description": "Pen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-po",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 227,
+    "caseCode": "PO",
+    "description": "Poo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 228,
+    "caseCode": "PQ",
+    "description": "Pooch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 229,
+    "caseCode": "PR",
+    "description": "Pear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ps",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 230,
+    "caseCode": "PS",
+    "description": "Piss",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 231,
+    "caseCode": "PT",
+    "description": "Pot",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 232,
+    "caseCode": "PU",
+    "description": "Puma",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-pw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 233,
+    "caseCode": "PW",
+    "description": "Paw",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-px",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 234,
+    "caseCode": "PX",
+    "description": "Push",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 235,
+    "caseCode": "QA",
+    "description": "Chai",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 236,
+    "caseCode": "QD",
+    "description": "Chode",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qe",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 237,
+    "caseCode": "QE",
+    "description": "Cheese",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 238,
+    "caseCode": "QF",
+    "description": "Chef",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 239,
+    "caseCode": "QG",
+    "description": "Qagmire",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 240,
+    "caseCode": "QH",
+    "description": "Cheetah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 241,
+    "caseCode": "QI",
+    "description": "Chi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 242,
+    "caseCode": "QK",
+    "description": "Chick",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ql",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 243,
+    "caseCode": "QL",
+    "description": "Chili",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 244,
+    "caseCode": "QO",
+    "description": "Cho",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 245,
+    "caseCode": "QP",
+    "description": "Chomper",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 246,
+    "caseCode": "QR",
+    "description": "Charcoal",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qs",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 247,
+    "caseCode": "QS",
+    "description": "Chase",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 248,
+    "caseCode": "QT",
+    "description": "Chat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 249,
+    "caseCode": "QU",
+    "description": "Chungus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 250,
+    "caseCode": "QV",
+    "description": "Chevron",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 251,
+    "caseCode": "QW",
+    "description": "Chowder",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-qx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 252,
+    "caseCode": "QX",
+    "description": "Chesha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 253,
+    "caseCode": "RB",
+    "description": "Ribs",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 254,
+    "caseCode": "RD",
+    "description": "Rod",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 255,
+    "caseCode": "RF",
+    "description": "Raft",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 256,
+    "caseCode": "RG",
+    "description": "Rag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 257,
+    "caseCode": "RH",
+    "description": "Wrath",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ri",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 258,
+    "caseCode": "RI",
+    "description": "Riri",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 259,
+    "caseCode": "RK",
+    "description": "Rake",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 260,
+    "caseCode": "RL",
+    "description": "Rail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 261,
+    "caseCode": "RN",
+    "description": "Ron",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ro",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 262,
+    "caseCode": "RO",
+    "description": "Roo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 263,
+    "caseCode": "RP",
+    "description": "Rope",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 264,
+    "caseCode": "RQ",
+    "description": "Rachael",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rs",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 265,
+    "caseCode": "RS",
+    "description": "Russ",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 266,
+    "caseCode": "RT",
+    "description": "Rat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ru",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 267,
+    "caseCode": "RU",
+    "description": "Ruby",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 268,
+    "caseCode": "RV",
+    "description": "Raven",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 269,
+    "caseCode": "RW",
+    "description": "Raw",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-rx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 270,
+    "caseCode": "RX",
+    "description": "Rash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 271,
+    "caseCode": "SA",
+    "description": "SA",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 272,
+    "caseCode": "SB",
+    "description": "Seb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 273,
+    "caseCode": "SD",
+    "description": "Sid",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-se",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 274,
+    "caseCode": "SE",
+    "description": "Seer",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 275,
+    "caseCode": "SF",
+    "description": "Sofa",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 276,
+    "caseCode": "SG",
+    "description": "Stig",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-si",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 277,
+    "caseCode": "SI",
+    "description": "Sis",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 278,
+    "caseCode": "SK",
+    "description": "Sick",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 279,
+    "caseCode": "SL",
+    "description": "Sail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 280,
+    "caseCode": "SN",
+    "description": "Sun",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-so",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 281,
+    "caseCode": "SO",
+    "description": "Spool",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 282,
+    "caseCode": "SP",
+    "description": "Sap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 283,
+    "caseCode": "SQ",
+    "description": "Satchel",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 284,
+    "caseCode": "SR",
+    "description": "Sour",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-st",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 285,
+    "caseCode": "ST",
+    "description": "Sit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-su",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 286,
+    "caseCode": "SU",
+    "description": "Suit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 287,
+    "caseCode": "SV",
+    "description": "Seven",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-sw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 288,
+    "caseCode": "SW",
+    "description": "Sew",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ta",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 289,
+    "caseCode": "TA",
+    "description": "Tat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 290,
+    "caseCode": "TB",
+    "description": "Tub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-td",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 291,
+    "caseCode": "TD",
+    "description": "Todd",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-te",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 292,
+    "caseCode": "TE",
+    "description": "Tee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 293,
+    "caseCode": "TF",
+    "description": "Tiff",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 294,
+    "caseCode": "TG",
+    "description": "Tag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-th",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 295,
+    "caseCode": "TH",
+    "description": "Teeth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ti",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 296,
+    "caseCode": "TI",
+    "description": "Tits",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 297,
+    "caseCode": "TK",
+    "description": "Tik Tok",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 298,
+    "caseCode": "TL",
+    "description": "Tool",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 299,
+    "caseCode": "TN",
+    "description": "Toon",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 300,
+    "caseCode": "TP",
+    "description": "Tap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 301,
+    "caseCode": "TQ",
+    "description": "Teacher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 302,
+    "caseCode": "TR",
+    "description": "Tear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ts",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 303,
+    "caseCode": "TS",
+    "description": "Tess",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 304,
+    "caseCode": "TU",
+    "description": "Tutu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 305,
+    "caseCode": "TV",
+    "description": "Tavern",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-tx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 306,
+    "caseCode": "TX",
+    "description": "Trash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ua",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 307,
+    "caseCode": "UA",
+    "description": "Umbrella",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ub",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 308,
+    "caseCode": "UB",
+    "description": "Uber",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ud",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 309,
+    "caseCode": "UD",
+    "description": "Udder",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ue",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 310,
+    "caseCode": "UE",
+    "description": "Ute",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 311,
+    "caseCode": "UF",
+    "description": "Ufo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 312,
+    "caseCode": "UH",
+    "description": "Utah Jazz",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ui",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 313,
+    "caseCode": "UI",
+    "description": "Uzi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 314,
+    "caseCode": "UK",
+    "description": "Uke",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-un",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 315,
+    "caseCode": "UN",
+    "description": "UN",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 316,
+    "caseCode": "UO",
+    "description": "Uno",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-up",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 317,
+    "caseCode": "UP",
+    "description": "Up",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 318,
+    "caseCode": "UQ",
+    "description": "Urchin",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ur",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 319,
+    "caseCode": "UR",
+    "description": "Uranus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-us",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 320,
+    "caseCode": "US",
+    "description": "US",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ut",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 321,
+    "caseCode": "UT",
+    "description": "U Turn",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 322,
+    "caseCode": "UV",
+    "description": "Uvula",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-uw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 323,
+    "caseCode": "UW",
+    "description": "Underwear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ux",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 324,
+    "caseCode": "UX",
+    "description": "Usher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-va",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 325,
+    "caseCode": "VA",
+    "description": "Visa",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 326,
+    "caseCode": "VB",
+    "description": "Vibrator",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 327,
+    "caseCode": "VD",
+    "description": "Vader",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ve",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 328,
+    "caseCode": "VE",
+    "description": "V",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 329,
+    "caseCode": "VF",
+    "description": "Venus Flytrap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 330,
+    "caseCode": "VG",
+    "description": "Vag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 331,
+    "caseCode": "VH",
+    "description": "Vi Hart",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 332,
+    "caseCode": "VI",
+    "description": "Vise",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 333,
+    "caseCode": "VL",
+    "description": "Vial",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 334,
+    "caseCode": "VN",
+    "description": "Van",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 335,
+    "caseCode": "VO",
+    "description": "Volcano",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 336,
+    "caseCode": "VQ",
+    "description": "Voucher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 337,
+    "caseCode": "VR",
+    "description": "Varys",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vs",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 338,
+    "caseCode": "VS",
+    "description": "Vase",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 339,
+    "caseCode": "VT",
+    "description": "Vet",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 340,
+    "caseCode": "VU",
+    "description": "Vacuum",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 341,
+    "caseCode": "VW",
+    "description": "View",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-vx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 342,
+    "caseCode": "VX",
+    "description": "Vixen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 343,
+    "caseCode": "WA",
+    "description": "Waluigi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 344,
+    "caseCode": "WB",
+    "description": "Web",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 345,
+    "caseCode": "WD",
+    "description": "Wade",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-we",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 346,
+    "caseCode": "WE",
+    "description": "Weed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 347,
+    "caseCode": "WF",
+    "description": "Wife",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 348,
+    "caseCode": "WG",
+    "description": "Wag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wh",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 349,
+    "caseCode": "WH",
+    "description": "Whale",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 350,
+    "caseCode": "WI",
+    "description": "Wii",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 351,
+    "caseCode": "WK",
+    "description": "Wok",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 352,
+    "caseCode": "WL",
+    "description": "Will",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 353,
+    "caseCode": "WN",
+    "description": "Wine",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 354,
+    "caseCode": "WP",
+    "description": "Wap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 355,
+    "caseCode": "WQ",
+    "description": "Watch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 356,
+    "caseCode": "WR",
+    "description": "Worm",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-ws",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 357,
+    "caseCode": "WS",
+    "description": "Walrus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 358,
+    "caseCode": "WU",
+    "description": "Windu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 359,
+    "caseCode": "WV",
+    "description": "Wave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-wx",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 360,
+    "caseCode": "WX",
+    "description": "Welsh",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xa",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 361,
+    "caseCode": "XA",
+    "description": "Sheniya",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xb",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 362,
+    "caseCode": "XB",
+    "description": "Shiba",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xd",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 363,
+    "caseCode": "XD",
+    "description": "Shed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xe",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 364,
+    "caseCode": "XE",
+    "description": "Sheen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xf",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 365,
+    "caseCode": "XF",
+    "description": "Sheaf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xg",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 366,
+    "caseCode": "XG",
+    "description": "Shaggy",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xi",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 367,
+    "caseCode": "XI",
+    "description": "Shi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xk",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 368,
+    "caseCode": "XK",
+    "description": "Shark",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xl",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 369,
+    "caseCode": "XL",
+    "description": "Shell",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xn",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 370,
+    "caseCode": "XN",
+    "description": "Shan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xo",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 371,
+    "caseCode": "XO",
+    "description": "Shoe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xp",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 372,
+    "caseCode": "XP",
+    "description": "Ship",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xq",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 373,
+    "caseCode": "XQ",
+    "description": "Shaq",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xr",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 374,
+    "caseCode": "XR",
+    "description": "Sharon",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xt",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 375,
+    "caseCode": "XT",
+    "description": "Shit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xu",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 376,
+    "caseCode": "XU",
+    "description": "Shut",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xv",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 377,
+    "caseCode": "XV",
+    "description": "Shave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "corner_memo-xw",
+    "pieceType": "corner_memo",
+    "sheetName": "bundled-Corner Words.csv",
+    "rowIndex": 378,
+    "caseCode": "XW",
+    "description": "Shower",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ab",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 1,
+    "caseCode": "AB",
+    "description": "Abe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ad",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 2,
+    "caseCode": "AD",
+    "description": "Aid",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ae",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 3,
+    "caseCode": "AE",
+    "description": "Ale",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-af",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 4,
+    "caseCode": "AF",
+    "description": "Afro",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ag",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 5,
+    "caseCode": "AG",
+    "description": "Age",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ah",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 6,
+    "caseCode": "AH",
+    "description": "Arthur",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-aj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 7,
+    "caseCode": "AJ",
+    "description": "Astor",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ak",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 8,
+    "caseCode": "AK",
+    "description": "Ace",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-al",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 9,
+    "caseCode": "AL",
+    "description": "Al",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-am",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 10,
+    "caseCode": "AM",
+    "description": "Ammo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-an",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 11,
+    "caseCode": "AN",
+    "description": "Anne",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ao",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 12,
+    "caseCode": "AO",
+    "description": "Aoli",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ap",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 13,
+    "caseCode": "AP",
+    "description": "Apple",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ar",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 14,
+    "caseCode": "AR",
+    "description": "Are",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-as",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 15,
+    "caseCode": "AS",
+    "description": "Ass",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-at",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 16,
+    "caseCode": "AT",
+    "description": "At",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-au",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 17,
+    "caseCode": "AU",
+    "description": "Aus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-av",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 18,
+    "caseCode": "AV",
+    "description": "Ave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-aw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 19,
+    "caseCode": "AW",
+    "description": "Aww",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ax",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 20,
+    "caseCode": "AX",
+    "description": "Ax",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ba",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 21,
+    "caseCode": "BA",
+    "description": "Barb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 22,
+    "caseCode": "BD",
+    "description": "Bed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-be",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 23,
+    "caseCode": "BE",
+    "description": "Bee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 24,
+    "caseCode": "BF",
+    "description": "Beef",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 25,
+    "caseCode": "BG",
+    "description": "Bag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 26,
+    "caseCode": "BH",
+    "description": "Bath",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 27,
+    "caseCode": "BJ",
+    "description": "Best",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 28,
+    "caseCode": "BK",
+    "description": "Bike",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 29,
+    "caseCode": "BL",
+    "description": "Bill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 30,
+    "caseCode": "BN",
+    "description": "Bean",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 31,
+    "caseCode": "BO",
+    "description": "Boob",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 32,
+    "caseCode": "BP",
+    "description": "Bop",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 33,
+    "caseCode": "BQ",
+    "description": "Bach",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-br",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 34,
+    "caseCode": "BR",
+    "description": "Bar",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 35,
+    "caseCode": "BS",
+    "description": "Bus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 36,
+    "caseCode": "BT",
+    "description": "Bat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 37,
+    "caseCode": "BU",
+    "description": "Bub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 38,
+    "caseCode": "BV",
+    "description": "Bev",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 39,
+    "caseCode": "BW",
+    "description": "Bow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-bx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 40,
+    "caseCode": "BX",
+    "description": "Box",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-da",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 41,
+    "caseCode": "DA",
+    "description": "Dada",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-db",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 42,
+    "caseCode": "DB",
+    "description": "Deb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-df",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 43,
+    "caseCode": "DF",
+    "description": "Deaf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 44,
+    "caseCode": "DG",
+    "description": "Dog",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 45,
+    "caseCode": "DH",
+    "description": "Death",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 46,
+    "caseCode": "DJ",
+    "description": "Dust",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 47,
+    "caseCode": "DK",
+    "description": "Duck",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 48,
+    "caseCode": "DL",
+    "description": "Doll",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 49,
+    "caseCode": "DM",
+    "description": "Dom",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 50,
+    "caseCode": "DN",
+    "description": "Dean",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-do",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 51,
+    "caseCode": "DO",
+    "description": "Dodo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 52,
+    "caseCode": "DP",
+    "description": "Dip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 53,
+    "caseCode": "DQ",
+    "description": "Dutch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 54,
+    "caseCode": "DR",
+    "description": "Door",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ds",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 55,
+    "caseCode": "DS",
+    "description": "Desk",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 56,
+    "caseCode": "DT",
+    "description": "Dot",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-du",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 57,
+    "caseCode": "DU",
+    "description": "Due",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 58,
+    "caseCode": "DV",
+    "description": "Dev",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 59,
+    "caseCode": "DW",
+    "description": "Dew",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-dx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 60,
+    "caseCode": "DX",
+    "description": "Dex",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ea",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 61,
+    "caseCode": "EA",
+    "description": "Ella",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-eb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 62,
+    "caseCode": "EB",
+    "description": "Elbow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ef",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 63,
+    "caseCode": "EF",
+    "description": "Effile",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-eg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 64,
+    "caseCode": "EG",
+    "description": "Egg",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-eh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 65,
+    "caseCode": "EH",
+    "description": "Earth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ej",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 66,
+    "caseCode": "EJ",
+    "description": "Ester",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ek",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 67,
+    "caseCode": "EK",
+    "description": "Elk",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-el",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 68,
+    "caseCode": "EL",
+    "description": "Elle",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-em",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 69,
+    "caseCode": "EM",
+    "description": "Em",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-en",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 70,
+    "caseCode": "EN",
+    "description": "Ender",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-eo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 71,
+    "caseCode": "EO",
+    "description": "Elmo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ep",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 72,
+    "caseCode": "EP",
+    "description": "Epee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-eq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 73,
+    "caseCode": "EQ",
+    "description": "Etch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-er",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 74,
+    "caseCode": "ER",
+    "description": "Eraser",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-es",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 75,
+    "caseCode": "ES",
+    "description": "Yes",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-et",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 76,
+    "caseCode": "ET",
+    "description": "ET (Eat)",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-eu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 77,
+    "caseCode": "EU",
+    "description": "Europe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ev",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 78,
+    "caseCode": "EV",
+    "description": "Eve",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ew",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 79,
+    "caseCode": "EW",
+    "description": "Ewe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ex",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 80,
+    "caseCode": "EX",
+    "description": "Eshay",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fa",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 81,
+    "caseCode": "FA",
+    "description": "Fay",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 82,
+    "caseCode": "FB",
+    "description": "Ferb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 83,
+    "caseCode": "FD",
+    "description": "Food",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fe",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 84,
+    "caseCode": "FE",
+    "description": "Free",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 85,
+    "caseCode": "FG",
+    "description": "Fag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 86,
+    "caseCode": "FH",
+    "description": "Faith",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 87,
+    "caseCode": "FJ",
+    "description": "First",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 88,
+    "caseCode": "FK",
+    "description": "Fuck",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 89,
+    "caseCode": "FM",
+    "description": "Fam",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 90,
+    "caseCode": "FN",
+    "description": "Fan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 91,
+    "caseCode": "FO",
+    "description": "Floof",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 92,
+    "caseCode": "FP",
+    "description": "Fap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 93,
+    "caseCode": "FQ",
+    "description": "Filch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 94,
+    "caseCode": "FR",
+    "description": "Four",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 95,
+    "caseCode": "FS",
+    "description": "Fuzz",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ft",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 96,
+    "caseCode": "FT",
+    "description": "Fat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 97,
+    "caseCode": "FU",
+    "description": "Fugu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 98,
+    "caseCode": "FV",
+    "description": "Five",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 99,
+    "caseCode": "FW",
+    "description": "Fawn",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-fx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 100,
+    "caseCode": "FX",
+    "description": "Fox",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ga",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 101,
+    "caseCode": "GA",
+    "description": "Gag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 102,
+    "caseCode": "GB",
+    "description": "Gib",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 103,
+    "caseCode": "GD",
+    "description": "God",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ge",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 104,
+    "caseCode": "GE",
+    "description": "Geese",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 105,
+    "caseCode": "GF",
+    "description": "Golf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 106,
+    "caseCode": "GH",
+    "description": "Goth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 107,
+    "caseCode": "GJ",
+    "description": "Gust",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 108,
+    "caseCode": "GK",
+    "description": "Goku",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 109,
+    "caseCode": "GL",
+    "description": "Girl",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 110,
+    "caseCode": "GM",
+    "description": "Gem",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 111,
+    "caseCode": "GN",
+    "description": "Gun",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-go",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 112,
+    "caseCode": "GO",
+    "description": "Go",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 113,
+    "caseCode": "GP",
+    "description": "Gypsy",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 114,
+    "caseCode": "GQ",
+    "description": "Gulch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 115,
+    "caseCode": "GR",
+    "description": "Gear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 116,
+    "caseCode": "GS",
+    "description": "Gus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 117,
+    "caseCode": "GT",
+    "description": "Got",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 118,
+    "caseCode": "GU",
+    "description": "Gue",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 119,
+    "caseCode": "GV",
+    "description": "Gav",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-gw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 120,
+    "caseCode": "GW",
+    "description": "Gwent",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ha",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 121,
+    "caseCode": "HA",
+    "description": "Haha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 122,
+    "caseCode": "HB",
+    "description": "Hubby",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 123,
+    "caseCode": "HD",
+    "description": "Head",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-he",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 124,
+    "caseCode": "HE",
+    "description": "Helium",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 125,
+    "caseCode": "HF",
+    "description": "Hoof",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 126,
+    "caseCode": "HG",
+    "description": "Hog",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 127,
+    "caseCode": "HJ",
+    "description": "Hijab",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 128,
+    "caseCode": "HK",
+    "description": "Hack",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 129,
+    "caseCode": "HL",
+    "description": "Hill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 130,
+    "caseCode": "HM",
+    "description": "Ham",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 131,
+    "caseCode": "HN",
+    "description": "Hen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ho",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 132,
+    "caseCode": "HO",
+    "description": "Hobo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 133,
+    "caseCode": "HP",
+    "description": "Hop",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 134,
+    "caseCode": "HQ",
+    "description": "Hatcher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 135,
+    "caseCode": "HS",
+    "description": "Horse",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ht",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 136,
+    "caseCode": "HT",
+    "description": "Hot",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 137,
+    "caseCode": "HU",
+    "description": "Hula",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 138,
+    "caseCode": "HV",
+    "description": "Hive",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 139,
+    "caseCode": "HW",
+    "description": "Hawk",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-hx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 140,
+    "caseCode": "HX",
+    "description": "Hoax",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ja",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 141,
+    "caseCode": "JA",
+    "description": "Ja",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 142,
+    "caseCode": "JB",
+    "description": "Job",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 143,
+    "caseCode": "JD",
+    "description": "Jedi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-je",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 144,
+    "caseCode": "JE",
+    "description": "Jei",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 145,
+    "caseCode": "JF",
+    "description": "Jeff",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 146,
+    "caseCode": "JG",
+    "description": "Jog",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 147,
+    "caseCode": "JH",
+    "description": "Jonah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 148,
+    "caseCode": "JK",
+    "description": "Jack",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 149,
+    "caseCode": "JL",
+    "description": "Jail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 150,
+    "caseCode": "JM",
+    "description": "Jam",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 151,
+    "caseCode": "JN",
+    "description": "Jan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 152,
+    "caseCode": "JO",
+    "description": "John",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 153,
+    "caseCode": "JQ",
+    "description": "Jaques",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 154,
+    "caseCode": "JR",
+    "description": "Jar",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-js",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 155,
+    "caseCode": "JS",
+    "description": "Jess",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 156,
+    "caseCode": "JT",
+    "description": "Jet",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ju",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 157,
+    "caseCode": "JU",
+    "description": "Juju",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 158,
+    "caseCode": "JV",
+    "description": "Javi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 159,
+    "caseCode": "JW",
+    "description": "Jaw",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-jx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 160,
+    "caseCode": "JX",
+    "description": "Josh",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ka",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 161,
+    "caseCode": "KA",
+    "description": "Koala",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 162,
+    "caseCode": "KB",
+    "description": "Kebab",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 163,
+    "caseCode": "KD",
+    "description": "Kid",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ke",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 164,
+    "caseCode": "KE",
+    "description": "Key",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 165,
+    "caseCode": "KF",
+    "description": "Coffee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 166,
+    "caseCode": "KG",
+    "description": "Keg",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 167,
+    "caseCode": "KH",
+    "description": "Keith",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 168,
+    "caseCode": "KJ",
+    "description": "Cost",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 169,
+    "caseCode": "KL",
+    "description": "Kale",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-km",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 170,
+    "caseCode": "KM",
+    "description": "Cum",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 171,
+    "caseCode": "KN",
+    "description": "Ken",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ko",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 172,
+    "caseCode": "KO",
+    "description": "Coco",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 173,
+    "caseCode": "KP",
+    "description": "Cop",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 174,
+    "caseCode": "KQ",
+    "description": "Katchi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 175,
+    "caseCode": "KR",
+    "description": "Car",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ks",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 176,
+    "caseCode": "KS",
+    "description": "Kiss",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 177,
+    "caseCode": "KT",
+    "description": "Kitkat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 178,
+    "caseCode": "KV",
+    "description": "Cave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 179,
+    "caseCode": "KW",
+    "description": "Kiwi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-kx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 180,
+    "caseCode": "KX",
+    "description": "Kesha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-la",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 181,
+    "caseCode": "LA",
+    "description": "Lala",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 182,
+    "caseCode": "LB",
+    "description": "Lebron",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ld",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 183,
+    "caseCode": "LD",
+    "description": "Lead",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-le",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 184,
+    "caseCode": "LE",
+    "description": "Lee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 185,
+    "caseCode": "LG",
+    "description": "Leg",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 186,
+    "caseCode": "LH",
+    "description": "Leah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 187,
+    "caseCode": "LJ",
+    "description": "Last",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 188,
+    "caseCode": "LK",
+    "description": "Lake",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 189,
+    "caseCode": "LM",
+    "description": "Lamb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ln",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 190,
+    "caseCode": "LN",
+    "description": "Lan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 191,
+    "caseCode": "LO",
+    "description": "Loo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 192,
+    "caseCode": "LP",
+    "description": "Lip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 193,
+    "caseCode": "LQ",
+    "description": "Leach",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 194,
+    "caseCode": "LR",
+    "description": "Larry",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ls",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 195,
+    "caseCode": "LS",
+    "description": "Lisa",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 196,
+    "caseCode": "LT",
+    "description": "Lit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 197,
+    "caseCode": "LU",
+    "description": "Luigi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 198,
+    "caseCode": "LV",
+    "description": "Love",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 199,
+    "caseCode": "LW",
+    "description": "Law",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-lx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 200,
+    "caseCode": "LX",
+    "description": "Lash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ma",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 201,
+    "caseCode": "MA",
+    "description": "Mama",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-md",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 202,
+    "caseCode": "MD",
+    "description": "Mad",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-me",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 203,
+    "caseCode": "ME",
+    "description": "Me",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 204,
+    "caseCode": "MF",
+    "description": "Muffin",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 205,
+    "caseCode": "MG",
+    "description": "Mug",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 206,
+    "caseCode": "MH",
+    "description": "Math",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 207,
+    "caseCode": "MJ",
+    "description": "Must",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 208,
+    "caseCode": "MK",
+    "description": "Make",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ml",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 209,
+    "caseCode": "ML",
+    "description": "Mail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 210,
+    "caseCode": "MN",
+    "description": "Man",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 211,
+    "caseCode": "MO",
+    "description": "Moo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 212,
+    "caseCode": "MP",
+    "description": "Mop",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 213,
+    "caseCode": "MQ",
+    "description": "Mocha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 214,
+    "caseCode": "MR",
+    "description": "More",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ms",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 215,
+    "caseCode": "MS",
+    "description": "Moss",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 216,
+    "caseCode": "MT",
+    "description": "Mat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 217,
+    "caseCode": "MU",
+    "description": "Mu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 218,
+    "caseCode": "MV",
+    "description": "Mav",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 219,
+    "caseCode": "MW",
+    "description": "Mow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-mx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 220,
+    "caseCode": "MX",
+    "description": "Mosh",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-na",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 221,
+    "caseCode": "NA",
+    "description": "Nana",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 222,
+    "caseCode": "NB",
+    "description": "Nab",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 223,
+    "caseCode": "ND",
+    "description": "Ned",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ne",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 224,
+    "caseCode": "NE",
+    "description": "Knee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 225,
+    "caseCode": "NF",
+    "description": "Knife",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ng",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 226,
+    "caseCode": "NG",
+    "description": "Knight",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 227,
+    "caseCode": "NH",
+    "description": "Noah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 228,
+    "caseCode": "NJ",
+    "description": "Nest",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 229,
+    "caseCode": "NK",
+    "description": "Nike",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 230,
+    "caseCode": "NL",
+    "description": "Nile",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 231,
+    "caseCode": "NM",
+    "description": "Numb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-no",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 232,
+    "caseCode": "NO",
+    "description": "No",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-np",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 233,
+    "caseCode": "NP",
+    "description": "Nip",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 234,
+    "caseCode": "NQ",
+    "description": "Nique",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 235,
+    "caseCode": "NR",
+    "description": "Nora",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ns",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 236,
+    "caseCode": "NS",
+    "description": "Nose",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 237,
+    "caseCode": "NU",
+    "description": "Nut",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 238,
+    "caseCode": "NV",
+    "description": "Knave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 239,
+    "caseCode": "NW",
+    "description": "Newt",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-nx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 240,
+    "caseCode": "NX",
+    "description": "Nashi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-oa",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 241,
+    "caseCode": "OA",
+    "description": "Oasis",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ob",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 242,
+    "caseCode": "OB",
+    "description": "Oboe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-od",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 243,
+    "caseCode": "OD",
+    "description": "Odd",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-oe",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 244,
+    "caseCode": "OE",
+    "description": "One",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-of",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 245,
+    "caseCode": "OF",
+    "description": "Olaf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-og",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 246,
+    "caseCode": "OG",
+    "description": "Ogre",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-oh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 247,
+    "caseCode": "OH",
+    "description": "Oath",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-oj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 248,
+    "caseCode": "OJ",
+    "description": "OJ",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ok",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 249,
+    "caseCode": "OK",
+    "description": "Oak",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ol",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 250,
+    "caseCode": "OL",
+    "description": "Oil",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-om",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 251,
+    "caseCode": "OM",
+    "description": "Ohm",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-on",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 252,
+    "caseCode": "ON",
+    "description": "On",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-op",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 253,
+    "caseCode": "OP",
+    "description": "Oprah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-oq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 254,
+    "caseCode": "OQ",
+    "description": "Ostrich",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-or",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 255,
+    "caseCode": "OR",
+    "description": "Oar",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-os",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 256,
+    "caseCode": "OS",
+    "description": "Oz",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ot",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 257,
+    "caseCode": "OT",
+    "description": "Otter",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ou",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 258,
+    "caseCode": "OU",
+    "description": "Out",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ow",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 259,
+    "caseCode": "OW",
+    "description": "Ow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ox",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 260,
+    "caseCode": "OX",
+    "description": "Ox",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pa",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 261,
+    "caseCode": "PA",
+    "description": "Papaya",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 262,
+    "caseCode": "PB",
+    "description": "Pub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 263,
+    "caseCode": "PD",
+    "description": "Pad",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pe",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 264,
+    "caseCode": "PE",
+    "description": "Peas",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 265,
+    "caseCode": "PF",
+    "description": "Puff",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 266,
+    "caseCode": "PG",
+    "description": "Pug",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ph",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 267,
+    "caseCode": "PH",
+    "description": "Path",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 268,
+    "caseCode": "PK",
+    "description": "Peck",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 269,
+    "caseCode": "PL",
+    "description": "Pill",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 270,
+    "caseCode": "PM",
+    "description": "Pam",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 271,
+    "caseCode": "PN",
+    "description": "Pen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-po",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 272,
+    "caseCode": "PO",
+    "description": "Poo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 273,
+    "caseCode": "PQ",
+    "description": "Pooch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 274,
+    "caseCode": "PR",
+    "description": "Pear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ps",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 275,
+    "caseCode": "PS",
+    "description": "Piss",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 276,
+    "caseCode": "PT",
+    "description": "Pot",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 277,
+    "caseCode": "PU",
+    "description": "Puma",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 278,
+    "caseCode": "PV",
+    "description": "Pav",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-pw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 279,
+    "caseCode": "PW",
+    "description": "Paw",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-px",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 280,
+    "caseCode": "PX",
+    "description": "Push",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 281,
+    "caseCode": "QB",
+    "description": "Chub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 282,
+    "caseCode": "QD",
+    "description": "Chode",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qe",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 283,
+    "caseCode": "QE",
+    "description": "Cheese",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 284,
+    "caseCode": "QF",
+    "description": "Chef",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 285,
+    "caseCode": "QG",
+    "description": "Qagmire",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 286,
+    "caseCode": "QH",
+    "description": "Cheetah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 287,
+    "caseCode": "QJ",
+    "description": "Chest",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 288,
+    "caseCode": "QK",
+    "description": "Chick",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ql",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 289,
+    "caseCode": "QL",
+    "description": "Chili",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 290,
+    "caseCode": "QM",
+    "description": "Chum",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 291,
+    "caseCode": "QN",
+    "description": "Chan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 292,
+    "caseCode": "QO",
+    "description": "Cho",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 293,
+    "caseCode": "QP",
+    "description": "Chomper",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 294,
+    "caseCode": "QR",
+    "description": "Charcoal",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 295,
+    "caseCode": "QS",
+    "description": "Chase",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 296,
+    "caseCode": "QT",
+    "description": "Chat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 297,
+    "caseCode": "QU",
+    "description": "Chungus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 298,
+    "caseCode": "QV",
+    "description": "Chevron",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 299,
+    "caseCode": "QW",
+    "description": "Chowder",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-qx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 300,
+    "caseCode": "QX",
+    "description": "Chesha",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ra",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 301,
+    "caseCode": "RA",
+    "description": "Ra",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 302,
+    "caseCode": "RB",
+    "description": "Ribs",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 303,
+    "caseCode": "RD",
+    "description": "Rod",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-re",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 304,
+    "caseCode": "RE",
+    "description": "Reed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 305,
+    "caseCode": "RF",
+    "description": "Raft",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 306,
+    "caseCode": "RG",
+    "description": "Rag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 307,
+    "caseCode": "RJ",
+    "description": "Rest",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 308,
+    "caseCode": "RK",
+    "description": "Rake",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 309,
+    "caseCode": "RL",
+    "description": "Rail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 310,
+    "caseCode": "RM",
+    "description": "Rum",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 311,
+    "caseCode": "RN",
+    "description": "Ron",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ro",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 312,
+    "caseCode": "RO",
+    "description": "Roo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 313,
+    "caseCode": "RP",
+    "description": "Rope",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 314,
+    "caseCode": "RQ",
+    "description": "Rachael",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 315,
+    "caseCode": "RS",
+    "description": "Russ",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 316,
+    "caseCode": "RT",
+    "description": "Rat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ru",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 317,
+    "caseCode": "RU",
+    "description": "Ruby",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 318,
+    "caseCode": "RV",
+    "description": "Raven",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 319,
+    "caseCode": "RW",
+    "description": "Raw",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-rx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 320,
+    "caseCode": "RX",
+    "description": "Rash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sa",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 321,
+    "caseCode": "SA",
+    "description": "SA",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 322,
+    "caseCode": "SB",
+    "description": "Seb",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 323,
+    "caseCode": "SD",
+    "description": "Sid",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-se",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 324,
+    "caseCode": "SE",
+    "description": "Seer",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 325,
+    "caseCode": "SF",
+    "description": "Sofa",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 326,
+    "caseCode": "SG",
+    "description": "Stig",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 327,
+    "caseCode": "SH",
+    "description": "Seth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 328,
+    "caseCode": "SJ",
+    "description": "Sartaj",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 329,
+    "caseCode": "SK",
+    "description": "Sick",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 330,
+    "caseCode": "SL",
+    "description": "Sail",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 331,
+    "caseCode": "SM",
+    "description": "Sam",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 332,
+    "caseCode": "SN",
+    "description": "Sun",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-so",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 333,
+    "caseCode": "SO",
+    "description": "Spool",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 334,
+    "caseCode": "SP",
+    "description": "Sap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 335,
+    "caseCode": "SQ",
+    "description": "Satchel",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 336,
+    "caseCode": "SR",
+    "description": "Sour",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-st",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 337,
+    "caseCode": "ST",
+    "description": "Sit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-su",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 338,
+    "caseCode": "SU",
+    "description": "Suit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 339,
+    "caseCode": "SV",
+    "description": "Seven",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-sx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 340,
+    "caseCode": "SX",
+    "description": "Sex",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ta",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 341,
+    "caseCode": "TA",
+    "description": "Tat",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 342,
+    "caseCode": "TB",
+    "description": "Tub",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-td",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 343,
+    "caseCode": "TD",
+    "description": "Todd",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-te",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 344,
+    "caseCode": "TE",
+    "description": "Tee",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 345,
+    "caseCode": "TF",
+    "description": "Tiff",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 346,
+    "caseCode": "TG",
+    "description": "Tag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-th",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 347,
+    "caseCode": "TH",
+    "description": "Teeth",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 348,
+    "caseCode": "TJ",
+    "description": "Test",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 349,
+    "caseCode": "TK",
+    "description": "Tik Tok",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 350,
+    "caseCode": "TL",
+    "description": "Tool",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 351,
+    "caseCode": "TM",
+    "description": "Tom",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-to",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 352,
+    "caseCode": "TO",
+    "description": "Two",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 353,
+    "caseCode": "TP",
+    "description": "Tap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 354,
+    "caseCode": "TQ",
+    "description": "Teacher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 355,
+    "caseCode": "TR",
+    "description": "Tear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ts",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 356,
+    "caseCode": "TS",
+    "description": "Tess",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 357,
+    "caseCode": "TU",
+    "description": "Tutu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 358,
+    "caseCode": "TV",
+    "description": "Tavern",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 359,
+    "caseCode": "TW",
+    "description": "Tow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-tx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 360,
+    "caseCode": "TX",
+    "description": "Trash",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ua",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 361,
+    "caseCode": "UA",
+    "description": "Umbrella",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ub",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 362,
+    "caseCode": "UB",
+    "description": "Uber",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ud",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 363,
+    "caseCode": "UD",
+    "description": "Udder",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ue",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 364,
+    "caseCode": "UE",
+    "description": "Ute",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 365,
+    "caseCode": "UF",
+    "description": "Ufo",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ug",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 366,
+    "caseCode": "UG",
+    "description": "Ugh",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 367,
+    "caseCode": "UH",
+    "description": "Utah Jazz",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 368,
+    "caseCode": "UJ",
+    "description": "Austin",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ul",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 369,
+    "caseCode": "UL",
+    "description": "Uli",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-um",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 370,
+    "caseCode": "UM",
+    "description": "Umm",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-un",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 371,
+    "caseCode": "UN",
+    "description": "UN",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 372,
+    "caseCode": "UO",
+    "description": "Uno",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-up",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 373,
+    "caseCode": "UP",
+    "description": "Up",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 374,
+    "caseCode": "UQ",
+    "description": "Urchin",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ur",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 375,
+    "caseCode": "UR",
+    "description": "Uranus",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-us",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 376,
+    "caseCode": "US",
+    "description": "US",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ut",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 377,
+    "caseCode": "UT",
+    "description": "U Turn",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 378,
+    "caseCode": "UV",
+    "description": "Uvula",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-uw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 379,
+    "caseCode": "UW",
+    "description": "Underwear",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ux",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 380,
+    "caseCode": "UX",
+    "description": "Usher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-va",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 381,
+    "caseCode": "VA",
+    "description": "Visa",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 382,
+    "caseCode": "VB",
+    "description": "Vibrator",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 383,
+    "caseCode": "VD",
+    "description": "Vader",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-ve",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 384,
+    "caseCode": "VE",
+    "description": "V",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 385,
+    "caseCode": "VF",
+    "description": "Venus Flytrap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 386,
+    "caseCode": "VG",
+    "description": "Vag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 387,
+    "caseCode": "VH",
+    "description": "Vi Hart",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 388,
+    "caseCode": "VJ",
+    "description": "Vest",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 389,
+    "caseCode": "VK",
+    "description": "Vicky",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 390,
+    "caseCode": "VL",
+    "description": "Vial",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 391,
+    "caseCode": "VM",
+    "description": "Vom",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 392,
+    "caseCode": "VN",
+    "description": "Van",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 393,
+    "caseCode": "VP",
+    "description": "Vape",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 394,
+    "caseCode": "VQ",
+    "description": "Voucher",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 395,
+    "caseCode": "VR",
+    "description": "Varys",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 396,
+    "caseCode": "VS",
+    "description": "Vase",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 397,
+    "caseCode": "VT",
+    "description": "Vet",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 398,
+    "caseCode": "VU",
+    "description": "Vacuum",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 399,
+    "caseCode": "VW",
+    "description": "View",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-vx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 400,
+    "caseCode": "VX",
+    "description": "Vixen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wa",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 401,
+    "caseCode": "WA",
+    "description": "Waluigi",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 402,
+    "caseCode": "WB",
+    "description": "Web",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 403,
+    "caseCode": "WD",
+    "description": "Wade",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-we",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 404,
+    "caseCode": "WE",
+    "description": "Weed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 405,
+    "caseCode": "WF",
+    "description": "Wife",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wg",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 406,
+    "caseCode": "WG",
+    "description": "Wag",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 407,
+    "caseCode": "WH",
+    "description": "Whale",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 408,
+    "caseCode": "WJ",
+    "description": "West",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 409,
+    "caseCode": "WK",
+    "description": "Wok",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 410,
+    "caseCode": "WL",
+    "description": "Will",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 411,
+    "caseCode": "WM",
+    "description": "Worm",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 412,
+    "caseCode": "WN",
+    "description": "Wine",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 413,
+    "caseCode": "WO",
+    "description": "Wow",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 414,
+    "caseCode": "WP",
+    "description": "Wap",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 415,
+    "caseCode": "WQ",
+    "description": "Watch",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 416,
+    "caseCode": "WR",
+    "description": "Worm",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 417,
+    "caseCode": "WT",
+    "description": "Wet",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 418,
+    "caseCode": "WU",
+    "description": "Windu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 419,
+    "caseCode": "WV",
+    "description": "Wave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-wx",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 420,
+    "caseCode": "WX",
+    "description": "Welsh",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xa",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 421,
+    "caseCode": "XA",
+    "description": "Sheniya",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xb",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 422,
+    "caseCode": "XB",
+    "description": "Shiba",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xd",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 423,
+    "caseCode": "XD",
+    "description": "Shed",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xe",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 424,
+    "caseCode": "XE",
+    "description": "Sheen",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xf",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 425,
+    "caseCode": "XF",
+    "description": "Sheaf",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xh",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 426,
+    "caseCode": "XH",
+    "description": "Shah",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xj",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 427,
+    "caseCode": "XJ",
+    "description": "Exist",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xk",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 428,
+    "caseCode": "XK",
+    "description": "Shark",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xl",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 429,
+    "caseCode": "XL",
+    "description": "Shell",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xm",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 430,
+    "caseCode": "XM",
+    "description": "Sham",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xn",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 431,
+    "caseCode": "XN",
+    "description": "Shan",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xo",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 432,
+    "caseCode": "XO",
+    "description": "Shoe",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xp",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 433,
+    "caseCode": "XP",
+    "description": "Ship",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xq",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 434,
+    "caseCode": "XQ",
+    "description": "Shaq",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xr",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 435,
+    "caseCode": "XR",
+    "description": "Sharon",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xs",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 436,
+    "caseCode": "XS",
+    "description": "Shitsu",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xt",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 437,
+    "caseCode": "XT",
+    "description": "Shit",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xu",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 438,
+    "caseCode": "XU",
+    "description": "Shut",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xv",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 439,
+    "caseCode": "XV",
+    "description": "Shave",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "edge_memo-xw",
+    "pieceType": "edge_memo",
+    "sheetName": "bundled-Edge Words.csv",
+    "rowIndex": 440,
+    "caseCode": "XW",
+    "description": "Shower",
+    "alg": "",
+    "category": null,
+    "notes": null
+  },
+  {
+    "id": "parity-a",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 2,
+    "caseCode": "A",
+    "description": "U2 [Y Perm] U2",
+    "alg": "U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2",
+    "category": "Set up to A",
+    "notes": null
+  },
+  {
+    "id": "parity-b",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 3,
+    "caseCode": "B",
+    "description": "[Jb Perm] U'",
+    "alg": "R U R' F' R U R' U' R' F R2 U' R' U'",
+    "category": "Set up to B",
+    "notes": null
+  },
+  {
+    "id": "parity-d",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 4,
+    "caseCode": "D",
+    "description": "U' [Ja Perm] U",
+    "alg": "U' R2 D R D' R F2 L' U L F2 U",
+    "category": "Set up to D",
+    "notes": null
+  },
+  {
+    "id": "parity-e",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 5,
+    "caseCode": "E",
+    "description": "U [L COLL J Perm] U'",
+    "alg": "U R' U' R U R' F' R U R' U' R' F R2 U2",
+    "category": "COLL",
+    "notes": null
+  },
+  {
+    "id": "parity-f",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 6,
+    "caseCode": "F",
+    "description": "T COLL",
+    "alg": "U2' R' U R U2' R' L' U R U' L",
+    "category": "COLL",
+    "notes": "U2 then hit it from the back"
+  },
+  {
+    "id": "parity-g",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 7,
+    "caseCode": "G",
+    "description": "D U R U' [J Perm] R' D' U'",
+    "alg": "D U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D'",
+    "category": "Set up to K",
+    "notes": null
+  },
+  {
+    "id": "parity-h",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 8,
+    "caseCode": "H",
+    "description": "R D' R' [J Perm] R D R'",
+    "alg": "R D' U R' F' R U R' U' R' F R2 U' R' U' R D R'",
+    "category": "Set up to B",
+    "notes": null
+  },
+  {
+    "id": "parity-i",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 9,
+    "caseCode": "I",
+    "description": "L' U2 [Y Perm] U2 L",
+    "alg": "L U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2 L'",
+    "category": "Set up to A",
+    "notes": null
+  },
+  {
+    "id": "parity-k",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 10,
+    "caseCode": "K",
+    "description": "U R U' [J Perm] R' U'",
+    "alg": "U R U' R U R' F' R U R' U' R' F R2 U' R2 U'",
+    "category": "Set up to K",
+    "notes": "Under rotated J Perm"
+  },
+  {
+    "id": "parity-l",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 11,
+    "caseCode": "L",
+    "description": "D U2 : [Y Perm OP]",
+    "alg": "D U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D'",
+    "category": "Set up to P",
+    "notes": null
+  },
+  {
+    "id": "parity-n",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 12,
+    "caseCode": "N",
+    "description": "U R U [Y Perm] U' R' U'",
+    "alg": "U R U F R U' R' U' R U R' F' R U R' U' R' F R F' U' R' U'",
+    "category": "Set up to A",
+    "notes": null
+  },
+  {
+    "id": "parity-o",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 13,
+    "caseCode": "O",
+    "description": "D' U R U' [J Perm] R' U' D",
+    "alg": "D' U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D",
+    "category": "Set up to K",
+    "notes": null
+  },
+  {
+    "id": "parity-p",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 14,
+    "caseCode": "P",
+    "description": "U2 [Y Perm OP] U2",
+    "alg": "U2 R U' R' U' R U R' F' R U R' U' R' F R U2",
+    "category": "Set up to P",
+    "notes": null
+  },
+  {
+    "id": "parity-q",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 15,
+    "caseCode": "Q",
+    "description": "U [L] COLL",
+    "alg": "U R U' R' U2 L R U' R' U L' U",
+    "category": "COLL",
+    "notes": "U then hit it from the front"
+  },
+  {
+    "id": "parity-r",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 16,
+    "caseCode": "R",
+    "description": "L U' [Ja Perm] U L'",
+    "alg": "L U' R2 D R D' R F2 L' U L F2 U L'",
+    "category": "Set up to D",
+    "notes": null
+  },
+  {
+    "id": "parity-s",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 17,
+    "caseCode": "S",
+    "description": "U' L U [J Perm] U2 L' U",
+    "alg": "U' L U R U R' F' R U R' U' R' F R2 U' R' U'2 L' U",
+    "category": "Set up to B",
+    "notes": "U2 auf"
+  },
+  {
+    "id": "parity-t",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 18,
+    "caseCode": "T",
+    "description": "D' U2 [Y Perm OP] U2 D",
+    "alg": "D' U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D",
+    "category": "Set up to P",
+    "notes": null
+  },
+  {
+    "id": "parity-u",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 19,
+    "caseCode": "U",
+    "description": "D2 U R2 U' [J Perm] R2 U' D2",
+    "alg": "D2 U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D2",
+    "category": "Set up to W",
+    "notes": null
+  },
+  {
+    "id": "parity-v",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 20,
+    "caseCode": "V",
+    "description": "D U R2 U' [J Perm] R2 U' D'",
+    "alg": "D U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D'",
+    "category": "Set up to W",
+    "notes": null
+  },
+  {
+    "id": "parity-w",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 21,
+    "caseCode": "W",
+    "description": "U R2 U' [J Perm] R2 U'",
+    "alg": "U R2 U' R U R' F' R U R' U' R' F R2 U' R U'",
+    "category": "Set up to W",
+    "notes": "Over rotated J Perm"
+  },
+  {
+    "id": "parity-x",
+    "pieceType": "parity",
+    "sheetName": "bundled-parity.csv",
+    "rowIndex": 22,
+    "caseCode": "X",
+    "description": "D' U R2 U' [J Perm] R2 U' D",
+    "alg": "D' U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D'",
+    "category": "Set up to W",
+    "notes": null
+  }
+];
 
 export function getBundledAlgLibraryEntries() {
-  return [
-    ...extractAlgLibraryEntriesFromCsv(BUNDLED_CORNERS_CSV, "corner", "bundled-corners.csv"),
-    ...extractAlgLibraryEntriesFromCsv(BUNDLED_EDGES_CSV, "edge", "bundled-edges.csv"),
-  ];
+  return BUNDLED_ALG_LIBRARY_ENTRIES.map((entry) => ({ ...entry }));
 }

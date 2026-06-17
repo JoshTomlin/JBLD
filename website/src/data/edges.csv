@@ -1,0 +1,440 @@
+AB,"[R2 U' : [S , R2']]",R2 U' S R2' S' R2 U R2
+AD,"[L2' U : [S' , L2]]",L2' U S' L2 S L2 U' L2
+AE,"[U' M U' : [M' , U2]]",U' M U' M' U2 M U' M' U
+AF,"[U' : [R' E R , U2]]",U' R' E R U2 R' E' R U'
+AG,"[U : [L' E' L , U2']]",U L' E' L U2' L' E L U
+AH,"[U' : [R E' R' , U2]]",U' R E' R' U2 R E R' U'
+AJ,"[R' U' : [S , R2']]",R' U' S R2' S' R2 U R
+AK,"[R' F' : [R U R' , E]]",R' F' R U R' E R U' R' E' F R
+AL,"[L U : [S' , L2']]",L U S' L2' S L2 U' L'
+AM,"[U M U : [M' , U2']]",U M U M' U2' M U M' U'
+AN,"[U : [L' E L , U2']]",U L' E L U2' L' E' L U
+AO,"[U' : [R E R' , U2]]",U' R E R' U2 R E' R' U'
+AP,"[U : [L E' L' , U2']]",U L E' L' U2' L E L' U
+AR,"[L' U' : [L2 , S']]",L' U' L2 S' L2 S U L
+AS,"[U' R' B R : [S , R2']]",U' R' B R S R2' S' R B' R U
+AT,"[R U : [R2' , S]]",R U R2' S R2 S' U' R'
+AU,"[U2 , M']",U2 M' U2 M
+AV,"[U' : [S , R2']]",U' S R2' S' R2 U
+AW,"[M , U2]",M U2 M' U2
+AX,"[U : [S' , L2']]",U S' L2' S L2 U'
+BA,"[R2 U' : [R2' , S]]",R2 U' R2' S R2 S' U R2
+BD,"[M2' U : [M , U2']]",M2' U M U2' M' U M2
+BE,"[S' , L F' L']",S' L F' L' S L F L'
+BF,"[U' , R' E R]",U' R' E R U R' E' R
+BG,"[U : [L' E' L , U]]",U L' E' L U L' E L U2
+BH,"[U' , R E' R']",U' R E' R' U R E R'
+BJ,"[E' : [U' , R' E R]]",E' U' R' E R U R' E' R E
+BK,"[r : [U' R' U , M]]",r U' R' U M U' R U M' r'
+BL,"[U' , R E2 R']",U' R E2 R' U R E2 R'
+BN,"[U : [L' E L , U]]",U L' E L U L' E' L U2
+BO,"[U' , R E R']",U' R E R' U R E' R'
+BP,"[U : [L E' L' , U]]",U L E' L' U L E L' U2
+BQ,"[r' : [U' R U , M']]",r' U' R U M' U' R' U M r
+BR,"[U' , R' E2 R]",U' R' E2 R U R' E2 R
+BS,(U M U M')2,(U M U M')2
+BT,"[u' : [R E' R' , U]]",u' R E' R' U R E R' U' u
+BU,"[L F : [L' S' L , F2']]",L F L' S' L F2' L' S L F L'
+BV,"[R' U R' : [S , R2]]",R' U R' S R2 S' R' U' R
+BW,"[r M' : [U' R' U , M2']]",r M' U' R' U M2' U' R U M' r'
+BX,U' L' U' L U L U L U' L',U' L' U' L U L U L U' L'
+DA,"[L2' U : [L2 , S']]",L2' U L2 S' L2 S U' L2
+DB,"[M2' U' : [M , U2]]",M2' U' M U2 M' U' M2
+DF,"[U' : [R' E R , U']]",U' R' E R U' R' E' R U2
+DG,"[U , L' E' L]",U L' E' L U' L' E L
+DH,"[U' : [R E' R' , U']]",U' R E' R' U' R E R' U2
+DJ,"[U , L' E2' L]",U L' E2' L U' L' E2 L
+DK,"[l' : [U L U' , M]]",l' U L U' M U L' U' M' l
+DL,"[U' : [R E2 R' , U']]",U' R E2 R' U' R E2 R' U2
+DM,"[S , R' F R]",S R' F R S' R' F' R
+DN,"[U , L' E L]",U L' E L U' L' E' L
+DO,"[U' : [R E R' , U']]",U' R E R' U' R E' R' U2
+DP,"[U , L E' L']",U L E' L' U' L E L'
+DQ,"[L : [M , U L' U']]",L M U L' U' M' U L U' L'
+DR,"[U' : [R E2 R' , U']]",U' R E2 R' U' R E2 R' U2
+DS,(U' M U' M')2,(U' M U' M')2
+DT,"[U , L E2' L']",U L E2' L' U' L E2 L'
+DU,"[R' F' : [R S R' , F2]]",R' F' R S R' F2 R S' R' F' R
+DV,U R U R' U' R' U' R' U R,U R U R' U' R' U' R' U R
+DW,"[l' M' : [U L U' , M2']]",l' M' U L U' M2' U L' U' M' l
+DX,"[L U' L : [S' , L2']]",L U' L S' L2' S L U L'
+EA,"[U' M U : [M' , U2]]",U' M U M' U2 M U M' U
+EB,"[L F' L' , S']",L F' L' S' L F L' S
+EF,"[S : [U' , R' E R]]",S U' R' E R U R' E' R S'
+EG,"[l' U L' : [S' , L2]]",l' U L' S' L2 S L' U' l
+EH,"[S : [U' , R E' R']]",S U' R E' R' U R E R' S'
+EJ,"[M' : [U' , R S' R']]",M' U' R S' R' U R S R' M
+EK,"[l' : [M' , U' L U]]",l' M' U' L U M U' L' U l
+EL,"[L' U2 : [L S L' , U]]",L' U2 L S L' U L S' L' U L
+EM,"[M U : [M' , U2']]",M U M' U2' M U M'
+EN,"[L' F' : [E , L2]]",L' F' E L2 E' L2 F L
+EO,"[R' F R : [S , R2']]",R' F R S R2' S' R F' R
+EP,"[R M U : [M' , U2]]",R M U M' U2 M U M' R'
+EQ,"[L' : [U' L U , M']]",L' U' L U M' U' L' U M L
+ER,"[U' R F : [R2' , E']]",U' R F R2' E' R2 E F' R' U
+ES,M' : (U M' U M)2,M'
+ET,"[M' : [U' , L' E L]]",M' U' L' E L U L' E' L M
+EU,"[L' F' : [L2 , E']]",L' F' L2 E' L2 E F L
+EV,"[L2 : [L' F' L , S]]",L F' L S L' F L S' L2
+EW,"[L' M : [U' L U , M2']]",L' M U' L U M2' U' L' U M L
+EX,"[L F' L' , S]",L F' L' S L F L' S'
+FA,"[U : [R' E R , U2]]",U R' E R U2 R' E' R U
+FB,"[R' E R , U']",R' E R U' R' E' R U
+FD,"[U2 : [R' E R , U]]",U2 R' E R U R' E' R U
+FE,"[S : [R' E R , U']]",S R' E R U' R' E' R U S'
+FG,"[L , U S' U']",L U S' U' L' U S U'
+FH,"[M' U L : [S' , L2']]",M' U L S' L2' S L U' M
+FJ,"[E , R U' R']",E R U' R' E' R U R'
+FK,"[M2' : [U' L' U , M]]",M2' U' L' U M U' L U M
+FM,"[M L' U : [M' , U2']]",M L' U M' U2' M U L M'
+FN,"[r U R' : [E , R2]]",r U R' E R2 E' R' U' r'
+FO,"[M' U R' : [E , R2]]",M' U R' E R2 E' R' U' M
+FP,"[U E R' : [S , R2]]",U E R' S R2 S' R' E' U'
+FQ,"[U' L' U , M']",U' L' U M' U' L U M
+FR,"[E' , L U L']",E' L U L' E L U' L'
+FS,"[U' r' : [R U R' , E]]",U' r' R U R' E R U' R' E' r U
+FT,"[R2' : [E , R U' R']]",R2' E R U' R' E' R U R
+FU,"[U R' F2 : [R S R' , F]]",U R' F2 R S R' F R S' R' F R U'
+FV,"[U' E' R : [E' , R2']]",U' E' R E' R2' E R E U
+FW,"[M : [U' L' U , M2']]",M U' L' U M2' U' L U M
+FX,"[U E L : [E' , L2']]",U E L E' L2' E L E' U'
+GA,"[U' : [L' E' L , U2']]",U' L' E' L U2' L' E L U'
+GB,"[U2' : [L' E' L , U']]",U2' L' E' L U' L' E L U'
+GD,"[L' E' L , U]",L' E' L U L' E L U'
+GE,"[l' U L : [S' , L2']]",l' U L S' L2' S L U' l
+GF,"[U S' U' , L]",U S' U' L U S U' L'
+GH,"[U S U' , L']",U S U' L' U S' U' L
+GJ,"[L' E' : [L U L' , E']]",L' E' L U L' E' L U' L' E2 L
+GK,"[U : [L F L' , S]]",U L F L' S L F' L' S' U'
+GL,"[L f' L' : [S , L2]]",L f' L' S L2 S' L' f L'
+GM,"[L F' L : [S' , L2']]",L F' L S' L2' S L F L'
+GN,"[L F' : [E , L2']]",L F' E L2' E' L2 F L'
+GO,"[R' F R' : [S' , R2]]",R' F R' S' R2 S R' F' R
+GP,"[M' U' L' : [E' , L2]]",M' U' L' E' L2 E L' U M
+GQ,"[L' : [U' L' U , M']]",L' U' L' U M' U' L U M L
+GR,"[S' U' R' : [E' , R2]]",S' U' R' E' R2 E R' U S
+GS,"[U l : [L' U' L , E]]",U l L' U' L E L' U L E' l' U'
+GT,"[L E : [L' U L , E]]",L E L' U L E L' U' L E2 L'
+GU,"[L F' : [L2' , E']]",L F' L2' E' L2 E F L'
+GV,"[L' F' L , S]",L' F' L S L' F L S'
+GW,"[U : [S' , L B' L']]",U S' L B' L' S L B L' U'
+HA,"[U : [R E' R' , U2]]",U R E' R' U2 R E R' U
+HB,"[R E' R' , U']",R E' R' U' R E R' U
+HD,"[U2 : [R E' R' , U]]",U2 R E' R' U R E R' U
+HE,"[S : [R E' R' , U']]",S R E' R' U' R E R' U S'
+HF,"[M' U L' : [S' , L2']]",M' U L' S' L2' S L' U' M
+HG,"[L' , U S' U']",L' U S' U' L U S U'
+HJ,"[R2 : [E' , R' U' R]]",R2 E' R' U' R E R' U R'
+HK,"[M' : [M' , U' L U]]",M2 U' L U M U' L' U M
+HL,"[E , L' U L]",E L' U L E' L' U' L
+HM,"[R F : [R2' , E']]",R F R2' E' R2 E F' R'
+HN,"[u' L : [S' , L2']]",u' L S' L2' S L u
+HO,"[R' F : [R2 , E']]",R' F R2 E' R2 E F' R
+HP,"[l' U' L' : [E' , L2]]",l' U' L' E' L2 E L' U l
+HQ,"[U' L U , M']",U' L U M' U' L' U M
+HS,"[U' M : [U , L S L']]",U' M U L S L' U' L S' L' M' U
+HT,"[E' , R' U' R]",E' R' U' R E R' U R
+HU,"[l' U : [S' , L2]]",l' U S' L2 S L2 U' l
+HV,"[u' R' : [E , R2]]",u' R' E R2 E' R' u
+HW,"[M : [U' L U , M2']]",M U' L U M2' U' L' U M
+HX,"[u L' : [E , L2]]",u L' E L2 E' L' u'
+JA,"[R' U : [S , R2]]",R' U S R2 S' R2 U' R
+JB,"[E' : [R' E R , U']]",E' R' E R U' R' E' R U E
+JD,"[L' E2' L , U]",L' E2' L U L' E2 L U'
+JE,"[M' : [R S' R' , U']]",M' R S' R' U' R S R' U M
+JF,"[R U' R' , E]",R U' R' E R U R' E'
+JG,"[L' E2' : [L U L' , E]]",L' E2' L U L' E L U' L' E L
+JH,"[R2 : [R' U' R , E']]",R U' R E' R' U R E R2
+JK,"[M' , U' R U]",M' U' R U M U' R' U
+JL,"[R' U' R : [E , R2']]",R' U' R E R2' E' R U R
+JM,"[R U : [R' S' R , U]]",R U R' S' R U R' S R U2 R'
+JN,"[R U' R' , E']",R U' R' E' R U R' E
+JO,"[R' f R' : [S' , R2]]",R' f R' S' R2 S R' f' R
+JQ,"[M , U' R U]",M U' R U M' U' R' U
+JR,"[R' U' R' : [E' , R2]]",R' U' R' E' R2 E R' U R
+JS,"[U2 : [M , U R U']]",U2 M U R U' M' U R' U
+JT,"[U R' : [S , R2]]",U R' S R2 S' R' U'
+JU,"[D' U L : [E' , L2']]",D' U L E' L2' E L U' D
+JV,U R' U' R' U R U R U R' U2,U R' U' R' U R U R U R' U2
+JW,"[M2' , U' R U]",M2' U' R U M2 U' R' U
+JX,"[U L : [E' , L2']]",U L E' L2' E L U'
+KA,"[R' F' : [E , R U R']]",R' F' E R U R' E' R U' R' F R
+KB,"[R : [U' R' U , M']]",R U' R' U M' U' R U M R'
+KD,"[L' : [U L U' , M']]",L' U L U' M' U L' U' M L
+KE,"[l' : [U' L U , M']]",l' U' L U M' U' L' U M l
+KF,"[M' : [U' L' U , M']]",M' U' L' U M' U' L U M2
+KG,"[U : [S , L F L']]",U S L F L' S' L F' L' U'
+KH,"[M' : [U' L U , M']]",M' U' L U M' U' L' U M2
+KJ,"[U' R U , M']",U' R U M' U' R' U M
+KL,"[U L' U' , M']",U L' U' M' U L U' M
+KM,"[r : [U R' U' , M']]",r U R' U' M' U R U' M r'
+KN,"[M' : [U R' U' , M']]",M' U R' U' M' U R U' M2
+KO,"[U' : [S' , R' F' R]]",U' S' R' F' R S R' F R U
+KP,"[M' : [U R U' , M']]",M' U R U' M' U R' U' M2
+KQ,"[U' : [S , R' F' R]]",U' S R' F' R S' R' F R U
+KR,"[U L U' , M']",U L U' M' U L' U' M
+KS,U M' U' M U2 M U M' U,U M' U' M U2 M U M' U
+KT,"[U' R' U , M']",U' R' U M' U' R U M
+KV,"[U R' F' R' : [S , R2]]",U R' F' R' S R2 S' R' F R U'
+KW,"[D : [R F R' , S']]",D R F R' S' R F' R' S D'
+KX,"[U' L F L : [S' , L2']]",U' L F L S' L2' S L F' L' U
+LA,"[L U' : [S' , L2']]",L U' S' L2' S L2 U L'
+LB,"[R E2 R' , U']",R E2 R' U' R E2 R' U
+LD,"[U2 : [R E2 R' , U]]",U2 R E2 R' U R E2 R' U
+LE,"[L' U' : [L S L' , U']]",L' U' L S L' U' L S' L' U2 L
+LG,"[L f' L : [S , L2']]",L f' L S L2' S' L f L'
+LH,"[L' U L , E]",L' U L E L' U' L E'
+LJ,"[R' U' R' : [E , R2]]",R' U' R' E R2 E' R' U R
+LK,"[M' , U L' U']",M' U L' U' M U L U'
+LM,"[M' : [L' S L , U]]",M' L' S L U L' S' L U' M
+LN,"[L' : [U , L' E L]]",L' U L' E L U' L' E' L2
+LO,"[R E2 : [R' U' R , E']]",R E2 R' U' R E' R' U R E' R'
+LP,"[L' U L , E']",L' U L E' L' U' L E
+LQ,"[M , U L' U']",M U L' U' M' U L U'
+LR,"[U' L : [S' , L2']]",U' L S' L2' S L U
+LS,"[U' R' B : [E , R2]]",U' R' B E R2 E' R2 B' R U
+LT,"[R U' R' : [E , R2]]",R U' R' E R2 E' R' U R'
+LU,"[U' D R' : [E , R2]]",U' D R' E R2 E' R' D' U
+LV,"[U' R' : [E , R2]]",U' R' E R2 E' R' U
+LW,"[M2' , U L' U']",M2' U L' U' M2 U L U'
+LX,U' L U L U' L' U' L' U' L U2',U' L U L U' L' U' L' U' L U2'
+MA,"[U M U' : [M , U2]]",U M U' M U2 M' U' M' U'
+MD,"[R' F R , S]",R' F R S R' F' R S'
+ME,"[M U' : [M' , U2]]",M U' M' U2 M U' M'
+MF,"[M L' U' : [M' , U2']]",M L' U' M' U2' M U' L M'
+MG,"[L F' L' : [S' , L2]]",L F' L' S' L2 S L' F L'
+MH,"[R F : [E' , R2']]",R F E' R2' E R2 F' R'
+MJ,"[R U2' : [R' S' R , U']]",R U2' R' S' R U' R' S R U' R'
+MK,"[r : [M' , U R' U']]",r M' U R' U' M U R U' r'
+ML,"[M' : [U , L' S L]]",M' U L' S L U' L' S' L M
+MN,"[S' : [U , L' E L]]",S' U L' E L U' L' E' L S
+MO,"[r U' R : [S , R2']]",r U' R S R2' S' R U r'
+MP,"[S' : [U , L E' L']]",S' U L E' L' U' L E L' S
+MQ,"[R : [U R' U' , M']]",R U R' U' M' U R U' M R'
+MR,"[M' : [U , R E' R']]",M' U R E' R' U' R E R' M
+MS,M' : (U' M' U' M)2,M'
+MT,"[U L' F' : [L2 , E]]",U L' F' L2 E L2 E' F L U'
+MU,"[R F : [R2' , E]]",R F R2' E R2 E' F' R'
+MV,"[R' F R , S']",R' F R S' R' F' R S
+MW,"[R M : [U R' U' , M2']]",R M U R' U' M2' U R U' M R'
+MX,"[R2' : [R F R' , S']]",R' F R' S' R F' R' S R2
+NA,"[U' : [L' E L , U2']]",U' L' E L U2' L' E' L U'
+NB,"[U2' : [L' E L , U']]",U2' L' E L U' L' E' L U'
+ND,"[L' E L , U]",L' E L U L' E' L U'
+NE,"[L' F' : [E , L2]]",L' F' E L2 E' L2 F L
+NF,"[r U R : [E , R2']]",r U R E R2' E' R U' r'
+NG,"[L F' : [L2' , E]]",L F' L2' E L2 E' F L'
+NH,"[u R' : [S , R2]]",u R' S R2 S' R' u'
+NJ,"[E' , R U' R']",E' R U' R' E R U R'
+NK,"[M2' : [U R' U' , M]]",M2' U R' U' M U R U' M
+NL,"[L2' : [E , L U' L']]",L2' E L U' L' E' L U L
+NM,"[S' : [L' E L , U]]",S' L' E L U L' E' L U' S
+NO,"[R , U' S U]",R U' S U R' U' S' U
+NP,"[M' U' R : [S , R2']]",M' U' R S R2' S' R U M
+NQ,"[U R' U' , M']",U R' U' M' U R U' M
+NR,"[E , L U L']",E L U L' E' L U' L'
+NS,"[U M : [U' , l' E l]]",U M U' l' E l U l' E' l M' U'
+NU,"[r U' : [S , R2']]",r U' S R2' S' R2 U r'
+NV,"[u' R : [E' , R2']]",u' R E' R2' E R u
+NW,"[M : [U R' U' , M2']]",M U R' U' M2' U R U' M
+NX,"[u L : [E' , L2']]",u L E' L2' E L u'
+OA,"[U : [R E R' , U2]]",U R E R' U2 R E' R' U
+OB,"[R E R' , U']",R E R' U' R E' R' U
+OD,"[U2 : [R E R' , U]]",U2 R E R' U R E' R' U
+OE,"[R' F R' : [S , R2]]",R' F R' S R2 S' R' F' R
+OF,"[M' U R : [E , R2']]",M' U R E R2' E' R U' M
+OG,"[L F' L : [S , L2']]",L F' L S L2' S' L F L'
+OH,"[R' F : [E' , R2]]",R' F E' R2 E R2 F' R
+OJ,"[R' f R : [S' , R2']]",R' f R S' R2' S R f' R
+OK,"[U' : [R' F' R , S']]",U' R' F' R S' R' F R S U
+OL,"[R E : [R' U' R , E]]",R E R' U' R E R' U R E2 R'
+OM,"[r U' R' : [S , R2]]",r U' R' S R2 S' R' U r'
+ON,"[U' S U , R]",U' S U R U' S' U R'
+OP,"[U' S U , R']",U' S U R' U' S' U R
+OQ,"[R : [U R U' , M']]",R U R U' M' U R' U' M R'
+OR,"[R' E' : [R U' R' , E']]",R' E' R U' R' E' R U R' E2 R
+OS,"[U' r' : [R U R' , E']]",U' r' R U R' E' R U' R' E r U
+OT,"[S U L : [E , L2']]",S U L E L2' E' L U' S'
+OU,"[R' F : [E , R2]]",R' F E R2 E' R2 F' R
+OW,"[U' : [S , R' B R]]",U' S R' B R S' R' B' R U
+OX,"[R F R' , S']",R F R' S' R F' R' S
+PA,"[U' : [L E' L' , U2']]",U' L E' L' U2' L E L' U'
+PB,"[U2' : [L E' L' , U']]",U2' L E' L' U' L E L' U'
+PD,"[L E' L' , U]",L E' L' U L E L' U'
+PE,"[R M U' : [M' , U2]]",R M U' M' U2 M U' M' R'
+PF,"[U' E' L : [S' , L2']]",U' E' L S' L2' S L E U
+PG,"[M' U' L : [E' , L2']]",M' U' L E' L2' E L U M
+PH,"[l' U' L : [E' , L2']]",l' U' L E' L2' E L U l
+PK,"[M2' : [U R U' , M]]",M2' U R U' M U R' U' M
+PL,"[E' , L' U L]",E' L' U L E L' U' L
+PM,"[S' : [L E' L' , U]]",S' L E' L' U L E L' U' S
+PN,"[M' U' R' : [S , R2]]",M' U' R' S R2 S' R' U M
+PO,"[R' , U' S U]",R' U' S U R U' S' U
+PQ,"[U R U' , M']",U R U' M' U R' U' M
+PR,"[L2 : [E' , L' U L]]",L2 E' L' U L E L' U' L'
+PS,"[U l : [L' U' L , E']]",U l L' U' L E' L' U L E l' U'
+PT,"[E , R' U' R]",E R' U' R E' R' U R
+PU,"[U' L F2' : [L' S' L , F']]",U' L F2' L' S' L F' L' S L F' L' U
+PV,"[U' E' R' : [E , R2]]",U' E' R' E R2 E' R' E U
+PW,"[M : [U R U' , M2']]",M U R U' M2' U R' U' M
+PX,"[U E L' : [E , L2]]",U E L' E L2 E' L' E' U'
+QB,"[R' : [U' R U , M]]",R' U' R U M U' R' U M' R
+QD,"[L : [U L' U' , M]]",L U L' U' M U L U' M' L'
+QE,"[l' : [U' L U , M]]",l' U' L U M U' L' U M' l
+QF,"[M' , U' L' U]",M' U' L' U M U' L U
+QG,"[l' : [U' L' U , M]]",l' U' L' U M U' L U M' l
+QH,"[M' , U' L U]",M' U' L U M U' L' U
+QJ,"[U' R U , M]",U' R U M U' R' U M'
+QK,"[U' : [R' F' R , S]]",U' R' F' R S R' F R S' U
+QL,"[U L' U' , M]",U L' U' M U L U' M'
+QM,"[r : [U R' U' , M]]",r U R' U' M U R U' M' r'
+QN,"[M' , U R' U']",M' U R' U' M U R U'
+QO,"[r : [U R U' , M]]",r U R U' M U R' U' M' r'
+QP,"[M' , U R U']",M' U R U' M U R' U'
+QR,"[U L U' , M]",U L U' M U L' U' M'
+QS,"[U' : [R B R' , S]]",U' R B R' S R B' R' S' U
+QT,"[U' R' U , M]",U' R' U M U' R U M'
+QU,"[U : [S , R' F' R]]",U S R' F' R S' R' F R U'
+QV,"[R' : [U' R' U , M]]",R' U' R' U M U' R U M' R
+QW,"[U : [S , R B R']]",U S R B R' S' R B' R' U'
+QX,"[L : [U L U' , M]]",L U L U' M U L' U' M' L'
+RA,"[L' U : [L2 , S']]",L' U L2 S' L2 S U' L
+RB,"[R' E2 R , U']",R' E2 R U' R' E2 R U
+RD,"[U2 : [R' E2 R , U]]",U2 R' E2 R U R' E2 R U
+RE,"[U' R F : [E' , R2']]",U' R F E' R2' E R2 F' R' U
+RF,"[L U L' , E']",L U L' E' L U' L' E
+RG,"[S' U' R : [E' , R2']]",S' U' R E' R2' E R U S
+RJ,"[R' U' R : [E' , R2']]",R' U' R E' R2' E R U R
+RK,"[M' , U L U']",M' U L U' M U L' U'
+RL,"[U' L' : [S' , L2]]",U' L' S' L2 S L' U
+RM,"[M' : [R E' R' , U]]",M' R E' R' U R E R' U' M
+RN,"[L U L' , E]",L U L' E L U' L' E'
+RO,"[R' E2 : [R U' R' , E]]",R' E2 R U' R' E R U R' E R
+RP,"[L2 : [L' U L , E']]",L U L E' L' U' L E L2
+RQ,"[M , U L U']",M U L U' M' U L' U'
+RS,"[U2' : [M , U' L U]]",U2' M U' L U M' U' L' U'
+RT,"[R U' R : [E' , R2']]",R U' R E' R2' E R U R'
+RU,"[D U' R : [E' , R2']]",D U' R E' R2' E R U D'
+RV,"[U' R : [E' , R2']]",U' R E' R2' E R U
+RW,"[M2 , U L U']",M2 U L U' M2 U L' U'
+RX,U' L' U' L' U L U L U L',U' L' U' L' U L U L U L'
+SA,"[U R' B R : [S , R2']]",U R' B R S R2' S' R B' R U'
+SB,(M U' M' U')2,(M U' M' U')2
+SD,(M U M' U)2,(M U M' U)2
+SE,M2' : (U' M U' M')2,M2'
+SF,"[U' r' : [E , R U R']]",U' r' E R U R' E' R U' R' r U
+SG,"[U l : [E , L' U' L]]",U l E L' U' L E' L' U L l' U'
+SH,"[U' M : [L S L' , U]]",U' M L S L' U L S' L' U' M' U
+SJ,"[U2' : [U R U' , M]]",U' R U' M U R' U' M' U2
+SK,U M U M' U2 M' U' M U,U M U M' U2 M' U' M U
+SL,"[U' R' B : [R2 , E]]",U' R' B R2 E R2 E' B' R U
+SM,M2' : (U M U M')2,M2'
+SN,"[U M : [R' S' R , U']]",U M R' S' R U' R' S R U M' U'
+SO,"[U' r' : [E' , R U R']]",U' r' E' R U R' E R U' R' r U
+SP,"[U l : [E' , L' U' L]]",U l E' L' U' L E L' U L l' U'
+SQ,"[U' : [S , R B R']]",U' S R B R' S' R B' R' U
+SR,"[U2 : [U' L U , M]]",U L U M U' L' U M' U2
+ST,"[U2' : [U R' U' , M]]",U' R' U' M U R U' M' U2
+SU,"[D' : [R F R' , S']]",D' R F R' S' R F' R' S D
+SV,"[U L B' L' : [S , L2]]",U L B' L' S L2 S' L' B L' U'
+SX,"[U' R' B R : [S' , R2']]",U' R' B R S' R2' S R B' R U
+TA,"[R U' : [R2' , S]]",R U' R2' S R2 S' U R'
+TB,"[E : [R E' R' , U']]",E R E' R' U' R E R' U E'
+TD,"[L E2' L' , U]",L E2' L' U L E2 L' U'
+TE,"[l' : [E , L U' L']]",l' E L U' L' E' L U L' l
+TF,"[R2' : [R U' R' , E]]",R' U' R' E R U R' E' R2
+TG,"[L E2' : [L' U L , E']]",L E2' L' U L E' L' U' L E' L'
+TH,"[R' U' R , E']",R' U' R E' R' U R E
+TJ,"[U R : [S , R2']]",U R S R2' S' R U'
+TK,"[M' , U' R' U]",M' U' R' U M U' R U
+TL,"[R U' R : [E , R2']]",R U' R E R2' E' R U R'
+TM,"[R u' R' : [E' , R2]]",R u' R' E' R2 E R' u R'
+TO,"[S U L' : [E , L2]]",S U L' E L2 E' L' U' S'
+TP,"[R' U' R , E]",R' U' R E R' U R E'
+TQ,"[M , U' R' U]",M U' R' U M' U' R U
+TR,"[R U' R' : [E' , R2]]",R U' R' E' R2 E R' U R'
+TS,"[U2 : [M , U R' U']]",U2 M U R' U' M' U R U
+TU,"[U R' U : [M' , U2]]",U R' U M' U2 M U R U'
+TV,U R U R U' R' U' R' U' R,U R U R U' R' U' R' U' R
+TW,"[M2' , U' R' U]",M2' U' R' U M2 U' R U
+TX,"[U L' : [E , L2]]",U L' E L2 E' L' U'
+UA,"[M' , U2]",M' U2 M U2
+UB,"[L F' : [L' S' L , F2']]",L F' L' S' L F2' L' S L F' L'
+UD,"[R' F : [R S R' , F2]]",R' F R S R' F2 R S' R' F R
+UE,"[L' F' : [E' , L2]]",L' F' E' L2 E L2 F L
+UF,"[U R' F' : [R S R' , F']]",U R' F' R S R' F' R S' R' F2 R U'
+UG,"[L F' : [E' , L2']]",L F' E' L2' E L2 F L'
+UH,"[l' U : [L2 , S']]",l' U L2 S' L2 S U' l
+UJ,"[U R U' : [M' , U2]]",U R U' M' U2 M U' R' U'
+UL,"[U' D R : [E , R2']]",U' D R E R2' E' R D' U
+UM,"[R F : [E , R2']]",R F E R2' E' R2 F' R'
+UN,"[r U' : [R2' , S]]",r U' R2' S R2 S' U r'
+UO,"[R' F : [E , R2]]",R' F E R2 E' R2 F' R
+UP,"[U' L F : [L' S' L , F]]",U' L F L' S' L F L' S L F2 L' U
+UQ,"[U : [R' F' R , S]]",U R' F' R S R' F R S' U'
+UR,"[U' L U : [M' , U2']]",U' L U M' U2' M U L' U
+US,"[D' : [S' , R F R']]",D' S' R F R' S R F' R' D
+UT,"[U R' U' : [M' , U2]]",U R' U' M' U2 M U' R U'
+UV,"[R' F : [R S' R' , F2]]",R' F R S' R' F2 R S R' F R
+UW,u2 M' u2 M',u2 M' u2 M'
+UX,"[L F' : [L' S L , F2']]",L F' L' S L F2' L' S' L F' L'
+VA,"[U : [S , R2']]",U S R2' S' R2 U'
+VB,"[R U R' : [S , R2]]",R U R' S R2 S' R' U' R'
+VD,R' U' R U R U R U R U' R' U',R' U' R U R U R U R U' R' U'
+VE,"[L2 : [S , L' F' L]]",L2 S L' F' L S' L' F L'
+VF,"[U' E' R' : [E' , R2]]",U' E' R' E' R2 E R' E U
+VG,"[S , L' F' L]",S L' F' L S' L' F L
+VH,"[u' R : [E , R2']]",u' R E R2' E' R u
+VJ,U2 R U' R' U' R' U' R U R U',U2 R U' R' U' R' U' R U R U'
+VK,"[U R' F' R : [S , R2']]",U R' F' R S R2' S' R F R U'
+VL,"[U' R : [E , R2']]",U' R E R2' E' R U
+VM,"[S' , R' F R]",S' R' F R S R' F' R
+VN,"[u' R' : [E' , R2]]",u' R' E' R2 E R' u
+VP,"[U' E' R : [E , R2']]",U' E' R E R2' E' R E U
+VQ,"[r' : [U' R' U , M']]",r' U' R' U M' U' R U M r
+VR,"[U' R' : [E' , R2]]",U' R' E' R2 E R' U
+VS,"[U L B' L : [S , L2']]",U L B' L S L2' S' L B L' U'
+VT,R' U R U R U R' U' R' U',R' U R U R U R' U' R' U'
+VU,"[R' F' : [R S' R' , F2]]",R' F' R S' R' F2 R S R' F' R
+VW,"[D' R' F : [R S' R' , F2]]",D' R' F R S' R' F2 R S R' F R D
+VX,"[U' : [S' , R2']]",U' S' R2' S R2 U
+WA,"[U2 , M]",U2 M U2 M'
+WB,"[R : [U' R' U , M2']]",R U' R' U M2' U' R U M2 R'
+WD,"[l' M' : [U L U' , M2']]",l' M' U L U' M2' U L' U' M' l
+WE,"[l' : [U' L U , M2']]",l' U' L U M2' U' L' U M2 l
+WF,"[M' : [U' L' U , M2']]",M' U' L' U M2' U' L U M'
+WG,"[U : [L B' L' , S']]",U L B' L' S' L B L' S U'
+WH,"[M' : [U' L U , M2']]",M' U' L U M2' U' L' U M'
+WJ,"[U' R U , M2']",U' R U M2' U' R' U M2
+WK,"[D : [S' , R F R']]",D S' R F R' S R F' R' D'
+WL,"[U L' U' , M2']",U L' U' M2' U L U' M2
+WM,"[r : [U R' U' , M2']]",r U R' U' M2' U R U' M2 r'
+WN,"[M' : [U R' U' , M2']]",M' U R' U' M2' U R U' M'
+WO,"[U' : [R' B R , S]]",U' R' B R S R' B' R S' U
+WP,"[M' : [U R U' , M2']]",M' U R U' M2' U R' U' M'
+WQ,"[U : [R B R' , S]]",U R B R' S R B' R' S' U'
+WR,"[U L U' , M2']",U L U' M2' U L' U' M2
+WT,"[U' R' U , M2']",U' R' U M2' U' R U M2
+WU,M' U2 M' U2 M2',M' U2 M' U2 M2'
+WV,"[D' R' F' : [R S' R' , F2]]",D' R' F' R S' R' F2 R S R' F' R D
+WX,"[D L F : [L' S L , F2']]",D L F L' S L F2' L' S' L F L' D'
+XA,"[U' : [S' , L2]]",U' S' L2 S L2 U
+XB,L U L' U' L' U' L' U L U,L U L' U' L' U' L' U L U
+XD,"[L' U' L : [S' , L2]]",L' U' L S' L2 S L U L
+XE,"[S , L F' L']",S L F' L' S' L F L'
+XF,"[U E L' : [E' , L2]]",U E L' E' L2 E L' E' U'
+XH,"[u L : [E , L2']]",u L E L2' E' L u'
+XJ,"[U L' : [E' , L2]]",U L' E' L2 E L' U'
+XK,"[U' L F L' : [S' , L2]]",U' L F L' S' L2 S L' F' L' U
+XL,U2' L' U L U L U L' U' L' U,U2' L' U L U L U L' U' L' U
+XM,"[R2' : [S' , R F R']]",R2' S' R F R' S R F' R
+XN,"[u L' : [E' , L2]]",u L' E' L2 E L' u'
+XO,"[S' , R F R']",S' R F R' S R F' R'
+XP,"[U E L : [E , L2']]",U E L E L2' E' L E' U'
+XQ,"[l : [U L U' , M']]",l U L U' M' U L' U' M l'
+XR,L U' L' U' L' U' L U L U,L U' L' U' L' U' L U L U
+XS,"[U' R' B R' : [S' , R2]]",U' R' B R' S' R2 S R' B' R U
+XT,"[U L : [E , L2']]",U L E L2' E' L U'
+XU,"[L F : [L' S L , F2']]",L F L' S L F2' L' S' L F L'
+XV,"[U' : [R2' , S']]",U' R2' S' R2 S U
+XW,"[D L F' : [L' S L , F2']]",D L F' L' S L F2' L' S' L F' L' D'

@@ -1,5 +1,5 @@
 const DATABASE_PATH = "idb://jbld-local-db";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 3;
 
 let dbPromise = null;
 let migrationPromise = null;
@@ -337,6 +337,10 @@ async function runMigrations(db) {
       case_code TEXT NOT NULL,
       comm_notation TEXT NOT NULL,
       expanded_alg TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      alg TEXT NOT NULL DEFAULT '',
+      category TEXT,
+      notes TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
     );
@@ -355,6 +359,31 @@ async function runMigrations(db) {
     ON CONFLICT (key) DO UPDATE
       SET value_json = EXCLUDED.value_json,
           updated_at = timezone('utc', now());
+  `);
+
+  await db.exec(`
+    ALTER TABLE IF EXISTS alg_library_entries
+      ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
+    ALTER TABLE IF EXISTS alg_library_entries
+      ADD COLUMN IF NOT EXISTS alg TEXT NOT NULL DEFAULT '';
+    ALTER TABLE IF EXISTS alg_library_entries
+      ADD COLUMN IF NOT EXISTS category TEXT;
+    ALTER TABLE IF EXISTS alg_library_entries
+      ADD COLUMN IF NOT EXISTS notes TEXT;
+
+    UPDATE alg_library_entries
+    SET
+      description = CASE
+        WHEN description IS NULL OR description = '' THEN comm_notation
+        ELSE description
+      END,
+      alg = CASE
+        WHEN alg IS NULL OR alg = '' THEN expanded_alg
+        ELSE alg
+      END
+    WHERE
+      (description IS NULL OR description = '')
+      OR (alg IS NULL OR alg = '');
   `);
 }
 
@@ -574,9 +603,11 @@ export async function importAlgLibraryEntries(entries = []) {
     for (const entry of normalizedEntries) {
       await db.query(
         `INSERT INTO alg_library_entries (
-          id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg, updated_at
+          id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg,
+          description, alg, category, notes, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, timezone('utc', now())
+          $1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, timezone('utc', now())
         )
         ON CONFLICT (id) DO UPDATE SET
           piece_type = EXCLUDED.piece_type,
@@ -585,6 +616,10 @@ export async function importAlgLibraryEntries(entries = []) {
           case_code = EXCLUDED.case_code,
           comm_notation = EXCLUDED.comm_notation,
           expanded_alg = EXCLUDED.expanded_alg,
+          description = EXCLUDED.description,
+          alg = EXCLUDED.alg,
+          category = EXCLUDED.category,
+          notes = EXCLUDED.notes,
           updated_at = timezone('utc', now())`,
         [
           String(entry.id),
@@ -592,8 +627,12 @@ export async function importAlgLibraryEntries(entries = []) {
           entry.sheetName || null,
           Number.isFinite(Number(entry.rowIndex)) ? Number(entry.rowIndex) : null,
           entry.caseCode || "",
-          entry.notation || "",
-          entry.expandedAlg || "",
+          entry.description || entry.notation || "",
+          entry.alg || entry.expandedAlg || "",
+          entry.description || entry.notation || "",
+          entry.alg || entry.expandedAlg || "",
+          entry.category || null,
+          entry.notes || null,
         ]
       );
     }
@@ -603,6 +642,61 @@ export async function importAlgLibraryEntries(entries = []) {
     await db.exec("ROLLBACK");
     throw error;
   }
+}
+
+export async function replaceBundledAlgLibraryEntries(entries = []) {
+  const db = await getDatabase();
+  await db.exec("BEGIN");
+  try {
+    await db.query(`DELETE FROM alg_library_entries WHERE sheet_name LIKE $1`, ["bundled-%"]);
+    for (const entry of Array.isArray(entries) ? entries.filter(Boolean) : []) {
+      await db.query(
+        `INSERT INTO alg_library_entries (
+          id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg,
+          description, alg, category, notes, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, timezone('utc', now())
+        )`,
+        [
+          String(entry.id),
+          entry.pieceType || "unknown",
+          entry.sheetName || null,
+          Number.isFinite(Number(entry.rowIndex)) ? Number(entry.rowIndex) : null,
+          entry.caseCode || "",
+          entry.description || entry.notation || "",
+          entry.alg || entry.expandedAlg || "",
+          entry.description || entry.notation || "",
+          entry.alg || entry.expandedAlg || "",
+          entry.category || null,
+          entry.notes || null,
+        ]
+      );
+    }
+    await db.exec("COMMIT");
+  } catch (error) {
+    await db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export async function getLocalAppMetaValue(key, fallbackValue = null) {
+  const db = await getDatabase();
+  const result = await db.query("SELECT value_json FROM app_meta WHERE key = $1", [key]);
+  const row = result.rows && result.rows[0];
+  return row ? safeJsonParse(row.value_json, fallbackValue) : fallbackValue;
+}
+
+export async function setLocalAppMetaValue(key, value) {
+  const db = await getDatabase();
+  await db.query(
+    `INSERT INTO app_meta (key, value_json, updated_at)
+     VALUES ($1, $2, timezone('utc', now()))
+     ON CONFLICT (key) DO UPDATE
+     SET value_json = EXCLUDED.value_json,
+         updated_at = timezone('utc', now())`,
+    [key, JSON.stringify(value)]
+  );
 }
 
 export async function getAlgLibrarySummary(limit = 6) {
@@ -615,7 +709,7 @@ export async function getAlgLibrarySummary(limit = 6) {
        ORDER BY piece_type ASC`
     ),
     db.query(
-      `SELECT id, piece_type, case_code, comm_notation, expanded_alg, updated_at
+      `SELECT id, piece_type, case_code, description, alg, category, notes, updated_at
        FROM alg_library_entries
        ORDER BY updated_at DESC
        LIMIT $1`,

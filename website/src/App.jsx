@@ -18,16 +18,20 @@ import {
 import {
   bootstrapLegacyStorageIntoDatabase,
   getAlgLibrarySummary,
+  getLocalAppMetaValue,
   getLocalDatabaseSummary,
-  importAlgLibraryEntries,
   loadDatasetFromDatabase,
   persistDatasetToDatabase,
   queryLocalDatabase,
+  replaceBundledAlgLibraryEntries,
+  setLocalAppMetaValue,
 } from "./utils/localDatabase";
 import { getBundledAlgLibraryEntries } from "./data/bundledAlgLibrary";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
+
+const BUNDLED_ALG_LIBRARY_VERSION = "2026-06-17-v4";
 
 class App extends React.Component {
   constructor() {
@@ -313,17 +317,19 @@ class App extends React.Component {
     const totalCount = Array.isArray(summary && summary.counts)
       ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
       : 0;
+    const savedSeedVersion = await getLocalAppMetaValue("alg_library_seed_version", null);
 
-    if (totalCount > 0) {
+    if (totalCount > 0 && savedSeedVersion === BUNDLED_ALG_LIBRARY_VERSION) {
       return summary;
     }
 
     try {
       const entries = getBundledAlgLibraryEntries();
-      await importAlgLibraryEntries(entries);
+      await replaceBundledAlgLibraryEntries(entries);
+      await setLocalAppMetaValue("alg_library_seed_version", BUNDLED_ALG_LIBRARY_VERSION);
       const nextSummary = await this.refreshAlgLibrarySummary();
       this.setState({
-        algLibraryNotice: `Loaded ${entries.length} bundled corner and edge algs automatically.`,
+        algLibraryNotice: `Loaded ${entries.length} bundled alg library entries automatically.`,
       });
       return nextSummary;
     } catch (error) {
@@ -2862,12 +2868,13 @@ class App extends React.Component {
   loadBundledAlgLibrary = async () => {
     this.setState({
       algLibraryImporting: true,
-      algLibraryNotice: "Loading bundled corners and edges library...",
+      algLibraryNotice: "Loading bundled alg library...",
     });
 
     try {
       const entries = getBundledAlgLibraryEntries();
-      await importAlgLibraryEntries(entries);
+      await replaceBundledAlgLibraryEntries(entries);
+      await setLocalAppMetaValue("alg_library_seed_version", BUNDLED_ALG_LIBRARY_VERSION);
       const summary = await this.refreshAlgLibrarySummary();
       const totalCount = Array.isArray(summary && summary.counts)
         ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
@@ -2875,7 +2882,7 @@ class App extends React.Component {
 
       this.setState({
         algLibraryImporting: false,
-        algLibraryNotice: `Loaded ${entries.length} bundled corner and edge algs. Library now has ${totalCount} saved comms.`,
+        algLibraryNotice: `Loaded ${entries.length} bundled alg library entries. Library now has ${totalCount} saved entries.`,
       });
     } catch (error) {
       console.error("Failed to load bundled alg library", error);
@@ -3175,7 +3182,7 @@ class App extends React.Component {
             <article className="study_library_card">
               <div className="study_library_title">Alg Library</div>
               <div className="study_library_text">
-                Manage your corners, edges, flips, twists, and parity CSV files from the dedicated Alg Library screen.
+                Browse the locally bundled corners, edges, memo words, and parity library from the dedicated Alg Library screen.
               </div>
               <div className="study_library_action_row">
                 <button
@@ -3197,7 +3204,7 @@ class App extends React.Component {
                   ? algLibraryCounts
                       .map((entry) => `${entry.piece_type}: ${entry.count}`)
                       .join(" • ")
-                  : "Import your CSV files to start building a searchable comm library."}
+                  : "Load the bundled library to start building a searchable comm library."}
               </div>
               {algLibraryRecentEntries.length ? (
                 <div className="study_library_entry_list">
@@ -3207,7 +3214,12 @@ class App extends React.Component {
                         <strong>{entry.case_code}</strong>
                         <span>{entry.piece_type}</span>
                       </div>
-                      <div className="study_library_entry_alg">{entry.expanded_alg}</div>
+                      <div className="study_library_entry_alg">{entry.description}</div>
+                      {entry.alg ? <div className="study_library_entry_alg">{entry.alg}</div> : null}
+                      {entry.category ? (
+                        <div className="study_library_entry_alg">Category: {entry.category}</div>
+                      ) : null}
+                      {entry.notes ? <div className="study_library_entry_alg">Notes: {entry.notes}</div> : null}
                     </div>
                   ))}
                 </div>
@@ -3269,7 +3281,7 @@ class App extends React.Component {
             <article className="study_library_card">
               <div className="study_library_title">Bundled Library</div>
               <div className="study_library_text">
-                Your corner and edge algs are built into the app and seeded into the local alg library database automatically on first load.
+                Your corner algs, edge algs, memo words, and parity data are built into the app and seeded into the local alg library database automatically.
               </div>
               <div className="study_library_action_row">
                 <button
@@ -3278,20 +3290,20 @@ class App extends React.Component {
                   onClick={this.loadBundledAlgLibrary}
                   disabled={this.state.algLibraryImporting}
                 >
-                  {this.state.algLibraryImporting ? "Loading..." : "Load Bundled Corners + Edges"}
+                  {this.state.algLibraryImporting ? "Loading..." : "Reload Bundled Library"}
                 </button>
               </div>
               {this.state.algLibraryNotice ? (
                 <div className="study_library_notice">{this.state.algLibraryNotice}</div>
               ) : null}
               <div className="study_library_notice">
-                This uses the exact `corners.csv` and `edges.csv` data you sent, bundled into the app.
+                This uses the exact CSV files in `website/src/data`, including the refreshed corner algs.
               </div>
             </article>
             <article className="study_library_card">
               <div className="study_library_title">What Is Included</div>
               <div className="study_library_text">
-                The bundled seed includes corners and edges. Flips, twists, and parity can be added the same way once you want those lists built in too.
+                The bundled seed includes corners, edges, corner memo words, edge memo words, and parity. Flips and twists can be added the same way later.
               </div>
             </article>
           </div>
@@ -3309,7 +3321,7 @@ class App extends React.Component {
                   ? algLibraryCounts
                       .map((entry) => `${entry.piece_type}: ${entry.count}`)
                       .join(" • ")
-                  : "Import your CSV files to start building a searchable comm library."}
+                  : "Load the bundled library to start building a searchable comm library."}
               </div>
             </article>
             <article className="study_library_card">
@@ -3322,13 +3334,18 @@ class App extends React.Component {
                         <strong>{entry.case_code}</strong>
                         <span>{entry.piece_type}</span>
                       </div>
-                      <div className="study_library_entry_alg">{entry.expanded_alg}</div>
+                      <div className="study_library_entry_alg">{entry.description}</div>
+                      {entry.alg ? <div className="study_library_entry_alg">{entry.alg}</div> : null}
+                      {entry.category ? (
+                        <div className="study_library_entry_alg">Category: {entry.category}</div>
+                      ) : null}
+                      {entry.notes ? <div className="study_library_entry_alg">Notes: {entry.notes}</div> : null}
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="study_library_text">
-                  Recent imported entries will appear here after your first upload.
+                  Recent bundled entries will appear here after the library loads.
                 </div>
               )}
             </article>
