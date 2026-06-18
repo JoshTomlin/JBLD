@@ -6,6 +6,9 @@
   "engines": {
     "node": "14.17.5"
   },
+  "browser": {
+    "@electric-sql/pglite/dist/index.cjs": "@electric-sql/pglite"
+  },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.2",
     "@testing-library/jest-dom": "^5.14.1",
