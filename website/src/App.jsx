@@ -78,6 +78,8 @@ class App extends React.Component {
       algLibraryDraft: null,
       algLibrarySearch: "",
       algLibraryPieceType: "all",
+      algLibraryTab: "search",
+      algLibraryEditing: false,
       algLibraryLoadingEntries: false,
       algLibrarySavingEntry: false,
       algLibraryRecentMatches: [],
@@ -427,6 +429,7 @@ class App extends React.Component {
   selectAlgLibraryEntry = (entry) => {
     this.setState({
       algLibrarySelectedEntryId: entry ? entry.id : null,
+      algLibraryEditing: false,
       algLibraryDraft: entry
         ? {
             description: entry.description || "",
@@ -448,6 +451,33 @@ class App extends React.Component {
     }));
   };
 
+  openAlgLibraryEditor = () => {
+    if (!this.state.algLibrarySelectedEntryId) {
+      return;
+    }
+
+    this.setState({ algLibraryEditing: true });
+  };
+
+  closeAlgLibraryEditor = () => {
+    this.setState({ algLibraryEditing: false });
+  };
+
+  jumpToAlgLibraryEntry = (entry) => {
+    if (!entry) {
+      return;
+    }
+
+    this.setState({
+      activeView: "alg-library",
+      algLibraryTab: "search",
+      algLibraryPieceType: entry.piece_type || "all",
+      algLibrarySearch: entry.case_code || "",
+      algLibraryEditing: false,
+    });
+    this.selectAlgLibraryEntry(entry);
+  };
+
   saveAlgLibraryEntry = async () => {
     const { algLibrarySelectedEntryId, algLibraryDraft } = this.state;
     if (!algLibrarySelectedEntryId || !algLibraryDraft) {
@@ -467,6 +497,7 @@ class App extends React.Component {
       );
       this.setState((currentState) => ({
         algLibrarySavingEntry: false,
+        algLibraryEditing: false,
         algLibraryNotice: `Saved ${savedEntry.case_code} in your local Alg Library.`,
         algLibraryRecentMatches: recentMatches,
         algLibraryEntries: currentState.algLibraryEntries.map((entry) =>
@@ -3123,6 +3154,12 @@ class App extends React.Component {
       { value: "edge", label: "Edges" },
       { value: "parity", label: "Parity" },
     ];
+    const algLibraryTabs = [
+      { value: "search", label: "Search" },
+      { value: "recents", label: "Recents" },
+      { value: "stats", label: "Stats" },
+      { value: "manage", label: "Manage" },
+    ];
     const recentSolves = [...this.state.solves_stats].slice().reverse();
     const chartSolves = recentSolves
       .filter(({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve)))
@@ -3135,6 +3172,13 @@ class App extends React.Component {
     const execText = latestSolve ? this.convert_sec_to_format(latestSolve.exe_time) : "--";
     const latestFive = recentSolves.slice(0, 5);
     const recentCommHistory = this.getRecentCommHistory(recentSolves, 8);
+    const algLibraryMatchCounts = this.state.algLibraryRecentMatches.reduce(
+      (totals, entry) => ({
+        ...totals,
+        [entry.status]: (totals[entry.status] || 0) + 1,
+      }),
+      { match: 0, review: 0, missing: 0 }
+    );
     const trendLabel =
       latestFive.length >= 2 &&
       !isDnfValue(latestFive[0].DNF) &&
@@ -3224,8 +3268,8 @@ class App extends React.Component {
       "alg-library": {
         title: "Alg Library",
         eyebrow: "Alg Library",
-        heading: "Import, review, and maintain the comms you want the app to recognize as your preferred cases.",
-        body: "Use this page to build a personal library for edges, corners, and later flips, twists, and parity.",
+        heading: "Search, review, and update your preferred comms without leaving the app.",
+        body: "Use the library tabs to search comms, review recent cases, and maintain your local data.",
       },
       history: {
         title: "History",
@@ -3414,7 +3458,7 @@ class App extends React.Component {
                 {algLibraryCounts.length
                   ? algLibraryCounts
                       .map((entry) => `${entry.piece_type}: ${entry.count}`)
-                      .join(" • ")
+                      .join(" | ")
                   : "Load the bundled library to start building a searchable comm library."}
               </div>
               {algLibraryRecentEntries.length ? (
@@ -3446,24 +3490,48 @@ class App extends React.Component {
           <div className="section_header">
             <div>
               <div className="placeholder_title">Alg Library</div>
-              <div className="placeholder_text">{currentView.body}</div>
+              <div className="placeholder_text">
+                {this.state.algLibraryTab === "search"
+                  ? "Search for a case, open the card, and edit only when you need to."
+                  : this.state.algLibraryTab === "recents"
+                    ? "Recent solve cases stay separate so the main library screen can stay minimal."
+                    : this.state.algLibraryTab === "stats"
+                      ? "Use solve-linked metrics here to spot what needs review."
+                      : "Keep library maintenance actions out of the main search flow."}
+              </div>
             </div>
+            {this.state.algLibraryTab === "search" ? (
+              <div className="section_meta">
+                {this.state.algLibrarySearch
+                  ? `${this.state.algLibraryEntryTotal} match${this.state.algLibraryEntryTotal === 1 ? "" : "es"}`
+                  : algLibraryTotal
+                    ? `${algLibraryTotal} saved comms`
+                    : "No library entries yet"}
+              </div>
+            ) : null}
           </div>
+          {this.state.algLibraryTab === "stats" ? (
           <div className="stats_breakdown_grid">
             <div className="breakdown_card">
               <span>Total Saved</span>
               <strong>{algLibraryTotal || "--"}</strong>
             </div>
             <div className="breakdown_card">
-              <span>Corner Algs</span>
+              <span>Recent Matches</span>
               <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "corner") || {}).count || "--"}
+                {algLibraryMatchCounts.match || "--"}
               </strong>
             </div>
             <div className="breakdown_card">
-              <span>Edge Algs</span>
+              <span>Needs Review</span>
               <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "edge") || {}).count || "--"}
+                {algLibraryMatchCounts.review || "--"}
+              </strong>
+            </div>
+            <div className="breakdown_card">
+              <span>Missing Cases</span>
+              <strong>
+                {algLibraryMatchCounts.missing || "--"}
               </strong>
             </div>
             <div className="breakdown_card">
@@ -3478,22 +3546,19 @@ class App extends React.Component {
                 {(algLibraryMemoCounts.find((entry) => entry.piece_type === "edge") || {}).count || "--"}
               </strong>
             </div>
-            <div className="breakdown_card">
-              <span>Parity</span>
-              <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "parity") || {}).count || "--"}
-              </strong>
-            </div>
           </div>
+          ) : null}
+          {this.state.algLibraryTab === "manage" ? (
+          <React.Fragment>
           <div className="study_section_header">
-            <div className="chart_card_title">Library Source</div>
+            <div className="chart_card_title">Library Maintenance</div>
             <div className="section_meta">Bundled</div>
           </div>
           <div className="study_library_grid">
             <article className="study_library_card">
               <div className="study_library_title">Bundled Library</div>
               <div className="study_library_text">
-                Your corner algs, edge algs, linked memo words, and parity data are built into the app and seeded into the local alg library database automatically.
+                The bundled library already loads automatically. Keep manual reload here as a fallback instead of on the main search screen.
               </div>
               <div className="study_library_action_row">
                 <button
@@ -3508,22 +3573,35 @@ class App extends React.Component {
               {this.state.algLibraryNotice ? (
                 <div className="study_library_notice">{this.state.algLibraryNotice}</div>
               ) : null}
-              <div className="study_library_notice">
-                This uses the exact CSV files in `website/src/data`, including the refreshed corner algs.
-              </div>
             </article>
             <article className="study_library_card">
-              <div className="study_library_title">How It Works</div>
+              <div className="study_library_title">Current Library</div>
               <div className="study_library_text">
-                Each edge or corner case now carries its memo word with it, so the library stays as one record per case while you edit and review everything together.
+                {algLibraryCounts.length
+                  ? algLibraryCounts.map((entry) => `${entry.piece_type}: ${entry.count}`).join(" | ")
+                  : "The library will summarize itself here after the bundled dataset finishes loading."}
+              </div>
+              <div className="alg_library_detail_grid">
+                <div className="alg_library_detail_block">
+                  <span>Total Comms</span>
+                  <strong>{algLibraryTotal || "--"}</strong>
+                </div>
+                <div className="alg_library_detail_block">
+                  <span>Recent Imports</span>
+                  <strong>{algLibraryRecentEntries.length || "--"}</strong>
+                </div>
               </div>
             </article>
           </div>
+          </React.Fragment>
+          ) : null}
+          {this.state.algLibraryTab === "search" ? (
+          <React.Fragment>
           <div className="study_section_header">
-            <div className="chart_card_title">Browse Library</div>
+            <div className="chart_card_title">Search Library</div>
             <div className="section_meta">
               {this.state.algLibraryEntryTotal
-                ? `${this.state.algLibraryEntryTotal} visible entries`
+                ? `${this.state.algLibraryEntryTotal} result${this.state.algLibraryEntryTotal === 1 ? "" : "s"}`
                 : this.state.algLibraryLoadingEntries
                   ? "Loading entries"
                   : "No library entries yet"}
@@ -3584,12 +3662,26 @@ class App extends React.Component {
               </div>
             </article>
             <article className="study_library_card alg_library_editor">
-              <div className="study_library_title">
+              <div className="chart_card_header">
+                <div className="study_library_title">
                 {algLibrarySelectedEntry
-                  ? `${algLibrarySelectedEntry.case_code} • ${algLibrarySelectedEntry.piece_type}`
+                    ? `${algLibrarySelectedEntry.case_code} | ${algLibrarySelectedEntry.piece_type}`
                   : "Select an entry"}
+                </div>
+                {algLibrarySelectedEntry ? (
+                  this.state.algLibraryEditing ? (
+                    <button type="button" className="secondary_chip" onClick={this.closeAlgLibraryEditor}>
+                      Cancel
+                    </button>
+                  ) : (
+                    <button type="button" className="secondary_chip" onClick={this.openAlgLibraryEditor}>
+                      Edit
+                    </button>
+                  )
+                ) : null}
               </div>
               {algLibrarySelectedEntry && this.state.algLibraryDraft ? (
+                this.state.algLibraryEditing ? (
                 <div className="alg_library_form">
                   <label className="alg_library_field">
                     <span>Description</span>
@@ -3644,13 +3736,45 @@ class App extends React.Component {
                     </button>
                   </div>
                 </div>
+                ) : (
+                  <div className="alg_library_detail_stack">
+                    <div className="alg_library_detail_block">
+                      <span>Description</span>
+                      <strong>{algLibrarySelectedEntry.description || "No description saved yet"}</strong>
+                    </div>
+                    <div className="alg_library_detail_block">
+                      <span>Preferred Alg</span>
+                      <strong>{algLibrarySelectedEntry.alg || "--"}</strong>
+                    </div>
+                    <div className="alg_library_detail_grid">
+                      <div className="alg_library_detail_block">
+                        <span>Memo Word</span>
+                        <strong>{algLibrarySelectedEntry.memo_word || "--"}</strong>
+                      </div>
+                      <div className="alg_library_detail_block">
+                        <span>Category</span>
+                        <strong>{algLibrarySelectedEntry.category || "--"}</strong>
+                      </div>
+                    </div>
+                    {algLibrarySelectedEntry.notes ? (
+                      <div className="alg_library_detail_block">
+                        <span>Notes</span>
+                        <strong>{algLibrarySelectedEntry.notes}</strong>
+                      </div>
+                    ) : null}
+                  </div>
+                )
               ) : (
                 <div className="study_library_text">
-                  Pick a case from the list to review its alg, linked memo word, and notes together.
+                  Search for a case to open its card. Editing stays one tap away once you find the right comm.
                 </div>
               )}
             </article>
           </div>
+          </React.Fragment>
+          ) : null}
+          {this.state.algLibraryTab === "recents" ? (
+          <React.Fragment>
           <div className="study_section_header">
             <div className="chart_card_title">Recent Solve References</div>
             <div className="section_meta">Comms compared to your saved library</div>
@@ -3661,7 +3785,23 @@ class App extends React.Component {
               {this.state.algLibraryRecentMatches.length ? (
                 <div className="alg_library_match_list">
                   {this.state.algLibraryRecentMatches.map((entry) => (
-                    <div key={entry.id} className="alg_library_match_row">
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className="alg_library_match_row alg_library_match_button"
+                      onClick={() => {
+                        if (entry.preferredEntry) {
+                          this.jumpToAlgLibraryEntry(entry.preferredEntry);
+                        } else {
+                          this.setState({
+                            algLibraryTab: "search",
+                            algLibraryPieceType: entry.pieceType,
+                            algLibrarySearch: entry.caseCode,
+                            algLibraryEditing: false,
+                          });
+                        }
+                      }}
+                    >
                       <div className="alg_library_match_header">
                         <strong>{entry.caseCode}</strong>
                         <span className={`alg_library_match_badge alg_library_match_badge_${entry.status}`}>
@@ -3673,13 +3813,13 @@ class App extends React.Component {
                         </span>
                       </div>
                       <div className="study_library_entry_alg">
-                        {entry.pieceType} {entry.solveDate ? `• ${formatHistoryDate(entry.solveDate)}` : ""}
+                        {entry.pieceType} {entry.solveDate ? `| ${formatHistoryDate(entry.solveDate)}` : ""}
                       </div>
                       <div className="study_library_entry_alg">Used: {entry.algUsed || "--"}</div>
                       <div className="study_library_entry_alg">
                         Preferred: {entry.preferredEntry && entry.preferredEntry.alg ? entry.preferredEntry.alg : "--"}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -3689,10 +3829,14 @@ class App extends React.Component {
               )}
             </article>
           </div>
+          </React.Fragment>
+          ) : null}
+          {this.state.algLibraryTab === "stats" ? (
+          <React.Fragment>
           <div className="study_section_header">
-            <div className="chart_card_title">Recent Library Entries</div>
+            <div className="chart_card_title">Solve-Linked Comm Trends</div>
             <div className="section_meta">
-              {algLibraryTotal ? `${algLibraryTotal} saved comms` : "No library entries yet"}
+              {recentCommHistory.length ? `${recentCommHistory.length} tracked` : "No comms yet"}
             </div>
           </div>
           <div className="study_library_grid">
@@ -3702,37 +3846,48 @@ class App extends React.Component {
                 {algLibraryCounts.length
                   ? algLibraryCounts
                       .map((entry) => `${entry.piece_type}: ${entry.count}`)
-                      .join(" • ")
+                      .join(" | ")
                   : "Load the bundled library to start building a searchable comm library."}
               </div>
             </article>
             <article className="study_library_card">
-              <div className="study_library_title">Latest Imported Algs</div>
-              {algLibraryRecentEntries.length ? (
-                <div className="study_library_entry_list">
-                  {algLibraryRecentEntries.map((entry) => (
-                    <div key={entry.id} className="study_library_entry">
-                      <div className="study_library_entry_header">
-                        <strong>{entry.case_code}</strong>
-                        <span>{entry.piece_type}</span>
+              <div className="study_library_title">Recent Performance</div>
+              {recentCommHistory.length ? (
+                <div className="stats_comm_list">
+                  {recentCommHistory.map((entry) => (
+                    <article key={`${entry.phase}-${entry.token}`} className="stats_comm_card">
+                      <div className="stats_comm_identity">
+                        <div className="stats_comm_title_row">
+                          <div className="stats_comm_token">{entry.token}</div>
+                          <div className={`stats_comm_phase stats_comm_phase_${entry.phase}`}>{entry.phase}</div>
+                        </div>
+                        <div className="stats_comm_meta">
+                          Seen {entry.count} {entry.count === 1 ? "time" : "times"}
+                          {entry.lastSeen ? ` | ${formatHistoryDate(entry.lastSeen)}` : ""}
+                        </div>
                       </div>
-                      <div className="study_library_entry_alg">{entry.description}</div>
-                      {entry.memo_word ? <div className="study_library_entry_alg">Memo: {entry.memo_word}</div> : null}
-                      {entry.alg ? <div className="study_library_entry_alg">{entry.alg}</div> : null}
-                      {entry.category ? (
-                        <div className="study_library_entry_alg">Category: {entry.category}</div>
-                      ) : null}
-                      {entry.notes ? <div className="study_library_entry_alg">Notes: {entry.notes}</div> : null}
-                    </div>
+                      <div className="stats_comm_metrics">
+                        <div className="stats_comm_metric">
+                          <span>Recog</span>
+                          <strong>{this.formatInlineDuration(entry.avgRecog) || "--"}</strong>
+                        </div>
+                        <div className="stats_comm_metric">
+                          <span>Exec</span>
+                          <strong>{this.formatInlineDuration(entry.avgExec) || "--"}</strong>
+                        </div>
+                      </div>
+                    </article>
                   ))}
                 </div>
               ) : (
                 <div className="study_library_text">
-                  Recent bundled entries will appear here after the library loads.
+                  Parsed comm stats will start appearing here once you log a few reviewed solves.
                 </div>
               )}
             </article>
           </div>
+          </React.Fragment>
+          ) : null}
         </section>
       );
     } else if (this.state.activeView === "history") {
@@ -4105,32 +4260,37 @@ class App extends React.Component {
 
           <div className="last_solve_block">
             <div className="last_solve_heading">Last Solve</div>
-            <div className="last_solve_panel">
-              {latestSolve ? (
-                <React.Fragment>
-                  <div className="last_solve_metrics">
-                    {lastSolvePanelData.metrics.map((metric) => (
-                      <div key={metric.label} className="last_solve_metric">
-                        <div className="split_metric_label">{metric.label}</div>
-                        <div className="split_metric_value">{metric.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="last_solve_summary">
-                    {lastSolvePanelData.lines.map((line) => (
-                      <div key={line.label} className="last_solve_comm_line">
-                        <span className="last_solve_comm_label">{line.label}:</span>
-                        <span className="last_solve_comm_value">{line.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </React.Fragment>
-              ) : (
+            {latestSolve ? (
+              <button
+                type="button"
+                className="last_solve_panel last_solve_panel_button"
+                onClick={() => this.openSolveDetails(latestSolve)}
+                aria-label="Open last solve details"
+              >
+                <div className="last_solve_metrics">
+                  {lastSolvePanelData.metrics.map((metric) => (
+                    <div key={metric.label} className="last_solve_metric">
+                      <div className="split_metric_label">{metric.label}</div>
+                      <div className="split_metric_value">{metric.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="last_solve_summary">
+                  {lastSolvePanelData.lines.map((line) => (
+                    <div key={line.label} className="last_solve_comm_line">
+                      <span className="last_solve_comm_label">{line.label}:</span>
+                      <span className="last_solve_comm_value">{line.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </button>
+            ) : (
+              <div className="last_solve_panel">
                 <div className="last_solve_summary">
                   Your latest comms will appear here.
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
         </section>
@@ -4166,7 +4326,19 @@ class App extends React.Component {
                 aria-label="Open settings"
                 onClick={() => this.setState({ showSettings: true })}
               >
-                <span className="icon_gear"></span>
+                <svg
+                  className="icon_gear_svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3.2" />
+                  <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1 0 2.8 2 2 0 0 1-2.8 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 0 1-2.8 0 2 2 0 0 1 0-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.7 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 0 1 0-2.8 2 2 0 0 1 2.8 0l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 0 2 2 0 0 1 0 2.8l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.7Z" />
+                </svg>
               </button>
             </header>
 
@@ -4212,53 +4384,68 @@ class App extends React.Component {
               {mainView}
             </main>
 
-            <nav className="bottom_nav" aria-label="Primary">
-              <button
-                type="button"
-                className={`nav_item ${this.state.activeView === "solve" ? "nav_item_active" : ""}`}
-                onClick={() => this.setState({ activeView: "solve" })}
-              >
-                <span className="nav_icon nav_icon_solve"></span>
-                <span className="nav_label">Solve</span>
-              </button>
-              <button
-                type="button"
-                className={`nav_item ${this.state.activeView === "history" ? "nav_item_active" : ""}`}
-                onClick={() => this.setState({ activeView: "history" })}
-              >
-                <span className="nav_icon nav_icon_history"></span>
-                <span className="nav_label">History</span>
-              </button>
-              <button
-                type="button"
-                className={`nav_item ${this.state.activeView === "stats" ? "nav_item_active" : ""}`}
-                onClick={() => this.setState({ activeView: "stats" })}
-              >
-                <span className="nav_icon nav_icon_stats"></span>
-                <span className="nav_label">Stats</span>
-              </button>
-              <button
-                type="button"
-                className={`nav_item ${this.state.activeView === "sessions" ? "nav_item_active" : ""}`}
-                onClick={() => this.setState({ activeView: "sessions" })}
-              >
-                <span className="nav_icon nav_icon_sessions"></span>
-                <span className="nav_label">Sessions</span>
-              </button>
-            </nav>
+            {this.state.activeView === "alg-library" ? (
+              <nav className="bottom_nav" aria-label="Alg Library">
+                {algLibraryTabs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    className={`nav_item ${this.state.algLibraryTab === tab.value ? "nav_item_active" : ""}`}
+                    onClick={() => this.setState({ algLibraryTab: tab.value, algLibraryEditing: false })}
+                  >
+                    <span className="nav_label nav_label_library">{tab.label}</span>
+                  </button>
+                ))}
+              </nav>
+            ) : (
+              <nav className="bottom_nav" aria-label="Primary">
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.activeView === "solve" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ activeView: "solve" })}
+                >
+                  <span className="nav_icon nav_icon_solve"></span>
+                  <span className="nav_label">Solve</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.activeView === "history" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ activeView: "history" })}
+                >
+                  <span className="nav_icon nav_icon_history"></span>
+                  <span className="nav_label">History</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.activeView === "stats" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ activeView: "stats" })}
+                >
+                  <span className="nav_icon nav_icon_stats"></span>
+                  <span className="nav_label">Stats</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.activeView === "sessions" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ activeView: "sessions" })}
+                >
+                  <span className="nav_icon nav_icon_sessions"></span>
+                  <span className="nav_label">Sessions</span>
+                </button>
+              </nav>
+            )}
           </div>
         </div>
 
         {this.state.showMenu ? (
           <div
-            className="solve_modal_backdrop"
+            className="solve_modal_backdrop solve_modal_backdrop_drawer"
             onClick={() => this.setState({ showMenu: false })}
           >
-            <div className="menu_overlay" onClick={(event) => event.stopPropagation()}>
+            <div className="menu_overlay menu_drawer" onClick={(event) => event.stopPropagation()}>
               <div className="solve_modal_header">
                 <div>
                   <div className="section_label">Menu</div>
-                  <div className="solve_modal_title">Navigate and connect</div>
+                  <div className="solve_modal_title">Navigate</div>
                 </div>
                 <button
                   type="button"
@@ -4271,13 +4458,6 @@ class App extends React.Component {
               </div>
 
               <div className="menu_list">
-                <button
-                  type="button"
-                  className="menu_item menu_item_primary"
-                  onClick={() => this.setState({ showMenu: false }, this.connectGanCubeDirect)}
-                >
-                  Connect cube
-                </button>
                 <button
                   type="button"
                   className="menu_item"

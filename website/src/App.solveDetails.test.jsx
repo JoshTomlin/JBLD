@@ -315,6 +315,29 @@ describe("solve details view data", () => {
     expect(panel.lines[1].value).toBe("BP");
   });
 
+  it("opens the last solve details modal with the selected solve", () => {
+    const app = new App();
+    app.setState = (update) => {
+      const nextState =
+        typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+    };
+    app.fetchSolveDetails = jest.fn(() => new Promise(() => {}));
+
+    const solve = {
+      id: "solve-1",
+      txt_solve: "parsed solve text",
+      comm_stats: [],
+    };
+
+    app.openSolveDetails(solve);
+
+    expect(app.state.showLastSolveDetails).toBe(true);
+    expect(app.state.selectedSolveDetails).toEqual(solve);
+    expect(app.state.parsed_solve_txt).toBe("parsed solve text");
+    expect(app.state.loadingSolveDetails).toBe(true);
+  });
+
   it("stores recognition and exec times on saved comm stats", () => {
     const app = new App();
     const solve = app.buildSolveRecord(

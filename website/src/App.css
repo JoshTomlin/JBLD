@@ -152,28 +152,10 @@ textarea {
   display: block;
 }
 
-.icon_gear {
-  width: 16px;
-  height: 16px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  position: relative;
+.icon_gear_svg {
+  width: 18px;
+  height: 18px;
   display: block;
-}
-
-.icon_gear::before,
-.icon_gear::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 2px dashed transparent;
-}
-
-.icon_gear::before {
-  inset: 5px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
 }
 
 .scramble_block {
@@ -533,6 +515,11 @@ textarea {
 .nav_label {
   font-size: 10px;
   line-height: 15px;
+}
+
+.nav_label_library {
+  margin-top: 10px;
+  font-size: 11px;
 }
 
 .nav_icon {
@@ -942,6 +929,13 @@ textarea {
   min-height: 0;
 }
 
+.alg_library_editor,
+.alg_library_detail_stack,
+.alg_library_detail_block {
+  display: grid;
+  gap: 10px;
+}
+
 .alg_library_toolbar,
 .alg_library_form,
 .alg_library_field,
@@ -1032,6 +1026,27 @@ textarea {
   margin-bottom: 4px;
 }
 
+.alg_library_detail_block span {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.alg_library_detail_block strong {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.alg_library_detail_grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .alg_library_textarea,
 .alg_library_editor .settings_input {
   width: 100%;
@@ -1053,6 +1068,13 @@ textarea {
   background: rgba(7, 17, 38, 0.9);
   display: grid;
   gap: 6px;
+}
+
+.alg_library_match_button {
+  width: 100%;
+  border: 1px solid rgba(59, 130, 246, 0.14);
+  color: inherit;
+  text-align: left;
 }
 
 .alg_library_match_badge {
@@ -1642,6 +1664,24 @@ textarea {
   scrollbar-width: none;
 }
 
+.solve_modal_backdrop_drawer {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+@keyframes menu-drawer-in {
+  from {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .solve_modal_backdrop_top::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -1659,6 +1699,20 @@ textarea {
   padding: 16px;
   display: grid;
   gap: 14px;
+}
+
+.menu_drawer {
+  width: min(86vw, 360px);
+  height: 100%;
+  max-height: none;
+  border-left: 0;
+  border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+  padding: 20px 16px 24px;
+  grid-template-rows: auto minmax(0, 1fr);
+  background:
+    linear-gradient(180deg, rgba(8, 17, 38, 0.99), rgba(4, 10, 22, 0.99)),
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 42%);
+  animation: menu-drawer-in 180ms ease-out;
 }
 
 .solve_modal {
@@ -1897,6 +1951,23 @@ textarea {
   gap: 10px;
 }
 
+.menu_drawer .solve_modal_header {
+  padding: 2px 4px 0;
+}
+
+.menu_drawer .menu_list {
+  align-content: start;
+}
+
+.menu_drawer .menu_item {
+  width: 100%;
+  min-height: 50px;
+  justify-content: flex-start;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
 .setting_collapse_menu {
   margin-top: 0;
   padding: 14px;
@@ -2033,6 +2104,19 @@ textarea {
   min-height: 172px;
   max-height: 172px;
   overflow: hidden;
+}
+
+.last_solve_panel_button {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.last_solve_panel_button:hover,
+.last_solve_panel_button:focus-visible {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.12);
 }
 
 .settings_action_row .settings_inline_action {
@@ -2250,6 +2334,11 @@ textarea {
     align-items: flex-end;
   }
 
+  .solve_modal_backdrop_drawer {
+    padding: 0;
+    align-items: stretch;
+  }
+
   .solve_modal_backdrop_top {
     align-items: flex-start;
   }
@@ -2264,6 +2353,13 @@ textarea {
     width: 100%;
     max-height: 92vh;
     border-radius: 24px 24px 0 0;
+  }
+
+  .menu_overlay.menu_drawer {
+    width: min(90vw, 320px);
+    max-height: none;
+    border-radius: 0 24px 24px 0;
+    align-self: stretch;
   }
 
   .solve_modal_header {
@@ -2315,6 +2411,7 @@ textarea {
   .stats_breakdown_grid,
   .session_hero,
   .study_library_grid,
+  .alg_library_detail_grid,
   .alg_library_shell,
   .drill_tabs,
   .study_tabs,
