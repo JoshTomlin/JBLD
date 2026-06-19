@@ -367,9 +367,9 @@ class App extends React.Component {
 
     return recentComms.slice(0, 12).map((comm) => {
       const matchingEntry = libraryByKey.get(`${comm.pieceType}:${comm.caseCode}`) || null;
-      const normalizedUsed = (comm.algUsed || "").replace(/\s+/g, " ").trim();
-      const normalizedPreferred = matchingEntry && matchingEntry.alg
-        ? matchingEntry.alg.replace(/\s+/g, " ").trim()
+      const normalizedUsed = this.formatAlgLibraryAlg(comm.algUsed || "", comm.pieceType);
+      const normalizedPreferred = matchingEntry
+        ? this.formatAlgLibraryAlg(matchingEntry.alg || "", matchingEntry.piece_type)
         : "";
 
       return {
@@ -1298,6 +1298,11 @@ class App extends React.Component {
     });
     return [formattedAlg, comm && comm.implicit_rotation].filter(Boolean).join(" ");
   };
+
+  formatAlgLibraryAlg = (algText, pieceType) =>
+    this.compactRepeatedTurns(algText, {
+      convertSlices: pieceType === "edge",
+    });
 
   formatReconstructionLine = (comm) =>
     [
@@ -3815,9 +3820,13 @@ class App extends React.Component {
                       <div className="study_library_entry_alg">
                         {entry.pieceType} {entry.solveDate ? `| ${formatHistoryDate(entry.solveDate)}` : ""}
                       </div>
-                      <div className="study_library_entry_alg">Used: {entry.algUsed || "--"}</div>
                       <div className="study_library_entry_alg">
-                        Preferred: {entry.preferredEntry && entry.preferredEntry.alg ? entry.preferredEntry.alg : "--"}
+                        Used: {this.formatAlgLibraryAlg(entry.algUsed || "", entry.pieceType) || "--"}
+                      </div>
+                      <div className="study_library_entry_alg">
+                        Preferred: {entry.preferredEntry
+                          ? this.formatAlgLibraryAlg(entry.preferredEntry.alg || "", entry.preferredEntry.piece_type) || "--"
+                          : "--"}
                       </div>
                     </button>
                   ))}

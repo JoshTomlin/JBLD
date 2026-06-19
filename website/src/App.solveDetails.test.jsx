@@ -55,6 +55,14 @@ describe("solve details view data", () => {
     expect(app.compactRepeatedTurns("r U R' U' M U R U' R'")).toBe("r U R' U' M U R U' R'");
   });
 
+  it("formats recent library algs with doubles and edge-only slice conversion", () => {
+    const app = new App();
+
+    expect(app.formatAlgLibraryAlg("R R U U'", "corner")).toBe("R2 U U'");
+    expect(app.formatAlgLibraryAlg("U2 L R' U2 R L'", "edge")).toBe("U2 M' B2 M");
+    expect(app.formatAlgLibraryAlg("L R' R R", "corner")).toBe("L R' R2");
+  });
+
   it("appends implicit parser rotations to displayed reconstruction algs", () => {
     const app = new App();
 
