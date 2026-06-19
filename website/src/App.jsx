@@ -390,6 +390,7 @@ class App extends React.Component {
       typeof options.search === "string" ? options.search : this.state.algLibrarySearch || "";
 
     this.setState({ algLibraryLoadingEntries: true });
+    await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
 
     const result = await getAlgLibraryEntries({
       pieceType,
@@ -520,7 +521,8 @@ class App extends React.Component {
     }
   };
 
-  ensureBundledAlgLibraryLoaded = async () => {
+  ensureBundledAlgLibraryLoaded = async (options = {}) => {
+    const { refreshEntries = true, silent = false } = options;
     const summary = await this.refreshAlgLibrarySummary();
     const totalCount = Array.isArray(summary && summary.counts)
       ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
@@ -536,20 +538,24 @@ class App extends React.Component {
       await replaceBundledAlgLibraryEntries(entries);
       await setLocalAppMetaValue("alg_library_seed_version", BUNDLED_ALG_LIBRARY_VERSION);
       const nextSummary = await this.refreshAlgLibrarySummary();
-      if (this.state.activeView === "alg-library") {
+      if (refreshEntries && this.state.activeView === "alg-library") {
         await this.refreshAlgLibraryEntries();
       }
-      this.setState({
-        algLibraryNotice: `Loaded ${entries.length} bundled alg library entries automatically.`,
-      });
+      if (!silent) {
+        this.setState({
+          algLibraryNotice: `Loaded ${entries.length} bundled alg library entries automatically.`,
+        });
+      }
       return nextSummary;
     } catch (error) {
       console.error("Failed to auto-load bundled alg library", error);
       const reason =
         error && error.message ? error.message : "The bundled alg library could not be loaded.";
-      this.setState({
-        algLibraryNotice: `Bundled alg library failed to load. ${reason}`,
-      });
+      if (!silent) {
+        this.setState({
+          algLibraryNotice: `Bundled alg library failed to load. ${reason}`,
+        });
+      }
       return summary;
     }
   };
@@ -3097,10 +3103,18 @@ class App extends React.Component {
       console.warn("Failed to copy scramble", error);
     });
   };
-  loadBundledAlgLibrary = async () => {
+  resetBundledAlgLibrary = async () => {
+    if (
+      !window.confirm(
+        "Reset the local alg library to the bundled defaults? This will overwrite any library edits saved on this device."
+      )
+    ) {
+      return;
+    }
+
     this.setState({
       algLibraryImporting: true,
-      algLibraryNotice: "Loading bundled alg library...",
+      algLibraryNotice: "Resetting alg library to bundled defaults...",
     });
 
     try {
@@ -3117,15 +3131,15 @@ class App extends React.Component {
 
       this.setState({
         algLibraryImporting: false,
-        algLibraryNotice: `Loaded ${entries.length} bundled alg library entries. Library now has ${totalCount} saved entries.`,
+        algLibraryNotice: `Reset to ${entries.length} bundled alg library entries. Library now has ${totalCount} saved entries.`,
       });
     } catch (error) {
-      console.error("Failed to load bundled alg library", error);
+      console.error("Failed to reset bundled alg library", error);
       const reason =
         error && error.message ? error.message : "The bundled alg library could not be loaded.";
       this.setState({
         algLibraryImporting: false,
-        algLibraryNotice: `Bundled alg library failed to load. ${reason}`,
+        algLibraryNotice: `Bundled alg library reset failed. ${reason}`,
       });
     }
   };
@@ -3492,29 +3506,6 @@ class App extends React.Component {
     } else if (this.state.activeView === "alg-library") {
       mainView = (
         <section className="study_screen view_panel">
-          <div className="section_header">
-            <div>
-              <div className="placeholder_title">Alg Library</div>
-              <div className="placeholder_text">
-                {this.state.algLibraryTab === "search"
-                  ? "Search for a case, open the card, and edit only when you need to."
-                  : this.state.algLibraryTab === "recents"
-                    ? "Recent solve cases stay separate so the main library screen can stay minimal."
-                    : this.state.algLibraryTab === "stats"
-                      ? "Use solve-linked metrics here to spot what needs review."
-                      : "Keep library maintenance actions out of the main search flow."}
-              </div>
-            </div>
-            {this.state.algLibraryTab === "search" ? (
-              <div className="section_meta">
-                {this.state.algLibrarySearch
-                  ? `${this.state.algLibraryEntryTotal} match${this.state.algLibraryEntryTotal === 1 ? "" : "es"}`
-                  : algLibraryTotal
-                    ? `${algLibraryTotal} saved comms`
-                    : "No library entries yet"}
-              </div>
-            ) : null}
-          </div>
           {this.state.algLibraryTab === "stats" ? (
           <div className="stats_breakdown_grid">
             <div className="breakdown_card">
@@ -3555,24 +3546,20 @@ class App extends React.Component {
           ) : null}
           {this.state.algLibraryTab === "manage" ? (
           <React.Fragment>
-          <div className="study_section_header">
-            <div className="chart_card_title">Library Maintenance</div>
-            <div className="section_meta">Bundled</div>
-          </div>
           <div className="study_library_grid">
             <article className="study_library_card">
-              <div className="study_library_title">Bundled Library</div>
+              <div className="study_library_title">Reset to Defaults</div>
               <div className="study_library_text">
-                The bundled library already loads automatically. Keep manual reload here as a fallback instead of on the main search screen.
+                This rebuilds the local library from the bundled defaults and overwrites saved edits on this device.
               </div>
               <div className="study_library_action_row">
                 <button
                   type="button"
                   className="study_library_button"
-                  onClick={this.loadBundledAlgLibrary}
+                  onClick={this.resetBundledAlgLibrary}
                   disabled={this.state.algLibraryImporting}
                 >
-                  {this.state.algLibraryImporting ? "Loading..." : "Reload Bundled Library"}
+                  {this.state.algLibraryImporting ? "Resetting..." : "Reset Library to Default"}
                 </button>
               </div>
               {this.state.algLibraryNotice ? (
@@ -3602,16 +3589,6 @@ class App extends React.Component {
           ) : null}
           {this.state.algLibraryTab === "search" ? (
           <React.Fragment>
-          <div className="study_section_header">
-            <div className="chart_card_title">Search Library</div>
-            <div className="section_meta">
-              {this.state.algLibraryEntryTotal
-                ? `${this.state.algLibraryEntryTotal} result${this.state.algLibraryEntryTotal === 1 ? "" : "s"}`
-                : this.state.algLibraryLoadingEntries
-                  ? "Loading entries"
-                  : "No library entries yet"}
-            </div>
-          </div>
           <div className="alg_library_shell">
             <article className="study_library_card alg_library_browser">
               <div className="alg_library_toolbar">
@@ -3635,6 +3612,9 @@ class App extends React.Component {
                   ))}
                 </div>
               </div>
+              {this.state.algLibraryNotice ? (
+                <div className="study_library_notice">{this.state.algLibraryNotice}</div>
+              ) : null}
               <div className="alg_library_results">
                 {this.state.algLibraryLoadingEntries ? (
                   <div className="empty_state_card">
@@ -3780,10 +3760,6 @@ class App extends React.Component {
           ) : null}
           {this.state.algLibraryTab === "recents" ? (
           <React.Fragment>
-          <div className="study_section_header">
-            <div className="chart_card_title">Recent Solve References</div>
-            <div className="section_meta">Comms compared to your saved library</div>
-          </div>
           <div className="study_library_grid">
             <article className="study_library_card">
               <div className="study_library_title">Recent Parsed Cases</div>
@@ -3842,12 +3818,6 @@ class App extends React.Component {
           ) : null}
           {this.state.algLibraryTab === "stats" ? (
           <React.Fragment>
-          <div className="study_section_header">
-            <div className="chart_card_title">Solve-Linked Comm Trends</div>
-            <div className="section_meta">
-              {recentCommHistory.length ? `${recentCommHistory.length} tracked` : "No comms yet"}
-            </div>
-          </div>
           <div className="study_library_grid">
             <article className="study_library_card">
               <div className="study_library_title">Library Summary</div>
