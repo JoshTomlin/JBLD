@@ -4638,11 +4638,11 @@ class App extends React.Component {
               <div className="solve_modal_header">
                 <div>
                   <div className="section_label">Menu</div>
-                  <div className="solve_modal_title">Navigate</div>
+                  <div className="solve_modal_title">Menu</div>
                 </div>
                 <button
                   type="button"
-                  className="solve_modal_close"
+                  className="solve_modal_close solve_modal_close_subtle"
                   aria-label="Close menu"
                   onClick={() => this.setState({ showMenu: false })}
                 >
