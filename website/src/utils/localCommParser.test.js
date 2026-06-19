@@ -292,6 +292,28 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UR", "UL", "UFR", "UBR"]);
   });
 
+  it("tracks the actual destination of the buffer corner's white or yellow sticker for parity", () => {
+    const { comm, parityLabelToken, pieceType } = parseSolvedToComm(
+      {
+        UR: ["UL", "UR"],
+        RU: ["LU", "RU"],
+        UL: ["UR", "UL"],
+        LU: ["RU", "LU"],
+        UBR: ["RUF", "UBR"],
+        RBU: ["FRU", "RBU"],
+        BUR: ["UFR", "BUR"],
+        UFR: ["BUR", "UFR"],
+        FRU: ["UBR", "FRU"],
+        RUF: ["RBU", "RUF"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(pieceType).toEqual({ edge: false, corner: false, parity: true });
+    expect(comm).toEqual(["UR", "UL", "UFR", "UBR"]);
+    expect(parityLabelToken).toBe("BUR");
+  });
+
   it("does not invent floating comms when no buffer is involved", () => {
     const { comm, pieceType } = parseSolvedToComm(
       {

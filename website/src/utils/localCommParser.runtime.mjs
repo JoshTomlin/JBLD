@@ -640,11 +640,22 @@ function detectNonBufferSpecialCase(lastSolvedPieces) {
   return null;
 }
 
-function detectParityCase(lastSolvedPieces) {
+function findStickerDestination(lastSolvedPieces, sticker) {
+  return (
+    Object.keys(lastSolvedPieces).find((key) => lastSolvedPieces[key]?.[0] === sticker) || null
+  );
+}
+
+function detectParityCase(lastSolvedPieces, buffers) {
   const summary = changedPieceSummary(lastSolvedPieces);
   if (summary.edges.length !== 2 || summary.corners.length !== 2) {
     return null;
   }
+
+  const cornerBufferSticker = pickCornerTwistLabelSticker(buffers.cornerBuffer);
+  const parityLabelToken = cornerBufferSticker
+    ? toCanonicalStickerName(findStickerDestination(lastSolvedPieces, cornerBufferSticker))
+    : null;
 
   return {
     comm: [
@@ -652,10 +663,11 @@ function detectParityCase(lastSolvedPieces) {
         toCanonicalStickerName(pickRepresentativeSticker([piece], reidEdgeOrder))
       ),
       ...sortPiecesByOrder(summary.corners, reidCornerOrder).map((piece) =>
-        toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder))
+        toCanonicalStickerName(pickCornerTwistLabelSticker(piece))
       ),
     ],
     pieceType: { edge: false, corner: false, parity: true },
+    parityLabelToken,
   };
 }
 
@@ -700,7 +712,7 @@ function buildParityLabel(tokens, bufferToken, letterPairs = {}) {
 
 export function parseSolvedToComm(lastSolvedPieces, buffers) {
   const { edgeBuffer, cornerBuffer } = buffers;
-  const parityCase = detectParityCase(lastSolvedPieces);
+  const parityCase = detectParityCase(lastSolvedPieces, buffers);
   if (parityCase) {
     return parityCase;
   }
@@ -772,7 +784,7 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
   };
 }
 
-function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, buffers) {
+function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, buffers, parityLabelToken = null) {
   const mapToken = (token) =>
     parseToLetterPair && token !== "flip" && token !== "twist"
       ? letterPairs[toCanonicalStickerName(token)] || toCanonicalStickerName(token)
@@ -784,12 +796,19 @@ function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, bu
   if (pieceType.parity) {
     const edgeTargets = mappedComm.slice(0, 2);
     const cornerTargets = mappedComm.slice(2);
+    const mappedParityLabelToken = parityLabelToken
+      ? mapToken(parityLabelToken)
+      : null;
     return {
       bufferTarget: null,
       targetA: edgeTargets.join(""),
       targetB: cornerTargets.join(""),
       specialType: "parity",
-      parseText: buildParityLabel(cornerTargets, cornerBufferToken, letterPairs),
+      parseText: buildParityLabel(
+        mappedParityLabelToken ? [mappedParityLabelToken, ...cornerTargets] : cornerTargets,
+        cornerBufferToken,
+        letterPairs
+      ),
     };
   }
 
@@ -914,7 +933,8 @@ function buildCommStat({
     parsed.pieceType,
     parseToLetterPair,
     letterPairs,
-    buffers
+    buffers,
+    parsed.parityLabelToken || null
   );
 
   return {

@@ -1,5 +1,7 @@
 const DATABASE_PATH = "idb://jbld-local-db";
 const SCHEMA_VERSION = 3;
+const LOCAL_APP_META_KEY = "jbld-local-app-meta";
+const LOCAL_ALG_LIBRARY_KEY = "jbld-local-alg-library";
 
 let dbPromise = null;
 let migrationPromise = null;
@@ -136,6 +138,108 @@ function safeJsonParse(value, fallbackValue) {
   } catch (_error) {
     return fallbackValue;
   }
+}
+
+function hasWindowStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function readLocalJson(key, fallbackValue) {
+  if (!hasWindowStorage()) {
+    return fallbackValue;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(key);
+    return rawValue === null ? fallbackValue : safeJsonParse(rawValue, fallbackValue);
+  } catch (_error) {
+    return fallbackValue;
+  }
+}
+
+function writeLocalJson(key, value) {
+  if (!hasWindowStorage()) {
+    return;
+  }
+
+  window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function normalizeAlgLibraryEntry(entry = {}) {
+  return {
+    id: String(entry.id || ""),
+    piece_type: entry.piece_type || entry.pieceType || "unknown",
+    sheet_name: entry.sheet_name || entry.sheetName || null,
+    row_index:
+      Number.isFinite(Number(entry.row_index ?? entry.rowIndex)) ? Number(entry.row_index ?? entry.rowIndex) : null,
+    case_code: entry.case_code || entry.caseCode || "",
+    description: entry.description || entry.notation || "",
+    alg: entry.alg || entry.expandedAlg || "",
+    category: entry.category || null,
+    notes: entry.notes || null,
+    updated_at: entry.updated_at || new Date().toISOString(),
+  };
+}
+
+function readFallbackAppMeta() {
+  return readLocalJson(LOCAL_APP_META_KEY, {});
+}
+
+function writeFallbackAppMeta(meta) {
+  writeLocalJson(LOCAL_APP_META_KEY, meta);
+}
+
+function readFallbackAlgLibraryEntries() {
+  const entries = readLocalJson(LOCAL_ALG_LIBRARY_KEY, []);
+  return Array.isArray(entries) ? entries.map((entry) => normalizeAlgLibraryEntry(entry)) : [];
+}
+
+function writeFallbackAlgLibraryEntries(entries) {
+  writeLocalJson(
+    LOCAL_ALG_LIBRARY_KEY,
+    (Array.isArray(entries) ? entries : []).map((entry) => normalizeAlgLibraryEntry(entry))
+  );
+}
+
+function sortAlgLibraryEntries(entries = []) {
+  return [...entries].sort((a, b) => {
+    const pieceCompare = String(a.piece_type || "").localeCompare(String(b.piece_type || ""));
+    if (pieceCompare !== 0) {
+      return pieceCompare;
+    }
+
+    const caseCompare = String(a.case_code || "").localeCompare(String(b.case_code || ""));
+    if (caseCompare !== 0) {
+      return caseCompare;
+    }
+
+    return (Number(a.row_index) || 0) - (Number(b.row_index) || 0);
+  });
+}
+
+function filterAlgLibraryEntries(entries = [], { pieceType = "all", search = "", limit = 200 } = {}) {
+  const normalizedSearch = String(search || "").trim().toLowerCase();
+  const filteredEntries = (Array.isArray(entries) ? entries : []).filter((entry) => {
+    if (pieceType !== "all" && entry.piece_type !== pieceType) {
+      return false;
+    }
+
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    return [
+      entry.case_code,
+      entry.description,
+      entry.alg,
+      entry.category,
+      entry.notes,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+  });
+
+  return sortAlgLibraryEntries(filteredEntries).slice(0, Math.max(1, Number(limit) || 200));
 }
 
 function splitMoves(algText = "") {
@@ -717,11 +821,11 @@ export async function getLocalDatabaseSummary() {
 }
 
 export async function importAlgLibraryEntries(entries = []) {
-  const db = await getDatabase();
   const normalizedEntries = Array.isArray(entries) ? entries.filter(Boolean) : [];
-
-  await db.exec("BEGIN");
   try {
+    const db = await getDatabase();
+
+    await db.exec("BEGIN");
     for (const entry of normalizedEntries) {
       await db.query(
         `INSERT INTO alg_library_entries (
@@ -758,18 +862,31 @@ export async function importAlgLibraryEntries(entries = []) {
         ]
       );
     }
-
     await db.exec("COMMIT");
   } catch (error) {
-    await db.exec("ROLLBACK");
-    throw error;
+    try {
+      const db = await getDatabase();
+      await db.exec("ROLLBACK");
+    } catch (_rollbackError) {
+      // Ignore rollback failures when the database itself is unavailable.
+    }
+
+    const currentEntries = readFallbackAlgLibraryEntries();
+    const entriesById = new Map(currentEntries.map((entry) => [entry.id, entry]));
+    normalizedEntries.forEach((entry) => {
+      const normalizedEntry = normalizeAlgLibraryEntry(entry);
+      if (normalizedEntry.id) {
+        entriesById.set(normalizedEntry.id, normalizedEntry);
+      }
+    });
+    writeFallbackAlgLibraryEntries([...entriesById.values()]);
   }
 }
 
 export async function replaceBundledAlgLibraryEntries(entries = []) {
-  const db = await getDatabase();
-  await db.exec("BEGIN");
   try {
+    const db = await getDatabase();
+    await db.exec("BEGIN");
     await db.query(`DELETE FROM alg_library_entries WHERE sheet_name LIKE $1`, ["bundled-%"]);
     for (const entry of Array.isArray(entries) ? entries.filter(Boolean) : []) {
       await db.query(
@@ -797,79 +914,115 @@ export async function replaceBundledAlgLibraryEntries(entries = []) {
     }
     await db.exec("COMMIT");
   } catch (error) {
-    await db.exec("ROLLBACK");
-    throw error;
+    try {
+      const db = await getDatabase();
+      await db.exec("ROLLBACK");
+    } catch (_rollbackError) {
+      // Ignore rollback failures when the database itself is unavailable.
+    }
+
+    const nonBundledEntries = readFallbackAlgLibraryEntries().filter(
+      (entry) => !String(entry.sheet_name || "").startsWith("bundled-")
+    );
+    const bundledEntries = (Array.isArray(entries) ? entries : []).map((entry) => normalizeAlgLibraryEntry(entry));
+    writeFallbackAlgLibraryEntries([...nonBundledEntries, ...bundledEntries]);
   }
 }
 
 export async function getLocalAppMetaValue(key, fallbackValue = null) {
-  const db = await getDatabase();
-  const result = await db.query("SELECT value_json FROM app_meta WHERE key = $1", [key]);
-  const row = result.rows && result.rows[0];
-  return row ? safeJsonParse(row.value_json, fallbackValue) : fallbackValue;
+  try {
+    const db = await getDatabase();
+    const result = await db.query("SELECT value_json FROM app_meta WHERE key = $1", [key]);
+    const row = result.rows && result.rows[0];
+    return row ? safeJsonParse(row.value_json, fallbackValue) : fallbackValue;
+  } catch (_error) {
+    const meta = readFallbackAppMeta();
+    return Object.prototype.hasOwnProperty.call(meta, key) ? meta[key] : fallbackValue;
+  }
 }
 
 export async function setLocalAppMetaValue(key, value) {
-  const db = await getDatabase();
-  await db.query(
-    `INSERT INTO app_meta (key, value_json, updated_at)
-     VALUES ($1, $2, timezone('utc', now()))
-     ON CONFLICT (key) DO UPDATE
-     SET value_json = EXCLUDED.value_json,
-         updated_at = timezone('utc', now())`,
-    [key, JSON.stringify(value)]
-  );
+  try {
+    const db = await getDatabase();
+    await db.query(
+      `INSERT INTO app_meta (key, value_json, updated_at)
+       VALUES ($1, $2, timezone('utc', now()))
+       ON CONFLICT (key) DO UPDATE
+       SET value_json = EXCLUDED.value_json,
+           updated_at = timezone('utc', now())`,
+      [key, JSON.stringify(value)]
+    );
+  } catch (_error) {
+    const meta = readFallbackAppMeta();
+    meta[key] = value;
+    writeFallbackAppMeta(meta);
+  }
 }
 
 export async function getAlgLibraryEntries(options = {}) {
-  const db = await getDatabase();
   const pieceType = options.pieceType || "all";
   const rawSearch = typeof options.search === "string" ? options.search.trim() : "";
   const limit = Number.isFinite(Number(options.limit)) ? Math.max(1, Number(options.limit)) : 200;
   const searchPattern = rawSearch ? `%${rawSearch.toLowerCase()}%` : null;
+  try {
+    const db = await getDatabase();
+    const params = [pieceType, searchPattern, limit];
+    const [countResult, entryResult] = await Promise.all([
+      db.query(
+        `SELECT COUNT(*)::int AS count
+         FROM alg_library_entries
+         WHERE ($1 = 'all' OR piece_type = $1)
+           AND (
+             $2 IS NULL
+             OR LOWER(case_code) LIKE $2
+             OR LOWER(description) LIKE $2
+             OR LOWER(alg) LIKE $2
+             OR LOWER(COALESCE(category, '')) LIKE $2
+             OR LOWER(COALESCE(notes, '')) LIKE $2
+           )`,
+        params.slice(0, 2)
+      ),
+      db.query(
+        `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
+         FROM alg_library_entries
+         WHERE ($1 = 'all' OR piece_type = $1)
+           AND (
+             $2 IS NULL
+             OR LOWER(case_code) LIKE $2
+             OR LOWER(description) LIKE $2
+             OR LOWER(alg) LIKE $2
+             OR LOWER(COALESCE(category, '')) LIKE $2
+             OR LOWER(COALESCE(notes, '')) LIKE $2
+           )
+         ORDER BY piece_type ASC, case_code ASC, row_index ASC NULLS LAST, updated_at DESC
+         LIMIT $3`,
+        params
+      ),
+    ]);
 
-  const params = [pieceType, searchPattern, limit];
-  const [countResult, entryResult] = await Promise.all([
-    db.query(
-      `SELECT COUNT(*)::int AS count
-       FROM alg_library_entries
-       WHERE ($1 = 'all' OR piece_type = $1)
-         AND (
-           $2 IS NULL
-           OR LOWER(case_code) LIKE $2
-           OR LOWER(description) LIKE $2
-           OR LOWER(alg) LIKE $2
-           OR LOWER(COALESCE(category, '')) LIKE $2
-           OR LOWER(COALESCE(notes, '')) LIKE $2
-         )`,
-      params.slice(0, 2)
-    ),
-    db.query(
-      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
-       FROM alg_library_entries
-       WHERE ($1 = 'all' OR piece_type = $1)
-         AND (
-           $2 IS NULL
-           OR LOWER(case_code) LIKE $2
-           OR LOWER(description) LIKE $2
-           OR LOWER(alg) LIKE $2
-           OR LOWER(COALESCE(category, '')) LIKE $2
-           OR LOWER(COALESCE(notes, '')) LIKE $2
-         )
-       ORDER BY piece_type ASC, case_code ASC, row_index ASC NULLS LAST, updated_at DESC
-       LIMIT $3`,
-      params
-    ),
-  ]);
-
-  return {
-    totalCount: Number(countResult.rows[0] && countResult.rows[0].count) || 0,
-    entries: entryResult.rows || [],
-  };
+    return {
+      totalCount: Number(countResult.rows[0] && countResult.rows[0].count) || 0,
+      entries: entryResult.rows || [],
+    };
+  } catch (_error) {
+    const allEntries = readFallbackAlgLibraryEntries();
+    const filteredEntries = filterAlgLibraryEntries(allEntries, {
+      pieceType,
+      search: rawSearch,
+      limit,
+    });
+    return {
+      totalCount: filterAlgLibraryEntries(allEntries, {
+        pieceType,
+        search: rawSearch,
+        limit: allEntries.length || 1,
+      }).length,
+      entries: filteredEntries,
+    };
+  }
 }
 
 export async function updateAlgLibraryEntry(id, updates = {}) {
-  const db = await getDatabase();
   const normalizedId = String(id || "");
   if (!normalizedId) {
     throw new Error("An alg library entry id is required.");
@@ -881,28 +1034,47 @@ export async function updateAlgLibraryEntry(id, updates = {}) {
     category: typeof updates.category === "string" ? updates.category : "",
     notes: typeof updates.notes === "string" ? updates.notes : "",
   };
+  try {
+    const db = await getDatabase();
+    const result = await db.query(
+      `UPDATE alg_library_entries
+       SET description = $2,
+           alg = $3,
+           category = NULLIF($4, ''),
+           notes = NULLIF($5, ''),
+           updated_at = timezone('utc', now())
+       WHERE id = $1
+       RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at`,
+      [normalizedId, fields.description, fields.alg, fields.category, fields.notes]
+    );
 
-  const result = await db.query(
-    `UPDATE alg_library_entries
-     SET description = $2,
-         alg = $3,
-         category = NULLIF($4, ''),
-         notes = NULLIF($5, ''),
-         updated_at = timezone('utc', now())
-     WHERE id = $1
-     RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at`,
-    [normalizedId, fields.description, fields.alg, fields.category, fields.notes]
-  );
+    if (!result.rows || !result.rows.length) {
+      throw new Error("The selected alg library entry could not be found.");
+    }
 
-  if (!result.rows || !result.rows.length) {
-    throw new Error("The selected alg library entry could not be found.");
+    return result.rows[0];
+  } catch (_error) {
+    const entries = readFallbackAlgLibraryEntries();
+    const entryIndex = entries.findIndex((entry) => entry.id === normalizedId);
+    if (entryIndex < 0) {
+      throw new Error("The selected alg library entry could not be found.");
+    }
+
+    const nextEntry = normalizeAlgLibraryEntry({
+      ...entries[entryIndex],
+      description: fields.description,
+      alg: fields.alg,
+      category: fields.category || null,
+      notes: fields.notes || null,
+      updated_at: new Date().toISOString(),
+    });
+    entries[entryIndex] = nextEntry;
+    writeFallbackAlgLibraryEntries(entries);
+    return nextEntry;
   }
-
-  return result.rows[0];
 }
 
 export async function getAlgLibraryEntriesForCases(caseRefs = []) {
-  const db = await getDatabase();
   const normalizedRefs = Array.isArray(caseRefs)
     ? caseRefs
         .filter((entry) => entry && entry.caseCode && entry.pieceType)
@@ -915,45 +1087,72 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
   if (!normalizedRefs.length) {
     return [];
   }
+  try {
+    const db = await getDatabase();
+    const conditions = [];
+    const params = [];
+    normalizedRefs.forEach((entry, index) => {
+      const base = index * 2;
+      conditions.push(`(piece_type = $${base + 1} AND case_code = $${base + 2})`);
+      params.push(entry.pieceType, entry.caseCode);
+    });
 
-  const conditions = [];
-  const params = [];
-  normalizedRefs.forEach((entry, index) => {
-    const base = index * 2;
-    conditions.push(`(piece_type = $${base + 1} AND case_code = $${base + 2})`);
-    params.push(entry.pieceType, entry.caseCode);
-  });
+    const result = await db.query(
+      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
+       FROM alg_library_entries
+       WHERE ${conditions.join(" OR ")}`,
+      params
+    );
 
-  const result = await db.query(
-    `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
-     FROM alg_library_entries
-     WHERE ${conditions.join(" OR ")}`,
-    params
-  );
-
-  return result.rows || [];
+    return result.rows || [];
+  } catch (_error) {
+    const keys = new Set(normalizedRefs.map((entry) => `${entry.pieceType}:${entry.caseCode}`));
+    return readFallbackAlgLibraryEntries().filter((entry) =>
+      keys.has(`${entry.piece_type}:${entry.case_code}`)
+    );
+  }
 }
 
 export async function getAlgLibrarySummary(limit = 6) {
-  const db = await getDatabase();
-  const [countResult, recentResult] = await Promise.all([
-    db.query(
-      `SELECT piece_type, COUNT(*)::int AS count
-       FROM alg_library_entries
-       GROUP BY piece_type
-       ORDER BY piece_type ASC`
-    ),
-    db.query(
-      `SELECT id, piece_type, case_code, description, alg, category, notes, updated_at
-       FROM alg_library_entries
-       ORDER BY updated_at DESC
-       LIMIT $1`,
-      [limit]
-    ),
-  ]);
+  try {
+    const db = await getDatabase();
+    const [countResult, recentResult] = await Promise.all([
+      db.query(
+        `SELECT piece_type, COUNT(*)::int AS count
+         FROM alg_library_entries
+         GROUP BY piece_type
+         ORDER BY piece_type ASC`
+      ),
+      db.query(
+        `SELECT id, piece_type, case_code, description, alg, category, notes, updated_at
+         FROM alg_library_entries
+         ORDER BY updated_at DESC
+         LIMIT $1`,
+        [limit]
+      ),
+    ]);
 
-  return {
-    counts: countResult.rows || [],
-    recentEntries: recentResult.rows || [],
-  };
+    return {
+      counts: countResult.rows || [],
+      recentEntries: recentResult.rows || [],
+    };
+  } catch (_error) {
+    const entries = readFallbackAlgLibraryEntries();
+    const countsByPieceType = entries.reduce((acc, entry) => {
+      const pieceType = entry.piece_type || "unknown";
+      acc[pieceType] = (acc[pieceType] || 0) + 1;
+      return acc;
+    }, {});
+    const counts = Object.keys(countsByPieceType)
+      .sort((a, b) => a.localeCompare(b))
+      .map((pieceType) => ({ piece_type: pieceType, count: countsByPieceType[pieceType] }));
+    const recentEntries = [...entries]
+      .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
+      .slice(0, limit);
+
+    return {
+      counts,
+      recentEntries,
+    };
+  }
 }
