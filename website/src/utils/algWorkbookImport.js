@@ -1,6 +1,19 @@
 import { expandCommNotation, hasCommNotation } from "./commNotation";
 
 let cachedXlsxModule = null;
+const HEADER_CASE_FIELDS = ["case", "case_code", "code", "target", "letter_pair", "pair"];
+const HEADER_DESCRIPTION_FIELDS = [
+  "description",
+  "desc",
+  "notation",
+  "comm",
+  "comm_notation",
+  "comm notation",
+];
+const HEADER_ALG_FIELDS = ["alg", "algorithm", "expanded_alg", "expanded alg", "expanded algorithm"];
+const HEADER_MEMO_FIELDS = ["memo", "memo_word", "memo word", "word"];
+const HEADER_CATEGORY_FIELDS = ["category", "group", "set"];
+const HEADER_NOTES_FIELDS = ["notes", "note", "comment", "comments"];
 
 function getXlsxModule() {
   if (!cachedXlsxModule) {
@@ -22,6 +35,27 @@ function inferPieceType(sheetName = "") {
     return "edge";
   }
   return "unknown";
+}
+
+function detectHeaderRow(row = []) {
+  const normalized = row.map((value) => normalizeCell(value).toLowerCase());
+  return (
+    normalized.some((value) => HEADER_CASE_FIELDS.includes(value)) &&
+    (
+      normalized.some((value) => HEADER_DESCRIPTION_FIELDS.includes(value)) ||
+      normalized.some((value) => HEADER_ALG_FIELDS.includes(value))
+    )
+  );
+}
+
+function resolveColumnIndex(headerRow, supportedFields, fallbackIndex) {
+  const normalized = headerRow.map((value) => normalizeCell(value).toLowerCase());
+  const matchIndex = normalized.findIndex((value) => supportedFields.includes(value));
+  return matchIndex >= 0 ? matchIndex : fallbackIndex;
+}
+
+function resolveOptionalColumnIndex(headerRow, supportedFields) {
+  return resolveColumnIndex(headerRow, supportedFields, -1);
 }
 
 function closeTrailingBracketGap(notation = "") {
@@ -52,9 +86,10 @@ function expandWorkbookNotation(notation = "") {
   }
 }
 
-function buildEntry({ sheetName, rowIndex, caseCode, notation }) {
+function buildEntry({ sheetName, rowIndex, caseCode, description, alg, memoWord, category, notes }) {
   const pieceType = inferPieceType(sheetName);
-  const expandedAlg = expandWorkbookNotation(notation);
+  const normalizedDescription = normalizeCell(description);
+  const expandedAlg = normalizeCell(alg) || expandWorkbookNotation(normalizedDescription);
 
   return {
     id: `${pieceType}-${caseCode}`.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"),
@@ -62,8 +97,13 @@ function buildEntry({ sheetName, rowIndex, caseCode, notation }) {
     sheetName,
     rowIndex,
     caseCode,
-    notation,
+    notation: normalizedDescription,
     expandedAlg,
+    description: normalizedDescription,
+    alg: expandedAlg,
+    memoWord: normalizeCell(memoWord) || null,
+    category: normalizeCell(category) || null,
+    notes: normalizeCell(notes) || null,
   };
 }
 
@@ -100,20 +140,40 @@ export function extractAlgLibraryEntriesFromWorkbook(workbook) {
       defval: "",
     });
 
-    rows.forEach((row, index) => {
-      const caseCode = normalizeCell(row[0]);
-      const notation = normalizeCell(row[1]);
+    const headerOffset = rows.length && detectHeaderRow(rows[0]) ? 1 : 0;
+    const headerRow = headerOffset ? rows[0] : [];
+    const caseColumnIndex = headerOffset ? resolveColumnIndex(headerRow, HEADER_CASE_FIELDS, 0) : 0;
+    const descriptionColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_DESCRIPTION_FIELDS) : 1;
+    const algColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_ALG_FIELDS) : -1;
+    const memoColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_MEMO_FIELDS) : -1;
+    const categoryColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_CATEGORY_FIELDS) : -1;
+    const notesColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_NOTES_FIELDS) : -1;
 
-      if (!caseCode || !notation) {
+    rows.slice(headerOffset).forEach((row, index) => {
+      const caseCode = normalizeCell(row[caseColumnIndex]);
+      const description =
+        normalizeCell(row[descriptionColumnIndex]) ||
+        normalizeCell(row[algColumnIndex >= 0 ? algColumnIndex : 1]);
+      const hasDedicatedAlgColumn = descriptionColumnIndex >= 0 && algColumnIndex >= 0;
+      const alg = hasDedicatedAlgColumn ? normalizeCell(row[algColumnIndex]) : "";
+      const memoWord = memoColumnIndex >= 0 ? normalizeCell(row[memoColumnIndex]) : "";
+      const category = categoryColumnIndex >= 0 ? normalizeCell(row[categoryColumnIndex]) : "";
+      const notes = notesColumnIndex >= 0 ? normalizeCell(row[notesColumnIndex]) : "";
+
+      if (!caseCode || !description) {
         return;
       }
 
       entries.push(
         buildEntry({
           sheetName,
-          rowIndex: index + 1,
+          rowIndex: index + 1 + headerOffset,
           caseCode,
-          notation,
+          description,
+          alg,
+          memoWord,
+          category,
+          notes,
         })
       );
     });

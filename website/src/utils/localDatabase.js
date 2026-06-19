@@ -1,5 +1,5 @@
 const DATABASE_PATH = "idb://jbld-local-db";
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const LOCAL_APP_META_KEY = "jbld-local-app-meta";
 const LOCAL_ALG_LIBRARY_KEY = "jbld-local-alg-library";
 
@@ -166,19 +166,80 @@ function writeLocalJson(key, value) {
 }
 
 function normalizeAlgLibraryEntry(entry = {}) {
+  const pieceType = entry.piece_type || entry.pieceType || "unknown";
   return {
     id: String(entry.id || ""),
-    piece_type: entry.piece_type || entry.pieceType || "unknown",
+    piece_type: pieceType === "corner_memo" ? "corner" : pieceType === "edge_memo" ? "edge" : pieceType,
     sheet_name: entry.sheet_name || entry.sheetName || null,
     row_index:
       Number.isFinite(Number(entry.row_index ?? entry.rowIndex)) ? Number(entry.row_index ?? entry.rowIndex) : null,
     case_code: entry.case_code || entry.caseCode || "",
     description: entry.description || entry.notation || "",
     alg: entry.alg || entry.expandedAlg || "",
+    memo_word: entry.memo_word || entry.memoWord || entry.memo || null,
     category: entry.category || null,
     notes: entry.notes || null,
     updated_at: entry.updated_at || new Date().toISOString(),
   };
+}
+
+function isDetachedMemoEntry(entry = {}) {
+  const pieceType = entry.piece_type || entry.pieceType || "";
+  return pieceType === "corner_memo" || pieceType === "edge_memo";
+}
+
+function buildAlgLibraryCaseKey(entry = {}) {
+  return `${entry.piece_type || entry.pieceType || "unknown"}:${entry.case_code || entry.caseCode || ""}`;
+}
+
+function mergeAlgLibraryEntries(entries = []) {
+  const mergedEntries = new Map();
+  const detachedMemoByKey = new Map();
+
+  (Array.isArray(entries) ? entries : []).forEach((entry) => {
+    if (!entry) {
+      return;
+    }
+
+    if (isDetachedMemoEntry(entry)) {
+      const normalizedEntry = normalizeAlgLibraryEntry(entry);
+      const caseKey = buildAlgLibraryCaseKey(normalizedEntry);
+      const memoWord = normalizedEntry.memo_word || normalizedEntry.description || null;
+      if (memoWord) {
+        detachedMemoByKey.set(caseKey, memoWord);
+      }
+      return;
+    }
+
+    const normalizedEntry = normalizeAlgLibraryEntry(entry);
+    const caseKey = buildAlgLibraryCaseKey(normalizedEntry);
+    const existingEntry = mergedEntries.get(caseKey);
+    mergedEntries.set(caseKey, {
+      ...existingEntry,
+      ...normalizedEntry,
+      id:
+        normalizedEntry.id ||
+        (existingEntry && existingEntry.id) ||
+        `${normalizedEntry.piece_type}-${String(normalizedEntry.case_code || "").toLowerCase()}`,
+      memo_word:
+        normalizedEntry.memo_word ||
+        (existingEntry && existingEntry.memo_word) ||
+        detachedMemoByKey.get(caseKey) ||
+        null,
+    });
+  });
+
+  detachedMemoByKey.forEach((memoWord, caseKey) => {
+    const existingEntry = mergedEntries.get(caseKey);
+    if (existingEntry && !existingEntry.memo_word) {
+      mergedEntries.set(caseKey, {
+        ...existingEntry,
+        memo_word: memoWord,
+      });
+    }
+  });
+
+  return sortAlgLibraryEntries([...mergedEntries.values()]);
 }
 
 function readFallbackAppMeta() {
@@ -191,13 +252,13 @@ function writeFallbackAppMeta(meta) {
 
 function readFallbackAlgLibraryEntries() {
   const entries = readLocalJson(LOCAL_ALG_LIBRARY_KEY, []);
-  return Array.isArray(entries) ? entries.map((entry) => normalizeAlgLibraryEntry(entry)) : [];
+  return mergeAlgLibraryEntries(Array.isArray(entries) ? entries : []);
 }
 
 function writeFallbackAlgLibraryEntries(entries) {
   writeLocalJson(
     LOCAL_ALG_LIBRARY_KEY,
-    (Array.isArray(entries) ? entries : []).map((entry) => normalizeAlgLibraryEntry(entry))
+    mergeAlgLibraryEntries(Array.isArray(entries) ? entries : [])
   );
 }
 
@@ -232,6 +293,7 @@ function filterAlgLibraryEntries(entries = [], { pieceType = "all", search = "",
       entry.case_code,
       entry.description,
       entry.alg,
+      entry.memo_word,
       entry.category,
       entry.notes,
     ]
@@ -565,6 +627,7 @@ async function runMigrations(db) {
       expanded_alg TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       alg TEXT NOT NULL DEFAULT '',
+      memo_word TEXT,
       category TEXT,
       notes TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
@@ -593,6 +656,8 @@ async function runMigrations(db) {
     ALTER TABLE IF EXISTS alg_library_entries
       ADD COLUMN IF NOT EXISTS alg TEXT NOT NULL DEFAULT '';
     ALTER TABLE IF EXISTS alg_library_entries
+      ADD COLUMN IF NOT EXISTS memo_word TEXT;
+    ALTER TABLE IF EXISTS alg_library_entries
       ADD COLUMN IF NOT EXISTS category TEXT;
     ALTER TABLE IF EXISTS alg_library_entries
       ADD COLUMN IF NOT EXISTS notes TEXT;
@@ -610,6 +675,21 @@ async function runMigrations(db) {
     WHERE
       (description IS NULL OR description = '')
       OR (alg IS NULL OR alg = '');
+
+    UPDATE alg_library_entries AS primary_entry
+    SET memo_word = CASE
+      WHEN primary_entry.memo_word IS NULL OR primary_entry.memo_word = '' THEN memo_entry.description
+      ELSE primary_entry.memo_word
+    END
+    FROM alg_library_entries AS memo_entry
+    WHERE primary_entry.case_code = memo_entry.case_code
+      AND (
+        (primary_entry.piece_type = 'corner' AND memo_entry.piece_type = 'corner_memo')
+        OR (primary_entry.piece_type = 'edge' AND memo_entry.piece_type = 'edge_memo')
+      );
+
+    DELETE FROM alg_library_entries
+    WHERE piece_type IN ('corner_memo', 'edge_memo');
   `);
 }
 
@@ -821,7 +901,7 @@ export async function getLocalDatabaseSummary() {
 }
 
 export async function importAlgLibraryEntries(entries = []) {
-  const normalizedEntries = Array.isArray(entries) ? entries.filter(Boolean) : [];
+  const normalizedEntries = mergeAlgLibraryEntries(Array.isArray(entries) ? entries.filter(Boolean) : []);
   try {
     const db = await getDatabase();
 
@@ -830,10 +910,10 @@ export async function importAlgLibraryEntries(entries = []) {
       await db.query(
         `INSERT INTO alg_library_entries (
           id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg,
-          description, alg, category, notes, updated_at
+          description, alg, memo_word, category, notes, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, timezone('utc', now())
+          $8, $9, $10, $11, $12, timezone('utc', now())
         )
         ON CONFLICT (id) DO UPDATE SET
           piece_type = EXCLUDED.piece_type,
@@ -844,19 +924,21 @@ export async function importAlgLibraryEntries(entries = []) {
           expanded_alg = EXCLUDED.expanded_alg,
           description = EXCLUDED.description,
           alg = EXCLUDED.alg,
+          memo_word = EXCLUDED.memo_word,
           category = EXCLUDED.category,
           notes = EXCLUDED.notes,
           updated_at = timezone('utc', now())`,
         [
           String(entry.id),
-          entry.pieceType || "unknown",
-          entry.sheetName || null,
-          Number.isFinite(Number(entry.rowIndex)) ? Number(entry.rowIndex) : null,
-          entry.caseCode || "",
-          entry.description || entry.notation || "",
-          entry.alg || entry.expandedAlg || "",
-          entry.description || entry.notation || "",
-          entry.alg || entry.expandedAlg || "",
+          entry.piece_type || "unknown",
+          entry.sheet_name || null,
+          Number.isFinite(Number(entry.row_index)) ? Number(entry.row_index) : null,
+          entry.case_code || "",
+          entry.description || "",
+          entry.alg || "",
+          entry.description || "",
+          entry.alg || "",
+          entry.memo_word || null,
           entry.category || null,
           entry.notes || null,
         ]
@@ -884,29 +966,31 @@ export async function importAlgLibraryEntries(entries = []) {
 }
 
 export async function replaceBundledAlgLibraryEntries(entries = []) {
+  const normalizedEntries = mergeAlgLibraryEntries(Array.isArray(entries) ? entries.filter(Boolean) : []);
   try {
     const db = await getDatabase();
     await db.exec("BEGIN");
     await db.query(`DELETE FROM alg_library_entries WHERE sheet_name LIKE $1`, ["bundled-%"]);
-    for (const entry of Array.isArray(entries) ? entries.filter(Boolean) : []) {
+    for (const entry of normalizedEntries) {
       await db.query(
         `INSERT INTO alg_library_entries (
           id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg,
-          description, alg, category, notes, updated_at
+          description, alg, memo_word, category, notes, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, timezone('utc', now())
+          $8, $9, $10, $11, $12, timezone('utc', now())
         )`,
         [
           String(entry.id),
-          entry.pieceType || "unknown",
-          entry.sheetName || null,
-          Number.isFinite(Number(entry.rowIndex)) ? Number(entry.rowIndex) : null,
-          entry.caseCode || "",
-          entry.description || entry.notation || "",
-          entry.alg || entry.expandedAlg || "",
-          entry.description || entry.notation || "",
-          entry.alg || entry.expandedAlg || "",
+          entry.piece_type || "unknown",
+          entry.sheet_name || null,
+          Number.isFinite(Number(entry.row_index)) ? Number(entry.row_index) : null,
+          entry.case_code || "",
+          entry.description || "",
+          entry.alg || "",
+          entry.description || "",
+          entry.alg || "",
+          entry.memo_word || null,
           entry.category || null,
           entry.notes || null,
         ]
@@ -924,7 +1008,7 @@ export async function replaceBundledAlgLibraryEntries(entries = []) {
     const nonBundledEntries = readFallbackAlgLibraryEntries().filter(
       (entry) => !String(entry.sheet_name || "").startsWith("bundled-")
     );
-    const bundledEntries = (Array.isArray(entries) ? entries : []).map((entry) => normalizeAlgLibraryEntry(entry));
+    const bundledEntries = normalizedEntries.map((entry) => normalizeAlgLibraryEntry(entry));
     writeFallbackAlgLibraryEntries([...nonBundledEntries, ...bundledEntries]);
   }
 }
@@ -977,13 +1061,14 @@ export async function getAlgLibraryEntries(options = {}) {
              OR LOWER(case_code) LIKE $2
              OR LOWER(description) LIKE $2
              OR LOWER(alg) LIKE $2
+             OR LOWER(COALESCE(memo_word, '')) LIKE $2
              OR LOWER(COALESCE(category, '')) LIKE $2
              OR LOWER(COALESCE(notes, '')) LIKE $2
            )`,
         params.slice(0, 2)
       ),
       db.query(
-        `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
+        `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, updated_at
          FROM alg_library_entries
          WHERE ($1 = 'all' OR piece_type = $1)
            AND (
@@ -991,6 +1076,7 @@ export async function getAlgLibraryEntries(options = {}) {
              OR LOWER(case_code) LIKE $2
              OR LOWER(description) LIKE $2
              OR LOWER(alg) LIKE $2
+             OR LOWER(COALESCE(memo_word, '')) LIKE $2
              OR LOWER(COALESCE(category, '')) LIKE $2
              OR LOWER(COALESCE(notes, '')) LIKE $2
            )
@@ -1031,6 +1117,7 @@ export async function updateAlgLibraryEntry(id, updates = {}) {
   const fields = {
     description: typeof updates.description === "string" ? updates.description : "",
     alg: typeof updates.alg === "string" ? updates.alg : "",
+    memo_word: typeof updates.memoWord === "string" ? updates.memoWord : "",
     category: typeof updates.category === "string" ? updates.category : "",
     notes: typeof updates.notes === "string" ? updates.notes : "",
   };
@@ -1040,12 +1127,13 @@ export async function updateAlgLibraryEntry(id, updates = {}) {
       `UPDATE alg_library_entries
        SET description = $2,
            alg = $3,
-           category = NULLIF($4, ''),
-           notes = NULLIF($5, ''),
+           memo_word = NULLIF($4, ''),
+           category = NULLIF($5, ''),
+           notes = NULLIF($6, ''),
            updated_at = timezone('utc', now())
        WHERE id = $1
-       RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at`,
-      [normalizedId, fields.description, fields.alg, fields.category, fields.notes]
+       RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, updated_at`,
+      [normalizedId, fields.description, fields.alg, fields.memo_word || "", fields.category, fields.notes]
     );
 
     if (!result.rows || !result.rows.length) {
@@ -1064,6 +1152,7 @@ export async function updateAlgLibraryEntry(id, updates = {}) {
       ...entries[entryIndex],
       description: fields.description,
       alg: fields.alg,
+      memo_word: fields.memo_word || null,
       category: fields.category || null,
       notes: fields.notes || null,
       updated_at: new Date().toISOString(),
@@ -1098,7 +1187,7 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
     });
 
     const result = await db.query(
-      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
+      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, updated_at
        FROM alg_library_entries
        WHERE ${conditions.join(" OR ")}`,
       params
@@ -1116,7 +1205,7 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
 export async function getAlgLibrarySummary(limit = 6) {
   try {
     const db = await getDatabase();
-    const [countResult, recentResult] = await Promise.all([
+    const [countResult, recentResult, memoCountResult] = await Promise.all([
       db.query(
         `SELECT piece_type, COUNT(*)::int AS count
          FROM alg_library_entries
@@ -1124,17 +1213,25 @@ export async function getAlgLibrarySummary(limit = 6) {
          ORDER BY piece_type ASC`
       ),
       db.query(
-        `SELECT id, piece_type, case_code, description, alg, category, notes, updated_at
+        `SELECT id, piece_type, case_code, description, alg, memo_word, category, notes, updated_at
          FROM alg_library_entries
          ORDER BY updated_at DESC
          LIMIT $1`,
         [limit]
+      ),
+      db.query(
+        `SELECT piece_type, COUNT(*)::int AS count
+         FROM alg_library_entries
+         WHERE COALESCE(memo_word, '') <> ''
+         GROUP BY piece_type
+         ORDER BY piece_type ASC`
       ),
     ]);
 
     return {
       counts: countResult.rows || [],
       recentEntries: recentResult.rows || [],
+      memoCounts: memoCountResult.rows || [],
     };
   } catch (_error) {
     const entries = readFallbackAlgLibraryEntries();
@@ -1143,9 +1240,20 @@ export async function getAlgLibrarySummary(limit = 6) {
       acc[pieceType] = (acc[pieceType] || 0) + 1;
       return acc;
     }, {});
+    const memoCountsByPieceType = entries.reduce((acc, entry) => {
+      if (!entry.memo_word) {
+        return acc;
+      }
+      const pieceType = entry.piece_type || "unknown";
+      acc[pieceType] = (acc[pieceType] || 0) + 1;
+      return acc;
+    }, {});
     const counts = Object.keys(countsByPieceType)
       .sort((a, b) => a.localeCompare(b))
       .map((pieceType) => ({ piece_type: pieceType, count: countsByPieceType[pieceType] }));
+    const memoCounts = Object.keys(memoCountsByPieceType)
+      .sort((a, b) => a.localeCompare(b))
+      .map((pieceType) => ({ piece_type: pieceType, count: memoCountsByPieceType[pieceType] }));
     const recentEntries = [...entries]
       .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
       .slice(0, limit);
@@ -1153,6 +1261,7 @@ export async function getAlgLibrarySummary(limit = 6) {
     return {
       counts,
       recentEntries,
+      memoCounts,
     };
   }
 }

@@ -74,4 +74,45 @@ describe("algWorkbookImport", () => {
 
     spy.mockRestore();
   });
+
+  it("keeps memo words and metadata on the same workbook entry when those columns exist", () => {
+    const workbook = {
+      SheetNames: ["Corners"],
+      Sheets: {
+        Corners: {},
+      },
+    };
+
+    const spy = jest.spyOn(require("xlsx/dist/xlsx.full.min.js").utils, "sheet_to_json");
+
+    spy.mockImplementationOnce(() => [
+      ["Pair", "Description", "Alg", "Memo", "Category", "Notes"],
+      [
+        "AB",
+        "[R' B' R : [R D R' , U']]",
+        "R' B' R2 D R' U' R D' R' U R' B R",
+        "Abe",
+        "Main set",
+        "Fast",
+      ],
+    ]);
+
+    const entries = extractAlgLibraryEntriesFromWorkbook(workbook);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "corner",
+          caseCode: "AB",
+          description: "[R' B' R : [R D R' , U']]",
+          alg: "R' B' R2 D R' U' R D' R' U R' B R",
+          memoWord: "Abe",
+          category: "Main set",
+          notes: "Fast",
+        }),
+      ])
+    );
+
+    spy.mockRestore();
+  });
 });

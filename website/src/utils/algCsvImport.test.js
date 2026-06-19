@@ -50,6 +50,29 @@ describe("algCsvImport", () => {
     );
   });
 
+  it("maps memo words and metadata onto the same entry when the csv has dedicated columns", () => {
+    const csvText = [
+      "Pair,Description,Alg,Memo,Category,Notes",
+      'AB,"[R\' B\' R : [R D R\' , U\']]","R\' B\' R2 D R\' U\' R D\' R\' U R\' B R",Abe,Main set,Fast',
+    ].join("\n");
+
+    const entries = extractAlgLibraryEntriesFromCsv(csvText, "corner", "corners.csv");
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "corner",
+          caseCode: "AB",
+          description: "[R' B' R : [R D R' , U']]",
+          alg: "R' B' R2 D R' U' R D' R' U R' B R",
+          memoWord: "Abe",
+          category: "Main set",
+          notes: "Fast",
+        }),
+      ])
+    );
+  });
+
   it("repairs missing trailing closing brackets from csv algs", () => {
     const csvText = 'case_code,alg\nIN,"[R\' F\' R D U : [U2 , R\' D\' R]"';
 

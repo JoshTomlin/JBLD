@@ -34,7 +34,7 @@ import { getBundledAlgLibraryEntries } from "./data/bundledAlgLibrary";
 import LZString from "lz-string";
 import "react-base-table/styles.css";
 
-const BUNDLED_ALG_LIBRARY_VERSION = "2026-06-17-v4";
+const BUNDLED_ALG_LIBRARY_VERSION = "2026-06-19-v5";
 
 class App extends React.Component {
   constructor() {
@@ -413,6 +413,7 @@ class App extends React.Component {
           ? {
               description: selectedEntry.description || "",
               alg: selectedEntry.alg || "",
+              memoWord: selectedEntry.memo_word || "",
               category: selectedEntry.category || "",
               notes: selectedEntry.notes || "",
             }
@@ -430,6 +431,7 @@ class App extends React.Component {
         ? {
             description: entry.description || "",
             alg: entry.alg || "",
+            memoWord: entry.memo_word || "",
             category: entry.category || "",
             notes: entry.notes || "",
           }
@@ -473,6 +475,7 @@ class App extends React.Component {
         algLibraryDraft: {
           description: savedEntry.description || "",
           alg: savedEntry.alg || "",
+          memoWord: savedEntry.memo_word || "",
           category: savedEntry.category || "",
           notes: savedEntry.notes || "",
         },
@@ -3104,6 +3107,9 @@ class App extends React.Component {
     const algLibraryRecentEntries = Array.isArray(this.state.algLibrarySummary.recentEntries)
       ? this.state.algLibrarySummary.recentEntries
       : [];
+    const algLibraryMemoCounts = Array.isArray(this.state.algLibrarySummary.memoCounts)
+      ? this.state.algLibrarySummary.memoCounts
+      : [];
     const algLibraryEntries = Array.isArray(this.state.algLibraryEntries) ? this.state.algLibraryEntries : [];
     const algLibraryTotal = algLibraryCounts.reduce(
       (total, entry) => total + (Number(entry.count) || 0),
@@ -3116,8 +3122,6 @@ class App extends React.Component {
       { value: "corner", label: "Corners" },
       { value: "edge", label: "Edges" },
       { value: "parity", label: "Parity" },
-      { value: "corner_memo", label: "Corner Words" },
-      { value: "edge_memo", label: "Edge Words" },
     ];
     const recentSolves = [...this.state.solves_stats].slice().reverse();
     const chartSolves = recentSolves
@@ -3389,7 +3393,7 @@ class App extends React.Component {
             <article className="study_library_card">
               <div className="study_library_title">Alg Library</div>
               <div className="study_library_text">
-                Browse the locally bundled corners, edges, memo words, and parity library from the dedicated Alg Library screen.
+                Browse the locally bundled corners, edges, linked memo words, and parity library from the dedicated Alg Library screen.
               </div>
               <div className="study_library_action_row">
                 <button
@@ -3422,6 +3426,7 @@ class App extends React.Component {
                         <span>{entry.piece_type}</span>
                       </div>
                       <div className="study_library_entry_alg">{entry.description}</div>
+                      {entry.memo_word ? <div className="study_library_entry_alg">Memo: {entry.memo_word}</div> : null}
                       {entry.alg ? <div className="study_library_entry_alg">{entry.alg}</div> : null}
                       {entry.category ? (
                         <div className="study_library_entry_alg">Category: {entry.category}</div>
@@ -3462,15 +3467,15 @@ class App extends React.Component {
               </strong>
             </div>
             <div className="breakdown_card">
-              <span>Corner Words</span>
+              <span>Corner Memos</span>
               <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "corner_memo") || {}).count || "--"}
+                {(algLibraryMemoCounts.find((entry) => entry.piece_type === "corner") || {}).count || "--"}
               </strong>
             </div>
             <div className="breakdown_card">
-              <span>Edge Words</span>
+              <span>Edge Memos</span>
               <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "edge_memo") || {}).count || "--"}
+                {(algLibraryMemoCounts.find((entry) => entry.piece_type === "edge") || {}).count || "--"}
               </strong>
             </div>
             <div className="breakdown_card">
@@ -3488,7 +3493,7 @@ class App extends React.Component {
             <article className="study_library_card">
               <div className="study_library_title">Bundled Library</div>
               <div className="study_library_text">
-                Your corner algs, edge algs, memo words, and parity data are built into the app and seeded into the local alg library database automatically.
+                Your corner algs, edge algs, linked memo words, and parity data are built into the app and seeded into the local alg library database automatically.
               </div>
               <div className="study_library_action_row">
                 <button
@@ -3510,7 +3515,7 @@ class App extends React.Component {
             <article className="study_library_card">
               <div className="study_library_title">How It Works</div>
               <div className="study_library_text">
-                This page now lets you browse saved cases, update your preferred algs or memo words, and compare recent parsed solves against what you have stored.
+                Each edge or corner case now carries its memo word with it, so the library stays as one record per case while you edit and review everything together.
               </div>
             </article>
           </div>
@@ -3567,6 +3572,7 @@ class App extends React.Component {
                         <span>{entry.piece_type}</span>
                       </div>
                       <div className="alg_library_row_text">{entry.description || "No description saved yet"}</div>
+                      {entry.memo_word ? <div className="alg_library_row_text">Memo: {entry.memo_word}</div> : null}
                       {entry.alg ? <div className="alg_library_row_alg">{entry.alg}</div> : null}
                     </button>
                   ))
@@ -3586,11 +3592,20 @@ class App extends React.Component {
               {algLibrarySelectedEntry && this.state.algLibraryDraft ? (
                 <div className="alg_library_form">
                   <label className="alg_library_field">
-                    <span>Description / Word</span>
+                    <span>Description</span>
                     <textarea
                       className="settings_textarea alg_library_textarea"
                       value={this.state.algLibraryDraft.description}
                       onChange={(event) => this.updateAlgLibraryDraftField("description", event.target.value)}
+                    />
+                  </label>
+                  <label className="alg_library_field">
+                    <span>Memo Word</span>
+                    <input
+                      type="text"
+                      className="settings_input"
+                      value={this.state.algLibraryDraft.memoWord}
+                      onChange={(event) => this.updateAlgLibraryDraftField("memoWord", event.target.value)}
                     />
                   </label>
                   <label className="alg_library_field">
@@ -3631,7 +3646,7 @@ class App extends React.Component {
                 </div>
               ) : (
                 <div className="study_library_text">
-                  Pick an alg, parity case, or memo word from the list to review and edit it here.
+                  Pick a case from the list to review its alg, linked memo word, and notes together.
                 </div>
               )}
             </article>
@@ -3702,6 +3717,7 @@ class App extends React.Component {
                         <span>{entry.piece_type}</span>
                       </div>
                       <div className="study_library_entry_alg">{entry.description}</div>
+                      {entry.memo_word ? <div className="study_library_entry_alg">Memo: {entry.memo_word}</div> : null}
                       {entry.alg ? <div className="study_library_entry_alg">{entry.alg}</div> : null}
                       {entry.category ? (
                         <div className="study_library_entry_alg">Category: {entry.category}</div>

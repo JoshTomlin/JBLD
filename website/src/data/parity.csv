@@ -1,4 +1,4 @@
-,Memo,Alg,Category,Note
+Target,Description,Alg,Category,Note
 A,U2 [Y Perm] U2,U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2,Set up to A,
 B,[Jb Perm] U',R U R' F' R U R' U' R' F R2 U' R' U',Set up to B,
 D,U' [Ja Perm] U,U' R2 D R D' R F2 L' U L F2 U,Set up to D,

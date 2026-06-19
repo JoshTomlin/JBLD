@@ -1,7 +1,18 @@
 import { expandCommNotation, hasCommNotation } from "./commNotation";
 
-const HEADER_CASE_FIELDS = ["case", "case_code", "code", "target", "letter_pair"];
-const HEADER_ALG_FIELDS = ["alg", "algorithm", "notation", "comm", "comm_notation"];
+const HEADER_CASE_FIELDS = ["case", "case_code", "code", "target", "letter_pair", "pair"];
+const HEADER_DESCRIPTION_FIELDS = [
+  "description",
+  "desc",
+  "notation",
+  "comm",
+  "comm_notation",
+  "comm notation",
+];
+const HEADER_ALG_FIELDS = ["alg", "algorithm", "expanded_alg", "expanded alg", "expanded algorithm"];
+const HEADER_MEMO_FIELDS = ["memo", "memo_word", "memo word", "word"];
+const HEADER_CATEGORY_FIELDS = ["category", "group", "set"];
+const HEADER_NOTES_FIELDS = ["notes", "note", "comment", "comments"];
 
 function normalizeCell(value) {
   return value === null || value === undefined ? "" : String(value).replace(/^\uFEFF/, "").trim();
@@ -118,7 +129,10 @@ function detectHeaderRow(row = []) {
   const normalized = row.map((value) => normalizeCell(value).toLowerCase());
   return (
     normalized.some((value) => HEADER_CASE_FIELDS.includes(value)) &&
-    normalized.some((value) => HEADER_ALG_FIELDS.includes(value))
+    (
+      normalized.some((value) => HEADER_DESCRIPTION_FIELDS.includes(value)) ||
+      normalized.some((value) => HEADER_ALG_FIELDS.includes(value))
+    )
   );
 }
 
@@ -128,15 +142,37 @@ function resolveColumnIndex(headerRow, supportedFields, fallbackIndex) {
   return matchIndex >= 0 ? matchIndex : fallbackIndex;
 }
 
-function buildEntry({ pieceType, sourceName, rowIndex, caseCode, notation }) {
+function resolveOptionalColumnIndex(headerRow, supportedFields) {
+  return resolveColumnIndex(headerRow, supportedFields, -1);
+}
+
+function buildEntry({
+  pieceType,
+  sourceName,
+  rowIndex,
+  caseCode,
+  description,
+  alg,
+  memoWord,
+  category,
+  notes,
+}) {
+  const normalizedDescription = normalizeCell(description);
+  const normalizedAlg = normalizeCell(alg) || expandLibraryNotation(normalizedDescription);
+
   return {
     id: `${pieceType}-${caseCode}`.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"),
     pieceType,
     sheetName: sourceName,
     rowIndex,
     caseCode,
-    notation,
-    expandedAlg: expandLibraryNotation(notation),
+    notation: normalizedDescription,
+    expandedAlg: normalizedAlg,
+    description: normalizedDescription,
+    alg: normalizedAlg,
+    memoWord: normalizeCell(memoWord) || null,
+    category: normalizeCell(category) || null,
+    notes: normalizeCell(notes) || null,
   };
 }
 
@@ -166,15 +202,26 @@ export function extractAlgLibraryEntriesFromCsv(csvText = "", pieceType = "unkno
   const headerOffset = detectHeaderRow(rows[0]) ? 1 : 0;
   const headerRow = headerOffset ? rows[0] : [];
   const caseColumnIndex = headerOffset ? resolveColumnIndex(headerRow, HEADER_CASE_FIELDS, 0) : 0;
-  const algColumnIndex = headerOffset ? resolveColumnIndex(headerRow, HEADER_ALG_FIELDS, 1) : 1;
+  const descriptionColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_DESCRIPTION_FIELDS) : 1;
+  const algColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_ALG_FIELDS) : -1;
+  const memoColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_MEMO_FIELDS) : -1;
+  const categoryColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_CATEGORY_FIELDS) : -1;
+  const notesColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_NOTES_FIELDS) : -1;
 
   return rows
     .slice(headerOffset)
     .map((row, index) => {
       const caseCode = normalizeCell(row[caseColumnIndex]);
-      const notation = normalizeCell(row[algColumnIndex]);
+      const description =
+        normalizeCell(row[descriptionColumnIndex]) ||
+        normalizeCell(row[algColumnIndex >= 0 ? algColumnIndex : 1]);
+      const hasDedicatedAlgColumn = descriptionColumnIndex >= 0 && algColumnIndex >= 0;
+      const alg = hasDedicatedAlgColumn ? normalizeCell(row[algColumnIndex]) : "";
+      const memoWord = memoColumnIndex >= 0 ? normalizeCell(row[memoColumnIndex]) : "";
+      const category = categoryColumnIndex >= 0 ? normalizeCell(row[categoryColumnIndex]) : "";
+      const notes = notesColumnIndex >= 0 ? normalizeCell(row[notesColumnIndex]) : "";
 
-      if (!caseCode || !notation) {
+      if (!caseCode || !description) {
         return null;
       }
 
@@ -184,7 +231,11 @@ export function extractAlgLibraryEntriesFromCsv(csvText = "", pieceType = "unkno
           sourceName,
           rowIndex: index + 1 + headerOffset,
           caseCode,
-          notation,
+          description,
+          alg,
+          memoWord,
+          category,
+          notes,
         });
       } catch (error) {
         const sourceLabel = sourceName || `${pieceType} csv`;
