@@ -1104,6 +1104,18 @@ textarea {
   flex: 1 1 0;
 }
 
+.alg_library_control_grid_compact > .alg_library_field:nth-child(1) {
+  flex: 0.95 1 0;
+}
+
+.alg_library_control_grid_compact > .alg_library_field:nth-child(2) {
+  flex: 1.35 1 0;
+}
+
+.alg_library_control_grid_compact > .alg_library_field:nth-child(3) {
+  flex: 0.55 1 0;
+}
+
 .alg_library_search {
   width: 100%;
   min-height: 42px;
@@ -1138,6 +1150,7 @@ textarea {
 
 .alg_library_toolbar_flat .alg_library_field span {
   margin-bottom: 0;
+  padding-left: 8px;
   color: var(--text-faint);
   font-size: 0.72rem;
   letter-spacing: 0.08em;

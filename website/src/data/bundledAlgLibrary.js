@@ -7,7 +7,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AB",
     "description": "[R' B' R : [R D R' , U']]",
     "alg": "R' B' R2 D R' U' R D' R' U R' B R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -18,7 +18,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AD",
     "description": "[R' D R U2 : [R' D' R , U]]",
     "alg": "R' D R U2 R' D' R U R' D R U R' D' R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -29,7 +29,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AF",
     "description": "[F : [U2 , F' R F R']]",
     "alg": "F U2 F' R F R' U2 R F' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -40,7 +40,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AG",
     "description": "[R' D R , U2]",
     "alg": "R' D R U2 R' D' R U2",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -51,7 +51,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AH",
     "description": "[U' : [R D' R' , U2]]",
     "alg": "U' R D' R' U2 R D R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -62,7 +62,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AI",
     "description": "[r D' U : [R D R' , U2]]",
     "alg": "r D' U R D R' U2 R D' R' U D r'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -73,7 +73,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AK",
     "description": "[D U' : [R D R' , U2]]",
     "alg": "D U' R D R' U2 R D' R' U' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -84,7 +84,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AL",
     "description": "[D : [R' D' R , U2]]",
     "alg": "D R' D' R U2 R' D R U2 D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -95,7 +95,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AN",
     "description": "[R' U D R2 : [U' , R' D' R]]",
     "alg": "R' U D R2 U' R' D' R U R' D R' D' U' R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -106,7 +106,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AO",
     "description": "[U' : [R D R' , U2]]",
     "alg": "U' R D R' U2 R D' R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -117,7 +117,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AP",
     "description": "[R' D' R , U2]",
     "alg": "R' D' R U2 R' D R U2",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -128,7 +128,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AQ",
     "description": "[R' U D : [R D R' , U2]]",
     "alg": "R' U D R D R' U2 R D' R' U2 D' U' R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -139,7 +139,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AS",
     "description": "[D' U' : [R D R' , U2]]",
     "alg": "D' U' R D R' U2 R D' R' U' D",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -150,7 +150,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AT",
     "description": "[D U' : [R D' R' , U2]]",
     "alg": "D U' R D' R' U2 R D R' U' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -161,7 +161,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AU",
     "description": "[R F' R' U' : [R D R' , U2]]",
     "alg": "R F' R' U' R D R' U2 R D' R' U' R F R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -172,7 +172,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AV",
     "description": "[R' D R U' R D' R' , U2]",
     "alg": "R' D R U' R D' R' U2 R D R' U R' D' R U2",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -183,7 +183,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AW",
     "description": "[R D' R' : [R' D R , U2]]",
     "alg": "R D' R2 D R U2 R' D' R U2 R D R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -194,7 +194,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "AX",
     "description": "[R' U' D' R : [R U' R' , D]]",
     "alg": "R' U' D' R2 U' R' D R U R' D' R' D U R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -205,7 +205,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BA",
     "description": "[R' B' R : [U' , R D R']]",
     "alg": "R' B' R U' R D R' U R D' R2 B R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -216,7 +216,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BD",
     "description": "[R F' R' : [R' D R, U]]",
     "alg": "R F' R2 D R U R' D' R U' R F R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -227,7 +227,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BE",
     "description": "[R : [U , R D R']]",
     "alg": "R U R D R' U' R D' R2",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -238,7 +238,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BF",
     "description": "[R2 : [D' , R U' R']]",
     "alg": "R2 D' R U' R' D R U R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -249,7 +249,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BG",
     "description": "[R' D R , U]",
     "alg": "R' D R U R' D' R U'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -260,7 +260,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BH",
     "description": "[U' , R D' R']",
     "alg": "U' R D' R' U R D R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -271,7 +271,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BI",
     "description": "[R2 U' : [D' , R U R']]",
     "alg": "R2 U' D' R U R' D R U' R' U R2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -282,7 +282,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BK",
     "description": "[D' : [R' D R , U]]",
     "alg": "D' R' D R U R' D' R U' D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -293,7 +293,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BL",
     "description": "[D : [R' D' R , U]]",
     "alg": "D R' D' R U R' D R U' D'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -304,7 +304,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BO",
     "description": "[U' , R D R']",
     "alg": "U' R D R' U R D' R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -315,7 +315,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BP",
     "description": "[R' D' R , U]",
     "alg": "R' D' R U R' D R U'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -326,7 +326,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BR",
     "description": "[R2 U : [R' U' R , D]]",
     "alg": "R2 U R' U' R D R' U R D' U' R2",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -337,7 +337,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BS",
     "description": "[D' : [U' , R D R']]",
     "alg": "D' U' R D R' U R D' R' D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -348,7 +348,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BT",
     "description": "[D : [U' , R D' R']]",
     "alg": "D U' R D' R' U R D R' D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -359,7 +359,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BU",
     "description": "[R F' : [R' U' R , D]]",
     "alg": "R F' R' U' R D R' U R D' F R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -370,7 +370,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BV",
     "description": "[R' D R U' R D' R' , U]",
     "alg": "R' D R U' R D' R' U R D R' U R' D' R U'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -381,7 +381,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BW",
     "description": "[U' , R D' R' U R' D R]",
     "alg": "U' R D' R' U R' D R U R' D' R U' R D R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -392,7 +392,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "BX",
     "description": "[R' B : [D' , R U R']]",
     "alg": "R' B D' R U R' D R U' R' B' R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -403,7 +403,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DA",
     "description": "[R' D R U' : [R' D' R , U']]",
     "alg": "R' D R U' R' D' R U' R' D R U2 R' D' R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -414,7 +414,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DB",
     "description": "[R F' R' : [U , R' D R]]",
     "alg": "R F' R' U R' D R U' R' D' R2 F R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -425,7 +425,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DE",
     "description": "[U' R2 : [D , R' U2 R]]",
     "alg": "U' R2 D R' U2 R D' R' U2 R' U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -436,7 +436,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DG",
     "description": "[R' D R , U']",
     "alg": "R' D R U' R' D' R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -447,7 +447,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DH",
     "description": "[U' : [R D' R' , U']]",
     "alg": "U' R D' R' U' R D R' U2",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -458,7 +458,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DK",
     "description": "[D' : [R' D R , U']]",
     "alg": "D' R' D R U' R' D' R U D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -469,7 +469,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DL",
     "description": "[D : [R' D' R , U']]",
     "alg": "D R' D' R U' R' D R U D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -480,7 +480,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DN",
     "description": "[U' R' : [U2 , R' D' R]]",
     "alg": "U' R' U2 R' D' R U2 R' D R2 U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -491,7 +491,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DO",
     "description": "[U' : [R D R' , U']]",
     "alg": "U' R D R' U' R D' R' U2",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -502,7 +502,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DP",
     "description": "[R' D' R , U']",
     "alg": "R' D' R U' R' D R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -513,7 +513,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DQ",
     "description": "[R' D' : [U' , R' D R]]",
     "alg": "R' D' U' R' D R U R' D' R D R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -524,7 +524,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DR",
     "description": "[U' R' : [U' , R' D' R]]",
     "alg": "U' R' U' R' D' R U R' D R2 U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -535,7 +535,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DS",
     "description": "[D : [R' D R , U']]",
     "alg": "D R' D R U' R' D' R U D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -546,7 +546,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DT",
     "description": "[D' : [R' D' R , U']]",
     "alg": "D' R' D' R U' R' D R U D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -557,7 +557,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DU",
     "description": "[R' U' R : [F2' , R' U R U']]",
     "alg": "R' U' R F2' R' U R U' F2 U",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -568,7 +568,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DV",
     "description": "[R' D R U' R D' R' , U']",
     "alg": "R' D R U' R D' R' U' R D R' U R' D' R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -579,7 +579,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DW",
     "description": "[R D' R' : [R' D R , U']]",
     "alg": "R D' R2 D R U' R' D' R U R D R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -590,7 +590,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "DX",
     "description": "[R' D' R : [R U' R' , D]]",
     "alg": "R' D' R2 U' R' D R U R' D' R' D R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -601,7 +601,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EB",
     "description": "[R2 : [D , R' U R]]",
     "alg": "R2 D R' U R D' R' U' R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -612,7 +612,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "ED",
     "description": "[U' R : [U2 , R D R']]",
     "alg": "U' R U2 R D R' U2 R D' R2 U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -623,7 +623,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EF",
     "description": "[U' R' F : [D , R U R']]",
     "alg": "U' R' F D R U R' D' R U' R' F' R U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -634,7 +634,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EG",
     "description": "[U R' : [U' , R' D R]]",
     "alg": "U R' U' R' D R U R' D' R2 U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -645,7 +645,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EH",
     "description": "[R D' : [R D R' , U]]",
     "alg": "R D' R D R' U R D' R' U' D R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -656,7 +656,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EI",
     "description": "[l' U : [R D' R' , U2]]",
     "alg": "l' U R D' R' U2 R D R' U l",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -667,7 +667,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EK",
     "description": "[U D' R' : [U' , R' D R]]",
     "alg": "U D' R' U' R' D R U R' D' R2 D U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -678,7 +678,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EL",
     "description": "[R U : [R' D R , U]]",
     "alg": "R U R' D R U R' D' R U2 R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -689,7 +689,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EN",
     "description": "[R' D R2 D' R2' : [U , R2 D R2' D' R2]]",
     "alg": "R' D R2 D' R2' U R2 D R2' D' R2 U' R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -700,7 +700,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EO",
     "description": "[U' R : [R U' R' , D']]",
     "alg": "U' R2 U' R' D' R U R' D R' U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -711,7 +711,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EP",
     "description": "[U R' U2 : [R D R' , U]]",
     "alg": "U R' U2 R D R' U R D' R' U R U'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -722,7 +722,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EQ",
     "description": "[R' , F' L F]",
     "alg": "R' F' L F R F' L' F",
-    "category": null,
+    "category": "R'-swap",
     "notes": null
   },
   {
@@ -733,7 +733,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "ES",
     "description": "[U D R' : [U' , R' D R]]",
     "alg": "U D R' U' R' D R U R' D' R2 D' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -744,7 +744,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "ET",
     "description": "[R U : [R' D' R , U]]",
     "alg": "R U R' D' R U R' D R U2 R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -755,7 +755,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EU",
     "description": "[D' R : [R D' R' , U]]",
     "alg": "D' R2 D' R' U R D R' U' R' D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -766,7 +766,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EV",
     "description": "[U R' D' : [U' , R' D' R]]",
     "alg": "U R' D' U' R' D' R U R' D R D R U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -777,7 +777,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EW",
     "description": "[D R : [R D' R', U]]",
     "alg": "D R2 D' R' U R D R' U' R' D'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -788,7 +788,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "EX",
     "description": "[R : [R D' R' , U]]",
     "alg": "R2 D' R' U R D R' U' R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -799,7 +799,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FA",
     "description": "[F : [R' D' R , U2]]",
     "alg": "F R' D' R U2 R' D R U2 F'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -810,7 +810,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FB",
     "description": "[R' : [U' , R' D' R]]",
     "alg": "R' U' R' D' R U R' D R2",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -821,7 +821,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FE",
     "description": "[U' R' U , L]",
     "alg": "U' R' U L U' R U L'",
-    "category": null,
+    "category": "L-swap",
     "notes": null
   },
   {
@@ -832,7 +832,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FG",
     "description": "[R' U' : [D , R U R']]",
     "alg": "R' U' D R U R' D' R U' R' U R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -843,7 +843,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FH",
     "description": "[U' R U' : [D' , R' U R]]",
     "alg": "U' R U' D' R' U R D R' U' R U R' U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -854,7 +854,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FK",
     "description": "[R : [F , R' U R U']]",
     "alg": "R F R' U R U' F' U R' U'",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -865,7 +865,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FL",
     "description": "[D R' U' : [D' , R U R']]",
     "alg": "D R' U' D' R U R' D R U' R' U R D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -876,7 +876,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FN",
     "description": "[R U' D' R' : [D , R' U R]]",
     "alg": "R U' D' R' D R' U R D' R' U' R2 D U R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -887,7 +887,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FO",
     "description": "[D' R : [F , R' U R U']]",
     "alg": "D' R F R' U R U' F' U R' U' D",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -898,7 +898,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FP",
     "description": "[R' U' : [D' , R U R']]",
     "alg": "R' U' D' R U R' D R U' R' U R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -909,7 +909,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FQ",
     "description": "[R' F : [R U R' , D]]",
     "alg": "R' F R U R' D R U' R' D' F' R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -920,7 +920,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FR",
     "description": "[l U' l' , F]",
     "alg": "l U' l' F l U l' F'",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -931,7 +931,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FS",
     "description": "[l U2 l' , F]",
     "alg": "l U2 l' F l U2 l' F'",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -942,7 +942,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FT",
     "description": "[D' R' U' : [D' , R U R']]",
     "alg": "D' R' U' D' R U R' D R U' R' U R D",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -953,7 +953,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FU",
     "description": "[U' R' U : [R U' R' , D]]",
     "alg": "U' R' U R U' R' D R U R' D' U' R U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -964,7 +964,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FV",
     "description": "[U' D' R' U : [R U' R' , D]]",
     "alg": "U' D' R' U R U' R' D R U R' D' U' R D U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -975,7 +975,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FW",
     "description": "[R U' R' : [D , R' U R]]",
     "alg": "R U' R' D R' U R D' R' U' R2 U R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -986,7 +986,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "FX",
     "description": "[U' D R' U : [R U' R' , D]]",
     "alg": "U' D R' U R U' R' D R U R' D' U' R D' U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -997,7 +997,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GA",
     "description": "[U2 , R' D R]",
     "alg": "U2 R' D R U2 R' D' R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1008,7 +1008,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GB",
     "description": "[U , R' D R]",
     "alg": "U R' D R U' R' D' R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1019,7 +1019,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GD",
     "description": "[U' , R' D R]",
     "alg": "U' R' D R U R' D' R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1030,7 +1030,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GE",
     "description": "[U R' : [R' D R , U']]",
     "alg": "U R2 D R U' R' D' R U R U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1041,7 +1041,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GF",
     "description": "[R' U' : [R U R' , D]]",
     "alg": "R' U' R U R' D R U' R' D' U R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1052,7 +1052,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GH",
     "description": "[D R' : [F' , R D' R']]",
     "alg": "D R' F' R D' R' F R",
-    "category": null,
+    "category": "F'-swap",
     "notes": null
   },
   {
@@ -1063,7 +1063,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GI",
     "description": "[D R' : [F2 , R D' R' D]]",
     "alg": "D R' F2 R D' R' D F2 D' R",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1074,7 +1074,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GK",
     "description": "[U : [D , R U' R']]",
     "alg": "U D R U' R' D' R U R' U'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1085,7 +1085,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GN",
     "description": "[U R U : [R' D R , U2]]",
     "alg": "U R U R' D R U2 R' D' R U R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1096,7 +1096,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GO",
     "description": "[U D : [R U' R' , D2]]",
     "alg": "U D R U' R' D2 R U R' D U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1107,7 +1107,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GP",
     "description": "[U R' D : [R U' R' , D2]]",
     "alg": "U R' D R U' R' D2 R U R' D R U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1118,7 +1118,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GQ",
     "description": "[R' U : [R U' R' , D]]",
     "alg": "R' U R U' R' D R U R' D' U' R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1129,7 +1129,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GR",
     "description": "[R B' R' : [R' D R , U]]",
     "alg": "R B' R2 D R U R' D' R U' R B R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1140,7 +1140,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GS",
     "description": "[U D : [R U' R' , D]]",
     "alg": "U D R U' R' D R U R' D2 U'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1151,7 +1151,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GT",
     "description": "[R' D R : [D' , R U R']]",
     "alg": "R' D R D' R U R' D R U' R2 D' R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1162,7 +1162,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GV",
     "description": "[U D R D' : [U' , R' D R]]",
     "alg": "U D R D' U' R' D R U R' D' R D R' D' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1173,7 +1173,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GW",
     "description": "[U R : [D , R U' R']]",
     "alg": "U R D R U' R' D' R U R2 U'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1184,7 +1184,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "GX",
     "description": "[D U R U' : [F2' , U R' U' R]]",
     "alg": "D U R U' F2' U R' U' R F2 R' D'",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1195,7 +1195,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HA",
     "description": "[U : [R D' R' , U2]]",
     "alg": "U R D' R' U2 R D R' U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1206,7 +1206,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HB",
     "description": "[R D' R' , U']",
     "alg": "R D' R' U' R D R' U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1217,7 +1217,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HD",
     "description": "[U2 : [R D' R' , U]]",
     "alg": "U2 R D' R' U R D R' U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1228,7 +1228,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HE",
     "description": "[R D' : [U , R D R']]",
     "alg": "R D' U R D R' U' R D' R' D R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1239,7 +1239,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HF",
     "description": "[U' R U' : [R' U R , D']]",
     "alg": "U' R U' R' U R D' R' U' R D U R' U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1250,7 +1250,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HG",
     "description": "[R' D : [F' , D' R D R']]",
     "alg": "R' D F' D' R D R' F R D'",
-    "category": null,
+    "category": "F'-swap",
     "notes": null
   },
   {
@@ -1261,7 +1261,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HI",
     "description": "[R U' D : [R' D R , U2]]",
     "alg": "R U' D R' D R U2 R' D' R U2 D' U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1272,7 +1272,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HK",
     "description": "[l' U : [D , R U' R']]",
     "alg": "l' U D R U' R' D' R U R' U' l",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1283,7 +1283,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HL",
     "description": "[D2 : [R U R' , D']]",
     "alg": "D2 R U R' D' R U' R' D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1294,7 +1294,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HN",
     "description": "[U R : [R D' R' , U2]]",
     "alg": "U R2 D' R' U2 R D R' U2 R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1305,7 +1305,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HO",
     "description": "[R D' : [R' U' R , D2]]",
     "alg": "R D' R' U' R D2 R' U R D' R'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1316,7 +1316,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HP",
     "description": "[D2 , R U R']",
     "alg": "D2 R U R' D2 R U' R'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1327,7 +1327,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HQ",
     "description": "[U' L U , R]",
     "alg": "U' L U R U' L' U R'",
-    "category": null,
+    "category": "R-swap",
     "notes": null
   },
   {
@@ -1338,7 +1338,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HR",
     "description": "[U D R' F' : [D , R U' R']]",
     "alg": "U D R' F' D R U' R' D' R U R' F R D' U'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1349,7 +1349,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HT",
     "description": "[D2 : [R U R' , D]]",
     "alg": "D2 R U R' D R U' R' D",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1360,7 +1360,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HU",
     "description": "[D R U' R' : [R' D R , U2]]",
     "alg": "D R U' R2 D R U2 R' D' R U2 R U R' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1371,7 +1371,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HV",
     "description": "[R U' D R' : [R' D R , U2]]",
     "alg": "R U' D R2 D R U2 R' D' R U2 R D' U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1382,7 +1382,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "HW",
     "description": "[R D' R' : [R' D R , U]]",
     "alg": "R D' R2 D R U R' D' R U' R D R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1393,7 +1393,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IA",
     "description": "R' D R U' R : [F , R' U R U']",
     "alg": "R' D R U' R",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -1404,7 +1404,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IB",
     "description": "[R2 U' : [R U R' , D']]",
     "alg": "R2 U' R U R' D' R U' R' D U R2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1415,7 +1415,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IE",
     "description": "[l' U' : [R D' R' , U2]]",
     "alg": "l' U' R D' R' U2 R D R' U' l",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1426,7 +1426,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IG",
     "description": "[R' D : [F2 , D' R D R']]",
     "alg": "R' D F2 D' R D R' F2 R D'",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1437,7 +1437,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IH",
     "description": "[R U D : [R' D R , U2]]",
     "alg": "R U D R' D R U2 R' D' R U2 D' U' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1448,7 +1448,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IK",
     "description": "[D' R' D : [F2 , D' R D R']]",
     "alg": "D' R' D F2 D' R D R' F2 R",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1459,7 +1459,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IL",
     "description": "[R U : [R' D R , U2]]",
     "alg": "R U R' D R U2 R' D' R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1470,7 +1470,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IN",
     "description": "[R' F' R D U : [U2 , R' D' R]]",
     "alg": "R' F' R D U' R' D' R U2 R' D R U' D' R' F R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1481,7 +1481,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IO",
     "description": "[R D' U : [R' D R , U2]]",
     "alg": "R D' U R' D R U2 R' D' R U D R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1492,7 +1492,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IP",
     "description": "[D R U : [R' D' R , U2]]",
     "alg": "D R U R' D' R U2 R' D R U R' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1503,7 +1503,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IQ",
     "description": "[R U D' : [R' D' R , U2]]",
     "alg": "R U D' R' D' R U2 R' D R U2 D U' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1514,7 +1514,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IR",
     "description": "[R U R' U D : [R D R' , U2]]",
     "alg": "R U R' U D R D R' U2 R D' R' U2 D' U' R U' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1525,7 +1525,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IS",
     "description": "[D R' D : [F2 , D' R D R']]",
     "alg": "D R' D F2 D' R D R' F2 R D2",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1536,7 +1536,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IT",
     "description": "[R U : [R' D' R , U2]]",
     "alg": "R U R' D' R U2 R' D R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1547,7 +1547,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IU",
     "description": "[D' R : [R D' R' , U2]]",
     "alg": "D' R2 D' R' U2 R D R' U2 R' D",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1558,7 +1558,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IV",
     "description": "[R U' R' D' : [R' D R , U2]]",
     "alg": "R U' R' D' R' D R U2 R' D' R U2 D R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1569,7 +1569,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IW",
     "description": "[D R : [R D' R' , U2]]",
     "alg": "D R2 D' R' U2 R D R' U2 R' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1580,7 +1580,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "IX",
     "description": "[R : [R D' R' , U2]]",
     "alg": "R2 D' R' U2 R D R' U2 R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1591,7 +1591,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KA",
     "description": "[U D : [R D R' , U2]]",
     "alg": "U D R D R' U2 R D' R' U2 D' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1602,7 +1602,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KB",
     "description": "[D' : [U , R' D R]]",
     "alg": "D' U R' D R U' R' D' R D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1613,7 +1613,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KD",
     "description": "[D' : [U' , R' D R]]",
     "alg": "D' U' R' D R U R' D' R D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1624,7 +1624,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KE",
     "description": "[D' U R' : [R' D R , U']]",
     "alg": "D' U R2 D R U' R' D' R U R U' D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1635,7 +1635,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KF",
     "description": "[U R U' : [F , U R' U' R]]",
     "alg": "U R U' F U R' U' R F' R'",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -1646,7 +1646,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KG",
     "description": "[U : [R U' R' , D]]",
     "alg": "U R U' R' D R U R' D' U'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1657,7 +1657,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KH",
     "description": "[l' U : [R U' R' , D]]",
     "alg": "l' U R U' R' D R U R' D' U' l",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1668,7 +1668,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KI",
     "description": "[R' : [F2 , R D' R' D]]",
     "alg": "R' F2 R D' R' D F2 D' R D",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1679,7 +1679,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KL",
     "description": "[R' : [F' , R D' R' D]]",
     "alg": "R' F' R D' R' D F D' R D",
-    "category": null,
+    "category": "F'-swap",
     "notes": null
   },
   {
@@ -1690,7 +1690,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KN",
     "description": "[U' R' U : [R D R' , U2]]",
     "alg": "U' R' U R D R' U2 R D' R' U R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1701,7 +1701,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KO",
     "description": "[U : [R U' R' , D']]",
     "alg": "U R U' R' D' R U R' D U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1712,7 +1712,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KQ",
     "description": "[D' R' U : [R U' R' , D]]",
     "alg": "D' R' U R U' R' D R U R' D' U' R D",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1723,7 +1723,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KR",
     "description": "[U' R' U2 : [R D R' , U]]",
     "alg": "U' R' U2 R D R' U R D' R' U R U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1734,7 +1734,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KS",
     "description": "[U : [R U' R' , D2]]",
     "alg": "U R U' R' D2 R U R' D2 U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1745,7 +1745,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KT",
     "description": "[R U R' U' : [D' , R U R']]",
     "alg": "R U R' U' D' R U R' D R U' R' U R U' R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1756,7 +1756,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KU",
     "description": "[U R U' : [F2' , U R' U' R]]",
     "alg": "U R U' F2' U R' U' R F2 R'",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -1767,7 +1767,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KW",
     "description": "[U R' D' : [U' , R' D R]]",
     "alg": "U R' D' U' R' D R U R' D' R D R U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1778,7 +1778,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "KX",
     "description": "[R' D' R : [R U R' , D]]",
     "alg": "R' D' R2 U R' D R U' R' D' R' D R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1789,7 +1789,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LA",
     "description": "[D' U : [R D' R' , U2]]",
     "alg": "D' U R D' R' U2 R D R' U D",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1800,7 +1800,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LB",
     "description": "[D : [U , R' D' R]]",
     "alg": "D U R' D' R U' R' D R D'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1811,7 +1811,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LD",
     "description": "[D : [U' , R' D' R]]",
     "alg": "D U' R' D' R U R' D R D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1822,7 +1822,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LE",
     "description": "[R U2 : [R' D R , U']]",
     "alg": "R U2 R' D R U' R' D' R U' R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1833,7 +1833,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LF",
     "description": "[D R' U' : [R U R' , D']]",
     "alg": "D R' U' R U R' D' R U' R' D U R D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1844,7 +1844,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LH",
     "description": "[D : [R U R' , D]]",
     "alg": "D R U R' D R U' R' D2",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1855,7 +1855,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LI",
     "description": "[R U' : [R' D R , U U]]",
     "alg": "R U' R' D R U2 R' D' R U' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1866,7 +1866,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LK",
     "description": "[D' R' D : [F' , D' R D R']]",
     "alg": "D' R' D F' D' R D R' F R",
-    "category": null,
+    "category": "F'-swap",
     "notes": null
   },
   {
@@ -1877,7 +1877,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LN",
     "description": "[U R U D : [R' D' R , U2]]",
     "alg": "U R U D R' D' R U2 R' D R U2 D' U' R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1888,7 +1888,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LO",
     "description": "[R D2 : [R' U' R , D']]",
     "alg": "R D2 R' U' R D' R' U R D' R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1899,7 +1899,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LP",
     "description": "[D , R U R']",
     "alg": "D R U R' D' R U' R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1910,7 +1910,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LQ",
     "description": "[R' F : [R U' R' , D]]",
     "alg": "R' F R U' R' D R U R' D' F' R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1921,7 +1921,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LR",
     "description": "[D R' : [D , R' U R]]",
     "alg": "D R' D R' U R D' R' U' R2 D'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -1932,7 +1932,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LS",
     "description": "[D' R D' : [R' U' R , D2]]",
     "alg": "D' R D' R' U' R D2 R' U R D' R' D",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1943,7 +1943,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LT",
     "description": "[D : [R U R' , D2]]",
     "alg": "D R U R' D2 R U' R' D",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -1954,7 +1954,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LV",
     "description": "[R U' R' : [R' D R , U2]]",
     "alg": "R U' R2 D R U2 R' D' R U2 R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -1965,7 +1965,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LW",
     "description": "[D R : [R D' R' , U']]",
     "alg": "D R2 D' R' U' R D R' U R' D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -1976,7 +1976,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "LX",
     "description": "[D R D : [U , R' D' R]]",
     "alg": "D R D U R' D' R U' R' D R D' R' D'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -1987,7 +1987,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NA",
     "description": "[R' U D R : [D' , R U' R']]",
     "alg": "R' U D R D' R U' R' D R U R2 D' U' R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -1998,7 +1998,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "ND",
     "description": "[U' R2' : [D' , R U2 R']]",
     "alg": "U' R2' D' R U2 R' D R U2 R U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2009,7 +2009,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NE",
     "description": "[R : [U , R2 D R2 D' R2]]",
     "alg": "R U R2 D R2 D' R2 U' R2 D R2 D' R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2020,7 +2020,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NF",
     "description": "[R U' D' R' : [R' U R , D]]",
     "alg": "R U' D' R2 U R D R' U' R D' R D U R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2031,7 +2031,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NG",
     "description": "[U R U' : [R' D R , U2]]",
     "alg": "U R U' R' D R U2 R' D' R U' R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2042,7 +2042,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NH",
     "description": "[U R : [U2 , R D' R']]",
     "alg": "U R U2 R D' R' U2 R D R2 U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2053,7 +2053,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NI",
     "description": "[R' F' R D U : [R' D' R , U2]]",
     "alg": "R' F' R D U R' D' R U2 R' D R U D' R' F R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2064,7 +2064,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NK",
     "description": "[U' R' U' : [R D R' , U2]]",
     "alg": "U' R' U' R D R' U2 R D' R' U' R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2075,7 +2075,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NL",
     "description": "[U R U' D : [R' D' R , U2]]",
     "alg": "U R U' D R' D' R U2 R' D R U2 D' U R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2086,7 +2086,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NO",
     "description": "[U R U' : [R' D' R , U2]]",
     "alg": "U R U' R' D' R U2 R' D R U' R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2097,7 +2097,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NP",
     "description": "[U' R' D U' : [R D' R' , U2]]",
     "alg": "U' R' D U' R D' R' U2 R D R' U' D' R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2108,7 +2108,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NR",
     "description": "[U R2 U' : [D' , R U R']]",
     "alg": "U R2 U' D' R U R' D R U' R' U R2 U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2119,7 +2119,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NS",
     "description": "[U' R' U' : [R D' R' , U2]]",
     "alg": "U' R' U' R D' R' U2 R D R' U' R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2130,7 +2130,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NT",
     "description": "[R' F' R D' U : [R' D R , U2]]",
     "alg": "R' F' R D' U R' D R U2 R' D' R U D R' F R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2141,7 +2141,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NU",
     "description": "[U' R' : [R' D R , U2]]",
     "alg": "U' R2 D R U2 R' D' R U2 R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2152,7 +2152,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NV",
     "description": "[D' U' R' : [R' D R , U2]]",
     "alg": "D' U' R2 D R U2 R' D' R U2 R U D",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2163,7 +2163,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NW",
     "description": "[U R U' D' : [R' D R , U2]]",
     "alg": "U R U' D' R' D R U2 R' D' R U2 D U R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2174,7 +2174,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "NX",
     "description": "[D U' R' : [R' D R , U2]]",
     "alg": "D U' R2 D R U2 R' D' R U2 R U D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2185,7 +2185,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OA",
     "description": "[U : [R D R' , U2]]",
     "alg": "U R D R' U2 R D' R' U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2196,7 +2196,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OB",
     "description": "[R D R' , U']",
     "alg": "R D R' U' R D' R' U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2207,7 +2207,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OD",
     "description": "[U2 : [R D R' , U]]",
     "alg": "U2 R D R' U R D' R' U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2218,7 +2218,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OE",
     "description": "[U' R' F R : [R D R' , U']]",
     "alg": "U' R' F R2 D R' U' R D' R' U R' F' R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2229,7 +2229,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OF",
     "description": "[D' R : [R' U R U' , F]]",
     "alg": "D' U R U' F U R' U' R F' R' D",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -2240,7 +2240,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OG",
     "description": "[U D' : [R U' R' , D2]]",
     "alg": "U D' R U' R' D2 R U R' D' U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -2251,7 +2251,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OH",
     "description": "[R D : [R' U' R , D2]]",
     "alg": "R D R' U' R D2 R' U R D R'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -2262,7 +2262,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OI",
     "description": "[R D' U' : [R' D R , U2]]",
     "alg": "R D' U' R' D R U2 R' D' R U' D R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2273,7 +2273,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OK",
     "description": "[U : [D' , R U' R']]",
     "alg": "U D' R U' R' D R U R' U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2284,7 +2284,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OL",
     "description": "[R D : [R' U' R , D]]",
     "alg": "R D R' U' R D R' U R D2 R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2295,7 +2295,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "ON",
     "description": "[U R U : [R' D' R , U2]]",
     "alg": "U R U R' D' R U2 R' D R U R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2306,7 +2306,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OP",
     "description": "[R D' : [R' D R , U]]",
     "alg": "R D' R' D R U R' D' R U' D R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2317,7 +2317,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OQ",
     "description": "[U' R U : [R' U' R , D]]",
     "alg": "U' R U R' U' R D R' U R D' U' R' U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2328,7 +2328,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OR",
     "description": "[R B' : [R' U' R , D]]",
     "alg": "R B' R' U' R D R' U R D' B R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2339,7 +2339,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OS",
     "description": "[U' : [R' U' R , D']]",
     "alg": "U' R' U' R D' R' U R D U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2350,7 +2350,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OU",
     "description": "[U' R' : [R' D R , U]]",
     "alg": "U' R2 D R U R' D' R U' R U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2361,7 +2361,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OV",
     "description": "[D' U R U' : [F2 , U R' U' R]]",
     "alg": "D' U R U' F2 U R' U' R F2 R' D",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -2372,7 +2372,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "OX",
     "description": "[U D' R D' : [U' , R' D R]]",
     "alg": "U D' R D' U' R' D R U R' D' R D R' D U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2383,7 +2383,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PA",
     "description": "[U2 , R' D' R]",
     "alg": "U2 R' D' R U2 R' D R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2394,7 +2394,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PB",
     "description": "[U , R' D' R]",
     "alg": "U R' D' R U' R' D R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2405,7 +2405,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PD",
     "description": "[U' , R' D' R]",
     "alg": "U' R' D' R U R' D R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2416,7 +2416,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PE",
     "description": "[U R' U' : [R D R' , U']]",
     "alg": "U R' U' R D R' U' R D' R' U2 R U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2427,7 +2427,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PF",
     "description": "[R' U' : [R U R' , D']]",
     "alg": "R' U' R U R' D' R U' R' D U R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2438,7 +2438,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PG",
     "description": "[U R' D' : [R U' R' , D2]]",
     "alg": "U R' D' R U' R' D2 R U R' D' R U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -2449,7 +2449,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PH",
     "description": "[R U R' , D2]",
     "alg": "R U R' D2 R U' R' D2",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -2460,7 +2460,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PI",
     "description": "[D R U' : [R' D' R , U2]]",
     "alg": "D R U' R' D' R U2 R' D R U' R' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2471,7 +2471,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PL",
     "description": "[R U R' , D]",
     "alg": "R U R' D R U' R' D'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2482,7 +2482,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PN",
     "description": "[U' R' D U : [R D' R' , U2]]",
     "alg": "U' R' D U R D' R' U2 R D R' U D' R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2493,7 +2493,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PO",
     "description": "[R D' : [U , R' D R]]",
     "alg": "R D' U R' D R U' R' D' R D R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2504,7 +2504,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PQ",
     "description": "[R' U : [R U' R' , D']]",
     "alg": "R' U R U' R' D' R U R' D U' R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2515,7 +2515,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PR",
     "description": "[R' : [D , R' U R]]",
     "alg": "R' D R' U R D' R' U' R2",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2526,7 +2526,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PS",
     "description": "[U R' D' : [R U' R' , D']]",
     "alg": "U R' D' R U' R' D' R U R' D2 R U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2537,7 +2537,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PT",
     "description": "[R U R' , D']",
     "alg": "R U R' D' R U' R' D",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2548,7 +2548,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PU",
     "description": "[R D : [U , R' D' R]]",
     "alg": "R D U R' D' R U' R' D R D' R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2559,7 +2559,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PW",
     "description": "[D' R U' R' : [R' D R , U2]]",
     "alg": "D' R U' R2 D R U2 R' D' R U2 R U R' D",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2570,7 +2570,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "PX",
     "description": "[R : [R D' R' , U']]",
     "alg": "R2 D' R' U' R D R' U R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2581,7 +2581,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QA",
     "description": "[R' U' D : [R D R' , U2]]",
     "alg": "R' U' D R D R' U2 R D' R' U2 D' U R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2592,7 +2592,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QD",
     "description": "[R' D' : [R' D R , U']]",
     "alg": "R' D' R' D R U' R' D' R U D R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2603,7 +2603,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QE",
     "description": "[F' L F , R']",
     "alg": "F' L F R' F' L' F R",
-    "category": null,
+    "category": "R'-swap",
     "notes": null
   },
   {
@@ -2614,7 +2614,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QF",
     "description": "[R' F : [D , R U R']]",
     "alg": "R' F D R U R' D' R U' R' F' R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2625,7 +2625,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QG",
     "description": "[R' U : [D , R U' R']]",
     "alg": "R' U D R U' R' D' R U R' U' R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2636,7 +2636,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QH",
     "description": "[R , U' L U]",
     "alg": "R U' L U R' U' L' U",
-    "category": null,
+    "category": "R-swap",
     "notes": null
   },
   {
@@ -2647,7 +2647,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QI",
     "description": "[R D' U' : [R' D' R , U2]]",
     "alg": "R D' U' R' D' R U2 R' D R U' D R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2658,7 +2658,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QK",
     "description": "[D' R' U : [D , R U' R']]",
     "alg": "D' R' U D R U' R' D' R U R' U' R D",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2669,7 +2669,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QL",
     "description": "[R' F : [D , R U' R']]",
     "alg": "R' F D R U' R' D' R U R' F' R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2680,7 +2680,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QO",
     "description": "[U' R U : [D , R' U' R]]",
     "alg": "U' R U D R' U' R D' R' U R U' R' U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2691,7 +2691,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QP",
     "description": "[R' U : [D' , R U' R']]",
     "alg": "R' U D' R U' R' D R U R' U' R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2702,7 +2702,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QR",
     "description": "[R , U' L' U]",
     "alg": "R U' L' U R' U' L U",
-    "category": null,
+    "category": "R-swap",
     "notes": null
   },
   {
@@ -2713,7 +2713,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QS",
     "description": "[D R' U : [D , R U' R']]",
     "alg": "D R' U D R U' R' D' R U R' U' R D'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2724,7 +2724,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QT",
     "description": "[R U' : [R' U R , D]]",
     "alg": "R U' R' U R D R' U' R D' U R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2735,7 +2735,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QU",
     "description": "[D' R U' : [R' U R , D']]",
     "alg": "D' R U' R' U R D' R' U' R D U R' D",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2746,7 +2746,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QV",
     "description": "[U R' U' : [R U R' , D']]",
     "alg": "U R' U' R U R' D' R U' R' D U R U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2757,7 +2757,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QW",
     "description": "[D R U' : [R' U R , D']]",
     "alg": "D R U' R' U R D' R' U' R D U R' D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2768,7 +2768,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "QX",
     "description": "[R U' : [R' U R , D']]",
     "alg": "R U' R' U R D' R' U' R D U R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2779,7 +2779,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RB",
     "description": "[R2 U : [D , R' U' R]]",
     "alg": "R2 U D R' U' R D' R' U R U' R2",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2790,7 +2790,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RD",
     "description": "[U' R2' : [D' , R U' R']]",
     "alg": "U' R2' D' R U' R' D R U R U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2801,7 +2801,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RF",
     "description": "[F , l U' l']",
     "alg": "F l U' l' F' l U l'",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -2812,7 +2812,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RG",
     "description": "[R B' R' : [U , R' D R]]",
     "alg": "R B' R' U R' D R U' R' D' R2 B R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2823,7 +2823,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RH",
     "description": "[U D R' F' : [R U' R' , D]]",
     "alg": "U D R' F' R U' R' D R U R' D' F R D' U'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2834,7 +2834,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RI",
     "description": "[R U R' D' : [R' D R , U2]]",
     "alg": "R U R' D' R' D R U2 R' D' R U2 D R U' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2845,7 +2845,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RK",
     "description": "[U' R' U' : [R D R' , U']]",
     "alg": "U' R' U' R D R' U' R D' R' U2 R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2856,7 +2856,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RL",
     "description": "[D R' : [R' U R , D]]",
     "alg": "D R2 U R D R' U' R D' R D'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2867,7 +2867,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RN",
     "description": "[U R2 U' : [R U R' , D']]",
     "alg": "U R2 U' R U R' D' R U' R' D U R2 U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2878,7 +2878,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RO",
     "description": "[R B' : [D , R' U' R]]",
     "alg": "R B' D R' U' R D' R' U R B R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -2889,7 +2889,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RP",
     "description": "[R2' : [U , R D R']]",
     "alg": "R2' U R D R' U' R D' R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2900,7 +2900,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RQ",
     "description": "[U' L' U , R]",
     "alg": "U' L' U R U' L U R'",
-    "category": null,
+    "category": "R-swap",
     "notes": null
   },
   {
@@ -2911,7 +2911,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RS",
     "description": "[U' R' U' : [R D' R' , U']]",
     "alg": "U' R' U' R D' R' U' R D R' U2 R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2922,7 +2922,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RT",
     "description": "[D' R2' : [U , R D R']]",
     "alg": "D' R2' U R D R' U' R D' R D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -2933,7 +2933,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RU",
     "description": "[U' R' : [R' D R , U']]",
     "alg": "U' R2 D R U' R' D' R U R U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2944,7 +2944,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RV",
     "description": "[D' U' R' : [R' D R , U']]",
     "alg": "D' U' R2 D R U' R' D' R U R U D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2955,7 +2955,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RW",
     "description": "[U R : [D' , R U' R']]",
     "alg": "U R D' R U' R' D R U R2 U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2966,7 +2966,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "RX",
     "description": "[R2 U : [D' , R' U' R]]",
     "alg": "R2 U D' R' U' R D R' U R U' R2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -2977,7 +2977,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SA",
     "description": "[U D' : [R D R' , U2]]",
     "alg": "U D' R D R' U2 R D' R' U2 D U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -2988,7 +2988,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SB",
     "description": "[D' : [R D R' , U']]",
     "alg": "D' R D R' U' R D' R' U D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -2999,7 +2999,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SD",
     "description": "[D : [U' , R' D R]]",
     "alg": "D U' R' D R U R' D' R D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3010,7 +3010,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SE",
     "description": "[D U R' : [R' D R , U']]",
     "alg": "D U R2 D R U' R' D' R U R U' D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3021,7 +3021,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SF",
     "description": "[F , l U2 l']",
     "alg": "F l U2 l' F' l U2 l'",
-    "category": null,
+    "category": "F-swap",
     "notes": null
   },
   {
@@ -3032,7 +3032,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SG",
     "description": "[U D2 : [R U' R' , D']]",
     "alg": "U D2 R U' R' D' R U R' D' U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3043,7 +3043,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SI",
     "description": "[D R' D : [F2 , D' R D R']]",
     "alg": "D R' D F2 D' R D R' F2 R D2",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -3054,7 +3054,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SK",
     "description": "[U : [D2 , R U' R']]",
     "alg": "U D2 R U' R' D2 R U R' U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -3065,7 +3065,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SL",
     "description": "[D' R D : [R' U' R , D2]]",
     "alg": "D' R D R' U' R D2 R' U R D R' D",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -3076,7 +3076,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SN",
     "description": "[U' R' U : [R D' R' , U2]]",
     "alg": "U' R' U R D' R' U2 R D R' U R U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3087,7 +3087,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SO",
     "description": "[U' : [D' , R' U' R]]",
     "alg": "U' D' R' U' R D R' U R U",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3098,7 +3098,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SP",
     "description": "[U R' D' : [D' , R U' R']]",
     "alg": "U R' D2 R U' R' D R U R' D R U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3109,7 +3109,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SQ",
     "description": "[D R' U : [R U' R' , D]]",
     "alg": "D R' U R U' R' D R U R' D' U' R D'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3120,7 +3120,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SR",
     "description": "[U' R' U2 : [R D' R' , U]]",
     "alg": "U' R' U2 R D' R' U R D R' U R U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3131,7 +3131,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "ST",
     "description": "[D2' R' : [F' , R D' R' D]]",
     "alg": "D2' R' F' R D' R' D F D' R D'",
-    "category": null,
+    "category": "F'-swap",
     "notes": null
   },
   {
@@ -3142,7 +3142,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SU",
     "description": "[U' D' R' D' : [U' , R D R']]",
     "alg": "U' D' R' D' U' R D R' U R D' R' D R D U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3153,7 +3153,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SV",
     "description": "[U' D' R' : [R' D R , U]]",
     "alg": "U' D' R2 D R U R' D' R U' R D U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3164,7 +3164,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "SW",
     "description": "[U R : [D2 , R U' R']]",
     "alg": "U R D2 R U' R' D2 R U R2 U'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -3175,7 +3175,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TA",
     "description": "[U D : [R D' R' , U2]]",
     "alg": "U D R D' R' U2 R D R' U2 D' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3186,7 +3186,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TB",
     "description": "[D : [R D' R' , U']]",
     "alg": "D R D' R' U' R D R' U D'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3197,7 +3197,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TD",
     "description": "[D' : [U' , R' D' R]]",
     "alg": "D' U' R' D' R U R' D R D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3208,7 +3208,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TE",
     "description": "[R U2 : [R' D' R , U']]",
     "alg": "R U2 R' D' R U' R' D R U' R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3219,7 +3219,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TF",
     "description": "[D' R' U' : [R U R' , D']]",
     "alg": "D' R' U' R U R' D' R U' R' D U R D",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3230,7 +3230,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TG",
     "description": "[R' D R2 : [U , R' D' R]]",
     "alg": "R' D R2 U R' D' R U' R' D R' D' R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3241,7 +3241,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TH",
     "description": "[D' : [R U R' , D']]",
     "alg": "D' R U R' D' R U' R' D2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3252,7 +3252,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TI",
     "description": "[R U' : [R' D' R , U2]]",
     "alg": "R U' R' D' R U2 R' D R U' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3263,7 +3263,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TK",
     "description": "[R U R' U' : [R U R' , D']]",
     "alg": "R U R' U' R U R' D' R U' R' D U R U' R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3274,7 +3274,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TL",
     "description": "[D' : [R U R' , D2]]",
     "alg": "D' R U R' D2 R U' R' D'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -3285,7 +3285,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TN",
     "description": "[R' F' R D' U' : [R' D R , U2]]",
     "alg": "R' F' R D' U' R' D R U2 R' D' R U' D R' F R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3296,7 +3296,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TP",
     "description": "[D' , R U R']",
     "alg": "D' R U R' D R U' R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3307,7 +3307,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TQ",
     "description": "[R U' : [D , R' U R]]",
     "alg": "R U' D R' U R D' R' U' R U R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3318,7 +3318,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TR",
     "description": "[D' R' : [D , R' U R]]",
     "alg": "D' R' D R' U R D' R' U' R2 D",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3329,7 +3329,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TS",
     "description": "[D R' D : [F' , D' R D R']]",
     "alg": "D R' D F' D' R D R' F R D2",
-    "category": null,
+    "category": "F'-swap",
     "notes": null
   },
   {
@@ -3340,7 +3340,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TU",
     "description": "[D' R : [R D' R' , U']]",
     "alg": "D' R2 D' R' U' R D R' U R' D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3351,7 +3351,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TV",
     "description": "[D' R D : [U , R' D' R]]",
     "alg": "D' R D U R' D' R U' R' D R D' R' D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3362,7 +3362,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "TX",
     "description": "[R U' D : [R' U R , D2]]",
     "alg": "R U' D R' U R D2 R' U' R D U R'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -3373,7 +3373,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UA",
     "description": "[R F' R' U : [R D R' , U2]]",
     "alg": "R F' R' U R D R' U2 R D' R' U R F R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3384,7 +3384,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UB",
     "description": "[R F' : [D , R' U' R]]",
     "alg": "R F' D R' U' R D' R' U R F R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3395,7 +3395,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UD",
     "description": "[U' : [F2' , U R' U' R]]",
     "alg": "U' F2' U R' U' R F2 R' U R",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -3406,7 +3406,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UE",
     "description": "[D' R : [U , R D' R']]",
     "alg": "D' R U R D' R' U' R D R2 D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3417,7 +3417,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UF",
     "description": "[U' R' U : [D , R U' R']]",
     "alg": "U' R' U D R U' R' D' R U R' U' R U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3428,7 +3428,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UH",
     "description": "[D R U' R' : [U2 , R' D R]]",
     "alg": "D R U' R' U2 R' D R U2 R' D' R2 U R' D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3439,7 +3439,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UI",
     "description": "[R D U' : [R' D' R , U2]]",
     "alg": "R D U' R' D' R U2 R' D R U' D' R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3450,7 +3450,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UK",
     "description": "[R : [F2 , R' U R U']]",
     "alg": "R F2 R' U R U' F2 U R' U'",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -3461,7 +3461,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UN",
     "description": "[U' R' : [U2 , R' D R]]",
     "alg": "U' R' U2 R' D R U2 R' D' R2 U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3472,7 +3472,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UO",
     "description": "[U' R' : [U , R' D R]]",
     "alg": "U' R' U R' D R U' R' D' R2 U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3483,7 +3483,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UP",
     "description": "[R D : [R' D' R , U]]",
     "alg": "R D R' D' R U R' D R U' D' R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3494,7 +3494,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UQ",
     "description": "[D' R U' : [D' , R' U R]]",
     "alg": "D' R U' D' R' U R D R' U' R U R' D",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3505,7 +3505,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UR",
     "description": "[U' R' : [U' , R' D R]]",
     "alg": "U' R' U' R' D R U R' D' R2 U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3516,7 +3516,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "US",
     "description": "[U' D' R' D' : [R D R' , U']]",
     "alg": "U' D' R' D' R D R' U' R D' R' U D R D U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3527,7 +3527,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UT",
     "description": "[D' R : [U' , R D' R']]",
     "alg": "D' R U' R D' R' U R D R2 D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3538,7 +3538,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UV",
     "description": "[U' R' U R : [D , R U' R']]",
     "alg": "U' R' U R D R U' R' D' R U R2 U' R U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3549,7 +3549,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UW",
     "description": "[U' R2' : [D , R2 U R2' U' R2]] inverse",
     "alg": "U' R2' D R2 U R2' U' R2 D' R2 U R2 inverse",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3560,7 +3560,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "UX",
     "description": "[R U' D2 : [R' U R , D]]",
     "alg": "R U' D2 R' U R D R' U' R D U R'",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3571,7 +3571,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VA",
     "description": "[U2 , R' D R U' R D' R']",
     "alg": "U2 R' D R U' R D' R' U2 R D R' U R' D' R",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3582,7 +3582,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VB",
     "description": "[U , R' D R U' R D' R']",
     "alg": "U R' D R U' R D' R' U' R D R' U R' D' R",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3593,7 +3593,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VD",
     "description": "[U' , R' D R U' R D' R']",
     "alg": "U' R' D R U' R D' R' U R D R' U R' D' R",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3604,7 +3604,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VE",
     "description": "[U R' D' : [R' D' R , U']]",
     "alg": "U R' D' R' D' R U' R' D R U D R U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3615,7 +3615,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VF",
     "description": "[U' D' R' U : [D , R U' R']]",
     "alg": "U' D' R' U D R U' R' D' R U R' U' R D U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3626,7 +3626,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VG",
     "description": "[U D R D' : [R' D R , U']]",
     "alg": "U D R D' R' D R U' R' D' R U D R' D' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3637,7 +3637,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VH",
     "description": "[R U' D R' : [U2 , R' D R]]",
     "alg": "R U' D R' U2 R' D R U2 R' D' R2 D' U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3648,7 +3648,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VI",
     "description": "[R U' R' U D : [R D R' , U2]]",
     "alg": "R U' R' U D R D R' U2 R D' R' U2 D' U' R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3659,7 +3659,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VL",
     "description": "[R U' R' : [U2 , R' D R]]",
     "alg": "R U' R' U2 R' D R U2 R' D' R2 U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3670,7 +3670,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VN",
     "description": "[U' D' R' : [U2 , R' D R]]",
     "alg": "U' D' R' U2 R' D R U2 R' D' R2 D U",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3681,7 +3681,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VO",
     "description": "[D' R : [F2 , R' U R U']]",
     "alg": "D' R F2 R' U R U' F2 U R' U' D",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -3692,7 +3692,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VQ",
     "description": "[U R' U' : [D' , R U R']]",
     "alg": "U R' U' D' R U R' D R U' R' U R U'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3703,7 +3703,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VR",
     "description": "[D' U' R' : [U' , R' D R]]",
     "alg": "D' U' R' U' R' D R U R' D' R2 U D",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3714,7 +3714,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VS",
     "description": "[U' D' R' : [U , R' D R]]",
     "alg": "U' D' R' U R' D R U' R' D' R2 D U",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3725,7 +3725,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VT",
     "description": "[D' R D : [R' D' R , U]]",
     "alg": "D' R D R' D' R U R' D R U' D' R' D",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3736,7 +3736,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VU",
     "description": "[U' R' U R : [R U' R' , D]]",
     "alg": "U' R' U R2 U' R' D R U R' D' R' U' R U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3747,7 +3747,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VW",
     "description": "[D R U' R' : [R' U R , D']]",
     "alg": "D R U' R2 U R D' R' U' R D R U R' D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3758,7 +3758,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "VX",
     "description": "[R U' R' U : [R D' R' , U2]]",
     "alg": "R U' R' U R D' R' U2 R D R' U R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3769,7 +3769,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WA",
     "description": "[R D' R' : [U2 , R' D R]]",
     "alg": "R D' R' U2 R' D R U2 R' D' R2 D R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3780,7 +3780,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WB",
     "description": "[R D' R' U R' D R , U']",
     "alg": "R D' R' U R' D R U' R' D' R U' R D R' U",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3791,7 +3791,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WD",
     "description": "[R D' R' : [U' , R' D R]]",
     "alg": "R D' R' U' R' D R U R' D' R2 D R'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3802,7 +3802,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WE",
     "description": "[D R : [U , R D' R']]",
     "alg": "D R U R D' R' U' R D R2 D'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3813,7 +3813,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WF",
     "description": "[R U' R2' : [U , R D R']]",
     "alg": "R U' R2' U R D R' U' R D' R U R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3824,7 +3824,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WG",
     "description": "[U R2 : [U' , R' D R]]",
     "alg": "U R2 U' R' D R U R' D' R' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3835,7 +3835,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WH",
     "description": "[R D' R' : [U , R' D R]]",
     "alg": "R D' R' U R' D R U' R' D' R2 D R'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -3846,7 +3846,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WI",
     "description": "[D R : [U2 , R D' R']]",
     "alg": "D R U2 R D' R' U2 R D R2 D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3857,7 +3857,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WK",
     "description": "[U R D' : [R' D R , U']]",
     "alg": "U R D' R' D R U' R' D' R U D R' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3868,7 +3868,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WL",
     "description": "[D' R2 : [R' U' R , D']]",
     "alg": "D' R U' R D' R' U R D R2 D",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3879,7 +3879,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WN",
     "description": "[U R U D' : [R' D R , U2]]",
     "alg": "U R U D' R' D R U2 R' D' R U2 D U' R' U'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3890,7 +3890,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WP",
     "description": "[D' R U' R' : [U2 , R' D R]]",
     "alg": "D' R U' R' U2 R' D R U2 R' D' R2 U R' D",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -3901,7 +3901,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WQ",
     "description": "[D R U' : [D' , R' U R]]",
     "alg": "D R U' D' R' U R D R' U' R U R' D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3912,7 +3912,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WR",
     "description": "[U R2 : [U' , R' D' R]]",
     "alg": "U R2 U' R' D' R U R' D R' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3923,7 +3923,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WS",
     "description": "[U R2 : [U' , R' D2 R]]",
     "alg": "U R2 U' R' D2 R U R' D2 R' U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -3934,7 +3934,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WU",
     "description": "[U' R2' : [D , R2 U R2' U' R2]]",
     "alg": "U' R2' D R2 U R2' U' R2 D' R2 U R2",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3945,7 +3945,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WV",
     "description": "[D R U' R' : [D' , R' U R]]",
     "alg": "D R U' R' D' R' U R D R' U' R2 U R' D'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3956,7 +3956,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "WX",
     "description": "[R U' R' : [R' U R , D']]",
     "alg": "R U' R2 U R D' R' U' R D R U R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3967,7 +3967,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XA",
     "description": "[R' U' D' R : [D , R U' R']]",
     "alg": "R' U' D' R D R U' R' D' R U R2 D U R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -3978,7 +3978,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XB",
     "description": "[R' B : [R U R' , D']]",
     "alg": "R' B R U R' D' R U' R' D B' R",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -3989,7 +3989,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XD",
     "description": "[R' D' R : [D , R U' R']]",
     "alg": "R' D' R D R U' R' D' R U R2 D R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -4000,7 +4000,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XE",
     "description": "[R : [U , R D' R']]",
     "alg": "R U R D' R' U' R D R2",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -4011,7 +4011,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XF",
     "description": "[U' D R' U : [D , R U' R']]",
     "alg": "U' D R' U D R U' R' D' R U R' U' R D' U",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -4022,7 +4022,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XG",
     "description": "[D R : [F2 , R' U R U']]",
     "alg": "D R F2 R' U R U' F2 U R' U' D'",
-    "category": null,
+    "category": "F2-swap",
     "notes": null
   },
   {
@@ -4033,7 +4033,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XI",
     "description": "[R2 U : [R' U R , D']]",
     "alg": "R2 U R' U R D' R' U' R D U' R2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -4044,7 +4044,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XK",
     "description": "[R' D' R : [D ,R U R']]",
     "alg": "R' D' R D R U R' D' R U' R2 D R",
-    "category": null,
+    "category": "D-swap",
     "notes": null
   },
   {
@@ -4055,7 +4055,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XL",
     "description": "[D R D : [R' D' R , U]]",
     "alg": "D R D R' D' R U R' D R U' D' R' D'",
-    "category": null,
+    "category": "U-swap",
     "notes": null
   },
   {
@@ -4066,7 +4066,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XN",
     "description": "[D U' R' : [U2 , R' D R]]",
     "alg": "D U' R' U2 R' D R U2 R' D' R2 U D'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -4077,7 +4077,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XO",
     "description": "[U D' R D' : [R' D R , U']]",
     "alg": "U D' R D' R' D R U' R' D' R U D R' D U'",
-    "category": null,
+    "category": "U'-swap",
     "notes": null
   },
   {
@@ -4088,7 +4088,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XP",
     "description": "[R2 : [R' U' R , D']]",
     "alg": "R U' R D' R' U R D R2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -4099,7 +4099,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XQ",
     "description": "[R U' : [D' , R' U R]]",
     "alg": "R U' D' R' U R D R' U' R U R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -4110,7 +4110,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XR",
     "description": "[R2 U : [R' U' R , D']]",
     "alg": "R2 U R' U' R D' R' U R D U' R2",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -4121,7 +4121,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XT",
     "description": "[R U' D' : [R' U R , D2]]",
     "alg": "R U' D' R' U R D2 R' U' R D' U R'",
-    "category": null,
+    "category": "D2-swap",
     "notes": null
   },
   {
@@ -4132,7 +4132,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XU",
     "description": "[R U' D' : [R' U R , D']]",
     "alg": "R U' D' R' U R D' R' U' R D2 U R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -4143,7 +4143,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XV",
     "description": "[R U' R' U' : [R D' R' , U2]]",
     "alg": "R U' R' U' R D' R' U2 R D R' U' R U R'",
-    "category": null,
+    "category": "U2-swap",
     "notes": null
   },
   {
@@ -4154,7 +4154,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "caseCode": "XW",
     "description": "[R U' R' : [D' , R' U R]]",
     "alg": "R U' R' D' R' U R D R' U' R2 U R'",
-    "category": null,
+    "category": "D'-swap",
     "notes": null
   },
   {
@@ -17999,40 +17999,40 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "id": "parity-a",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 2,
+    "rowIndex": 1,
     "caseCode": "A",
     "description": "U2 [Y Perm] U2",
     "alg": "U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2",
-    "category": "Set up to A",
+    "category": "A set-up",
     "notes": null
   },
   {
     "id": "parity-b",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 3,
+    "rowIndex": 2,
     "caseCode": "B",
     "description": "[Jb Perm] U'",
     "alg": "R U R' F' R U R' U' R' F R2 U' R' U'",
-    "category": "Set up to B",
+    "category": "B set-up",
     "notes": null
   },
   {
     "id": "parity-d",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 4,
+    "rowIndex": 3,
     "caseCode": "D",
     "description": "U' [Ja Perm] U",
     "alg": "U' R2 D R D' R F2 L' U L F2 U",
-    "category": "Set up to D",
+    "category": "D set-up",
     "notes": null
   },
   {
     "id": "parity-e",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 5,
+    "rowIndex": 4,
     "caseCode": "E",
     "description": "U [L COLL J Perm] U'",
     "alg": "U R' U' R U R' F' R U R' U' R' F R2 U2",
@@ -18043,7 +18043,7 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "id": "parity-f",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 6,
+    "rowIndex": 5,
     "caseCode": "F",
     "description": "T COLL",
     "alg": "U2' R' U R U2' R' L' U R U' L",
@@ -18054,95 +18054,95 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "id": "parity-g",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 7,
+    "rowIndex": 6,
     "caseCode": "G",
     "description": "D U R U' [J Perm] R' D' U'",
     "alg": "D U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D'",
-    "category": "Set up to K",
+    "category": "K set-up",
     "notes": null
   },
   {
     "id": "parity-h",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 8,
+    "rowIndex": 7,
     "caseCode": "H",
     "description": "R D' R' [J Perm] R D R'",
     "alg": "R D' U R' F' R U R' U' R' F R2 U' R' U' R D R'",
-    "category": "Set up to B",
+    "category": "B set-up",
     "notes": null
   },
   {
     "id": "parity-i",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 9,
+    "rowIndex": 8,
     "caseCode": "I",
     "description": "L' U2 [Y Perm] U2 L",
     "alg": "L U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2 L'",
-    "category": "Set up to A",
+    "category": "A set-up",
     "notes": null
   },
   {
     "id": "parity-k",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 10,
+    "rowIndex": 9,
     "caseCode": "K",
     "description": "U R U' [J Perm] R' U'",
     "alg": "U R U' R U R' F' R U R' U' R' F R2 U' R2 U'",
-    "category": "Set up to K",
+    "category": "K set-up",
     "notes": "Under rotated J Perm"
   },
   {
     "id": "parity-l",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 11,
+    "rowIndex": 10,
     "caseCode": "L",
     "description": "D U2 : [Y Perm OP]",
     "alg": "D U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D'",
-    "category": "Set up to P",
+    "category": "P set-up",
     "notes": null
   },
   {
     "id": "parity-n",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 12,
+    "rowIndex": 11,
     "caseCode": "N",
     "description": "U R U [Y Perm] U' R' U'",
     "alg": "U R U F R U' R' U' R U R' F' R U R' U' R' F R F' U' R' U'",
-    "category": "Set up to A",
+    "category": "A set-up",
     "notes": null
   },
   {
     "id": "parity-o",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 13,
+    "rowIndex": 12,
     "caseCode": "O",
     "description": "D' U R U' [J Perm] R' U' D",
     "alg": "D' U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D",
-    "category": "Set up to K",
+    "category": "K set-up",
     "notes": null
   },
   {
     "id": "parity-p",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 14,
+    "rowIndex": 13,
     "caseCode": "P",
     "description": "U2 [Y Perm OP] U2",
     "alg": "U2 R U' R' U' R U R' F' R U R' U' R' F R U2",
-    "category": "Set up to P",
+    "category": "P set-up",
     "notes": null
   },
   {
     "id": "parity-q",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 15,
+    "rowIndex": 14,
     "caseCode": "Q",
     "description": "U [L] COLL",
     "alg": "U R U' R' U2 L R U' R' U L' U",
@@ -18153,77 +18153,77 @@ const BUNDLED_ALG_LIBRARY_ENTRIES = [
     "id": "parity-r",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 16,
+    "rowIndex": 15,
     "caseCode": "R",
     "description": "L U' [Ja Perm] U L'",
     "alg": "L U' R2 D R D' R F2 L' U L F2 U L'",
-    "category": "Set up to D",
+    "category": "D set-up",
     "notes": null
   },
   {
     "id": "parity-s",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 17,
+    "rowIndex": 16,
     "caseCode": "S",
     "description": "U' L U [J Perm] U2 L' U",
     "alg": "U' L U R U R' F' R U R' U' R' F R2 U' R' U'2 L' U",
-    "category": "Set up to B",
+    "category": "B set-up",
     "notes": "U2 auf"
   },
   {
     "id": "parity-t",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 18,
+    "rowIndex": 17,
     "caseCode": "T",
     "description": "D' U2 [Y Perm OP] U2 D",
     "alg": "D' U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D",
-    "category": "Set up to P",
+    "category": "P set-up",
     "notes": null
   },
   {
     "id": "parity-u",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 19,
+    "rowIndex": 18,
     "caseCode": "U",
     "description": "D2 U R2 U' [J Perm] R2 U' D2",
     "alg": "D2 U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D2",
-    "category": "Set up to W",
+    "category": "W set-up",
     "notes": null
   },
   {
     "id": "parity-v",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 20,
+    "rowIndex": 19,
     "caseCode": "V",
     "description": "D U R2 U' [J Perm] R2 U' D'",
     "alg": "D U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D'",
-    "category": "Set up to W",
+    "category": "W set-up",
     "notes": null
   },
   {
     "id": "parity-w",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 21,
+    "rowIndex": 20,
     "caseCode": "W",
     "description": "U R2 U' [J Perm] R2 U'",
     "alg": "U R2 U' R U R' F' R U R' U' R' F R2 U' R U'",
-    "category": "Set up to W",
+    "category": "W set-up",
     "notes": "Over rotated J Perm"
   },
   {
     "id": "parity-x",
     "pieceType": "parity",
     "sheetName": "bundled-parity.csv",
-    "rowIndex": 22,
+    "rowIndex": 21,
     "caseCode": "X",
     "description": "D' U R2 U' [J Perm] R2 U' D",
     "alg": "D' U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D'",
-    "category": "Set up to W",
+    "category": "W set-up",
     "notes": null
   }
 ];

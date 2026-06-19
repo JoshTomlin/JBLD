@@ -12,6 +12,7 @@ describe("bundledAlgLibrary", () => {
           caseCode: "AB",
           description: "[R' B' R : [R D R' , U']]",
           alg: "R' B' R2 D R' U' R D' R' U R' B R",
+          category: "U'-swap",
         }),
         expect.objectContaining({
           pieceType: "edge",
@@ -33,7 +34,7 @@ describe("bundledAlgLibrary", () => {
           pieceType: "parity",
           caseCode: "A",
           description: "U2 [Y Perm] U2",
-          category: "Set up to A",
+          category: "A set-up",
           notes: null,
         }),
       ])

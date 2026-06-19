@@ -462,6 +462,16 @@ class App extends React.Component {
     });
   };
 
+  formatAlgLibraryCategory = (category) => {
+    const value = String(category || "").trim();
+    if (!value) {
+      return "";
+    }
+
+    const match = value.match(/^set up to (.+)$/i);
+    return match ? `${match[1]} set-up` : value;
+  };
+
   applyAlgLibraryFilters = (options = {}) => {
     this.setState((currentState) => {
       const filteredEntries = this.filterAlgLibraryEntries(currentState.algLibraryAllEntries, {
@@ -3667,7 +3677,7 @@ class App extends React.Component {
                       {entry.memo_word ? <div className="study_library_entry_alg">Memo: {entry.memo_word}</div> : null}
                       {entry.alg ? <div className="study_library_entry_alg">{entry.alg}</div> : null}
                       {entry.category ? (
-                        <div className="study_library_entry_alg">Category: {entry.category}</div>
+                        <div className="study_library_entry_alg">Category: {this.formatAlgLibraryCategory(entry.category)}</div>
                       ) : null}
                       {entry.notes ? <div className="study_library_entry_alg">Notes: {entry.notes}</div> : null}
                     </div>
@@ -3778,7 +3788,7 @@ class App extends React.Component {
                         <span>{entry.piece_type}</span>
                       </div>
                       <div className="study_library_entry_alg">
-                        {(entry.memo_word || "--")}{entry.category ? ` | ${entry.category}` : ""}
+                        {(entry.memo_word || "--")}{entry.category ? ` | ${this.formatAlgLibraryCategory(entry.category)}` : ""}
                       </div>
                       <div className="study_library_entry_alg">{entry.description || "--"}</div>
                     </div>
@@ -3822,7 +3832,7 @@ class App extends React.Component {
                   <option value="all">All</option>
                   {algLibraryGroups.map((group) => (
                     <option key={group} value={group}>
-                      {group}
+                      {this.formatAlgLibraryCategory(group)}
                     </option>
                   ))}
                 </select>
@@ -3916,12 +3926,14 @@ class App extends React.Component {
                         <div className="alg_library_card_meta">
                           <span>
                             {entry.memo_word ||
-                              (entry.piece_type === "parity" ? entry.category || "" : "")}
+                              (entry.piece_type === "parity"
+                                ? this.formatAlgLibraryCategory(entry.category)
+                                : "")}
                           </span>
                           <span>
                             {entry.piece_type === "parity" && !entry.memo_word
                               ? ""
-                              : entry.category || ""}
+                              : this.formatAlgLibraryCategory(entry.category)}
                           </span>
                         </div>
                         <div className="alg_library_card_desc">

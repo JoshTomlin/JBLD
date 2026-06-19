@@ -1,22 +1,22 @@
 Target,Description,Alg,Category,Note
-A,U2 [Y Perm] U2,U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2,Set up to A,
-B,[Jb Perm] U',R U R' F' R U R' U' R' F R2 U' R' U',Set up to B,
-D,U' [Ja Perm] U,U' R2 D R D' R F2 L' U L F2 U,Set up to D,
+A,U2 [Y Perm] U2,U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2,A set-up,
+B,[Jb Perm] U',R U R' F' R U R' U' R' F R2 U' R' U',B set-up,
+D,U' [Ja Perm] U,U' R2 D R D' R F2 L' U L F2 U,D set-up,
 E,U [L COLL J Perm] U',U R' U' R U R' F' R U R' U' R' F R2 U2,COLL,
 F,T COLL,U2' R' U R U2' R' L' U R U' L,COLL,U2 then hit it from the back
-G,D U R U' [J Perm] R' D' U',D U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D',Set up to K,
-H,R D' R' [J Perm] R D R',R D' U R' F' R U R' U' R' F R2 U' R' U' R D R',Set up to B,
-I,L' U2 [Y Perm] U2 L,L U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2 L',Set up to A,
-K,U R U' [J Perm] R' U',U R U' R U R' F' R U R' U' R' F R2 U' R2 U',Set up to K,Under rotated J Perm
-L,D U2 : [Y Perm OP],D U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D',Set up to P,
-N,U R U [Y Perm] U' R' U',U R U F R U' R' U' R U R' F' R U R' U' R' F R F' U' R' U',Set up to A,
-O,D' U R U' [J Perm] R' U' D,D' U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D,Set up to K ,
-P,U2 [Y Perm OP] U2,U2 R U' R' U' R U R' F' R U R' U' R' F R U2,Set up to P,
+G,D U R U' [J Perm] R' D' U',D U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D',K set-up,
+H,R D' R' [J Perm] R D R',R D' U R' F' R U R' U' R' F R2 U' R' U' R D R',B set-up,
+I,L' U2 [Y Perm] U2 L,L U2 F R U' R' U' R U R' F' R U R' U' R' F R F' U2 L',A set-up,
+K,U R U' [J Perm] R' U',U R U' R U R' F' R U R' U' R' F R2 U' R2 U',K set-up,Under rotated J Perm
+L,D U2 : [Y Perm OP],D U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D',P set-up,
+N,U R U [Y Perm] U' R' U',U R U F R U' R' U' R U R' F' R U R' U' R' F R F' U' R' U',A set-up,
+O,D' U R U' [J Perm] R' U' D,D' U R U' R U R' F' R U R' U' R' F R2 U' R2 U' D,K set-up,
+P,U2 [Y Perm OP] U2,U2 R U' R' U' R U R' F' R U R' U' R' F R U2,P set-up,
 Q,U [L] COLL,U R U' R' U2 L R U' R' U L' U,COLL,U then hit it from the front
-R,L U' [Ja Perm] U L',L U' R2 D R D' R F2 L' U L F2 U L',Set up to D,
-S,U' L U [J Perm] U2 L' U,U' L U R U R' F' R U R' U' R' F R2 U' R' U'2 L' U,Set up to B,U2 auf
-T,D' U2 [Y Perm OP] U2 D,D' U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D,Set up to P,
-U,D2 U R2 U' [J Perm] R2 U' D2,D2 U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D2,Set up to W,
-V,D U R2 U' [J Perm] R2 U' D',D U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D',Set up to W,
-W,U R2 U' [J Perm] R2 U',U R2 U' R U R' F' R U R' U' R' F R2 U' R U',Set up to W,Over rotated J Perm
-X,D' U R2 U' [J Perm] R2 U' D,D' U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D',Set up to W,
+R,L U' [Ja Perm] U L',L U' R2 D R D' R F2 L' U L F2 U L',D set-up,
+S,U' L U [J Perm] U2 L' U,U' L U R U R' F' R U R' U' R' F R2 U' R' U'2 L' U,B set-up,U2 auf
+T,D' U2 [Y Perm OP] U2 D,D' U2 R U' R' U' R U R' F' R U R' U' R' F R U2 D,P set-up,
+U,D2 U R2 U' [J Perm] R2 U' D2,D2 U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D2,W set-up,
+V,D U R2 U' [J Perm] R2 U' D',D U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D',W set-up,
+W,U R2 U' [J Perm] R2 U',U R2 U' R U R' F' R U R' U' R' F R2 U' R U',W set-up,Over rotated J Perm
+X,D' U R2 U' [J Perm] R2 U' D,D' U R2 U' R U R' F' R U R' U' R' F R2 U' R U' D',W set-up,
