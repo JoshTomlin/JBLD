@@ -944,6 +944,17 @@ textarea {
   gap: 10px;
 }
 
+.alg_library_control_grid,
+.alg_library_detail_meta,
+.alg_library_detail_header {
+  display: grid;
+  gap: 10px;
+}
+
+.alg_library_control_grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .alg_library_search {
   width: 100%;
   min-height: 42px;
@@ -952,6 +963,10 @@ textarea {
   padding: 0 14px;
   background: rgba(7, 17, 38, 0.9);
   color: var(--text-soft);
+}
+
+.alg_library_select {
+  min-height: 42px;
 }
 
 .alg_library_filters {
@@ -1017,6 +1032,17 @@ textarea {
   line-height: 1.45;
 }
 
+.alg_library_row_meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .alg_library_row_alg {
   overflow-wrap: anywhere;
 }
@@ -1031,6 +1057,29 @@ textarea {
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.alg_library_detail_header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.alg_library_detail_header strong {
+  color: var(--text-soft);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.alg_library_detail_header span,
+.alg_library_detail_meta span {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.alg_library_detail_meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .alg_library_detail_block strong {
@@ -1075,6 +1124,26 @@ textarea {
   border: 1px solid rgba(59, 130, 246, 0.14);
   color: inherit;
   text-align: left;
+}
+
+.alg_library_icon_button {
+  margin-left: auto;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 24px rgba(29, 78, 216, 0.25);
+}
+
+.alg_library_icon_button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .alg_library_match_badge {
@@ -2411,7 +2480,9 @@ textarea {
   .stats_breakdown_grid,
   .session_hero,
   .study_library_grid,
+  .alg_library_control_grid,
   .alg_library_detail_grid,
+  .alg_library_detail_meta,
   .alg_library_shell,
   .drill_tabs,
   .study_tabs,
