@@ -87,14 +87,42 @@ function describeModuleShape(moduleExports) {
 }
 
 async function loadPGliteConstructor() {
-  const moduleExports = await import("@electric-sql/pglite/dist/index.cjs");
-  const PGliteConstructor = resolvePGliteConstructor(moduleExports);
-  if (PGliteConstructor) {
-    return PGliteConstructor;
+  const loadErrors = [];
+
+  try {
+    // Use Webpack's CommonJS resolution path so CRA 4 does not need to parse import.meta from the ESM build.
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    const requiredModule = require("@electric-sql/pglite/dist/index.cjs");
+    const requiredConstructor = resolvePGliteConstructor(requiredModule);
+    if (requiredConstructor) {
+      return requiredConstructor;
+    }
+    loadErrors.push(`require(@electric-sql/pglite/dist/index.cjs): ${describeModuleShape(requiredModule)}`);
+  } catch (error) {
+    loadErrors.push(
+      `require(@electric-sql/pglite/dist/index.cjs): ${
+        error && error.message ? error.message : String(error)
+      }`
+    );
+  }
+
+  try {
+    const moduleExports = await import("@electric-sql/pglite/dist/index.cjs");
+    const importedConstructor = resolvePGliteConstructor(moduleExports);
+    if (importedConstructor) {
+      return importedConstructor;
+    }
+    loadErrors.push(`import(@electric-sql/pglite/dist/index.cjs): ${describeModuleShape(moduleExports)}`);
+  } catch (error) {
+    loadErrors.push(
+      `import(@electric-sql/pglite/dist/index.cjs): ${
+        error && error.message ? error.message : String(error)
+      }`
+    );
   }
 
   throw new Error(
-    `PGlite could not be loaded in this browser. ${describeModuleShape(moduleExports)}`
+    `PGlite could not be loaded in this browser. ${loadErrors.join(" | ")}`
   );
 }
 
