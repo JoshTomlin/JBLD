@@ -522,6 +522,24 @@ class App extends React.Component {
     this.setState({ algLibraryEditing: true });
   };
 
+  openAlgLibraryEditorForEntry = (entry) => {
+    if (!entry) {
+      return;
+    }
+
+    this.setState({
+      algLibrarySelectedEntryId: entry.id,
+      algLibraryEditing: true,
+      algLibraryDraft: {
+        description: entry.description || "",
+        alg: entry.alg || "",
+        memoWord: entry.memo_word || "",
+        category: entry.category || "",
+        notes: entry.notes || "",
+      },
+    });
+  };
+
   closeAlgLibraryEditor = () => {
     this.setState({ algLibraryEditing: false });
   };
@@ -3324,10 +3342,10 @@ class App extends React.Component {
       { value: "parity", label: "Parity" },
     ];
     const algLibraryTabs = [
-      { value: "search", label: "Explore" },
-      { value: "recents", label: "Recents" },
-      { value: "stats", label: "Stats" },
-      { value: "manage", label: "Manage" },
+      { value: "search", label: "Explore", icon: "explore" },
+      { value: "recents", label: "Recents", icon: "recents" },
+      { value: "stats", label: "Stats", icon: "stats" },
+      { value: "manage", label: "Manage", icon: "manage" },
     ];
     const recentSolves = [...this.state.solves_stats].slice().reverse();
     const algLibraryGroups = Array.from(
@@ -3774,217 +3792,160 @@ class App extends React.Component {
           ) : null}
           {this.state.algLibraryTab === "search" ? (
           <React.Fragment>
-          <div className="alg_library_shell">
-            <article className="study_library_card alg_library_browser">
-              <div className="alg_library_toolbar">
-                <div className="alg_library_control_grid">
-                  <label className="alg_library_field">
-                    <span>Type</span>
-                    <select
-                      className="settings_input alg_library_select"
-                      value={this.state.algLibraryPieceType}
-                      onChange={(event) =>
-                        this.setState({
-                          algLibraryPieceType: event.target.value,
-                          algLibraryGroup: "all",
-                        })
-                      }
-                    >
-                      {algLibraryPieceOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="alg_library_field">
-                    <span>Group</span>
-                    <select
-                      className="settings_input alg_library_select"
-                      value={this.state.algLibraryGroup}
-                      onChange={(event) => this.setState({ algLibraryGroup: event.target.value })}
-                    >
-                      <option value="all">All</option>
-                      {algLibraryGroups.map((group) => (
-                        <option key={group} value={group}>
-                          {group}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className="alg_library_field">
-                  <span>Name</span>
-                  <input
-                    type="text"
-                    className="settings_input alg_library_search"
-                    placeholder="Search case, memo, alg, or notes"
-                    value={this.state.algLibrarySearch}
-                    onChange={(event) => this.setState({ algLibrarySearch: event.target.value })}
-                  />
-                </label>
+          <div className="alg_library_toolbar alg_library_toolbar_flat">
+            <div className="alg_library_control_grid">
+              <label className="alg_library_field">
+                <span>Type</span>
+                <select
+                  className="settings_input alg_library_select"
+                  value={this.state.algLibraryPieceType}
+                  onChange={(event) =>
+                    this.setState({
+                      algLibraryPieceType: event.target.value,
+                      algLibraryGroup: "all",
+                    })
+                  }
+                >
+                  {algLibraryPieceOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="alg_library_field">
+                <span>Group</span>
+                <select
+                  className="settings_input alg_library_select"
+                  value={this.state.algLibraryGroup}
+                  onChange={(event) => this.setState({ algLibraryGroup: event.target.value })}
+                >
+                  <option value="all">All</option>
+                  {algLibraryGroups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="alg_library_field">
+              <span>Name</span>
+              <input
+                type="text"
+                className="settings_input alg_library_search"
+                placeholder="Search"
+                value={this.state.algLibrarySearch}
+                onChange={(event) => this.setState({ algLibrarySearch: event.target.value })}
+              />
+            </label>
+          </div>
+          <div className="alg_library_results alg_library_results_flat">
+            {this.state.algLibraryLoadingEntries ? (
+              <div className="empty_state_card">
+                <div className="placeholder_text">Loading your Alg Library entries...</div>
               </div>
-              <div className="alg_library_results">
-                {this.state.algLibraryLoadingEntries ? (
-                  <div className="empty_state_card">
-                    <div className="placeholder_text">Loading your Alg Library entries...</div>
-                  </div>
-                ) : algLibraryEntries.length ? (
-                  algLibraryEntries.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className={`alg_library_row ${
-                        algLibrarySelectedEntry && algLibrarySelectedEntry.id === entry.id ? "alg_library_row_active" : ""
-                      }`}
-                      onClick={() => this.selectAlgLibraryEntry(entry)}
-                    >
-                      <div className="alg_library_row_header">
-                        <strong>{entry.case_code}</strong>
-                        <span>{entry.piece_type}</span>
-                      </div>
-                      <div className="alg_library_row_meta">
-                        <span>{entry.memo_word || "--"}</span>
-                        <span>{entry.category || "--"}</span>
-                      </div>
-                      <div className="alg_library_row_text">
-                        {entry.description || "No description saved yet"}
-                        {(() => {
-                          const stats = algLibraryCaseStats.get(`${entry.piece_type}:${entry.case_code}`);
-                          return stats && stats.execCount
-                            ? ` (${this.formatInlineDuration(stats.execTotal / stats.execCount)} avg exec)`
-                            : "";
-                        })()}
-                      </div>
-                      {entry.alg ? <div className="alg_library_row_alg">{entry.alg}</div> : null}
-                    </button>
-                  ))
-                ) : (
-                  <div className="empty_state_card">
-                    <div className="placeholder_text">No entries matched this filter yet.</div>
-                  </div>
-                )}
+            ) : algLibraryEntries.length ? (
+              algLibraryEntries.map((entry) => {
+                const isEditing = this.state.algLibraryEditing && algLibrarySelectedEntry && algLibrarySelectedEntry.id === entry.id;
+                const stats = algLibraryCaseStats.get(`${entry.piece_type}:${entry.case_code}`);
+                const avgExec = stats && stats.execCount
+                  ? this.formatInlineDuration(stats.execTotal / stats.execCount)
+                  : null;
+
+                return (
+                  <article
+                    key={entry.id}
+                    className={`study_library_card alg_library_entry_card ${isEditing ? "alg_library_entry_card_editing" : ""}`}
+                  >
+                    <div className="alg_library_card_top">
+                      <strong>{entry.case_code}</strong>
+                      <span>
+                        {entry.piece_type
+                          ? `${entry.piece_type.charAt(0).toUpperCase()}${entry.piece_type.slice(1)}`
+                          : ""}
+                      </span>
+                    </div>
+                    {isEditing ? (
+                      <React.Fragment>
+                        <div className="alg_library_card_meta alg_library_card_meta_editing">
+                          <input
+                            type="text"
+                            className="settings_input alg_library_inline_input"
+                            placeholder="Memo"
+                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.memoWord : ""}
+                            onChange={(event) => this.updateAlgLibraryDraftField("memoWord", event.target.value)}
+                          />
+                          <input
+                            type="text"
+                            className="settings_input alg_library_inline_input"
+                            placeholder="Category"
+                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.category : ""}
+                            onChange={(event) => this.updateAlgLibraryDraftField("category", event.target.value)}
+                          />
+                        </div>
+                        <div className="alg_library_card_desc alg_library_card_desc_editing">
+                          <textarea
+                            className="settings_textarea alg_library_inline_textarea"
+                            placeholder="Description"
+                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.description : ""}
+                            onChange={(event) => this.updateAlgLibraryDraftField("description", event.target.value)}
+                          />
+                        </div>
+                        <div className="alg_library_card_alg">
+                          <textarea
+                            className="settings_textarea alg_library_inline_textarea"
+                            placeholder="Alg"
+                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.alg : ""}
+                            onChange={(event) => this.updateAlgLibraryDraftField("alg", event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="alg_library_icon_button alg_library_icon_button_small"
+                            onClick={this.saveAlgLibraryEntry}
+                            disabled={this.state.algLibrarySavingEntry}
+                            aria-label="Save entry"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m5 13 4 4L19 7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        <div className="alg_library_card_meta">
+                          <span>{entry.memo_word || ""}</span>
+                          <span>{entry.category || ""}</span>
+                        </div>
+                        <div className="alg_library_card_desc">
+                          <span>{entry.description || "No description saved yet"}</span>
+                          <span>{avgExec || ""}</span>
+                        </div>
+                        <div className="alg_library_card_alg">
+                          <span>{entry.alg || "--"}</span>
+                          <button
+                            type="button"
+                            className="alg_library_icon_button alg_library_icon_button_small"
+                            onClick={() => this.openAlgLibraryEditorForEntry(entry)}
+                            aria-label="Edit entry"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </React.Fragment>
+                    )}
+                  </article>
+                );
+              })
+            ) : (
+              <div className="empty_state_card">
+                <div className="placeholder_text">No entries matched this filter yet.</div>
               </div>
-            </article>
-            <article className="study_library_card alg_library_editor">
-              {algLibrarySelectedEntry && this.state.algLibraryDraft ? (
-                this.state.algLibraryEditing ? (
-                <div className="alg_library_form">
-                  <div className="alg_library_detail_header">
-                    <strong>{algLibrarySelectedEntry.case_code}</strong>
-                    <span>{algLibrarySelectedEntry.piece_type}</span>
-                  </div>
-                  <label className="alg_library_field">
-                    <span>Description</span>
-                    <textarea
-                      className="settings_textarea alg_library_textarea"
-                      value={this.state.algLibraryDraft.description}
-                      onChange={(event) => this.updateAlgLibraryDraftField("description", event.target.value)}
-                    />
-                  </label>
-                  <label className="alg_library_field">
-                    <span>Memo Word</span>
-                    <input
-                      type="text"
-                      className="settings_input"
-                      value={this.state.algLibraryDraft.memoWord}
-                      onChange={(event) => this.updateAlgLibraryDraftField("memoWord", event.target.value)}
-                    />
-                  </label>
-                  <label className="alg_library_field">
-                    <span>Preferred Alg</span>
-                    <textarea
-                      className="settings_textarea alg_library_textarea"
-                      value={this.state.algLibraryDraft.alg}
-                      onChange={(event) => this.updateAlgLibraryDraftField("alg", event.target.value)}
-                    />
-                  </label>
-                  <label className="alg_library_field">
-                    <span>Category</span>
-                    <input
-                      type="text"
-                      className="settings_input"
-                      value={this.state.algLibraryDraft.category}
-                      onChange={(event) => this.updateAlgLibraryDraftField("category", event.target.value)}
-                    />
-                  </label>
-                  <label className="alg_library_field">
-                    <span>Notes</span>
-                    <textarea
-                      className="settings_textarea alg_library_textarea"
-                      value={this.state.algLibraryDraft.notes}
-                      onChange={(event) => this.updateAlgLibraryDraftField("notes", event.target.value)}
-                    />
-                  </label>
-                  <div className="study_library_action_row">
-                    <button
-                      type="button"
-                      className="alg_library_icon_button"
-                      onClick={this.saveAlgLibraryEntry}
-                      disabled={this.state.algLibrarySavingEntry}
-                      aria-label="Save entry"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m5 13 4 4L19 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                ) : (
-                  <div className="alg_library_detail_stack">
-                    <div className="alg_library_detail_header">
-                      <strong>{algLibrarySelectedEntry.case_code}</strong>
-                      <span>{algLibrarySelectedEntry.piece_type}</span>
-                    </div>
-                    <div className="alg_library_detail_meta">
-                      <span>{algLibrarySelectedEntry.memo_word || "--"}</span>
-                      <span>{algLibrarySelectedEntry.category || "--"}</span>
-                    </div>
-                    <div className="alg_library_detail_block">
-                      <span>Description</span>
-                      <strong>
-                        {algLibrarySelectedEntry.description || "No description saved yet"}
-                        {(() => {
-                          const stats = algLibraryCaseStats.get(
-                            `${algLibrarySelectedEntry.piece_type}:${algLibrarySelectedEntry.case_code}`
-                          );
-                          return stats && stats.execCount
-                            ? ` (${this.formatInlineDuration(stats.execTotal / stats.execCount)} avg exec)`
-                            : "";
-                        })()}
-                      </strong>
-                    </div>
-                    <div className="alg_library_detail_block">
-                      <span>Alg</span>
-                      <strong>{algLibrarySelectedEntry.alg || "--"}</strong>
-                    </div>
-                    {algLibrarySelectedEntry.notes ? (
-                      <div className="alg_library_detail_block">
-                        <span>Notes</span>
-                        <strong>{algLibrarySelectedEntry.notes}</strong>
-                      </div>
-                    ) : null}
-                    <div className="study_library_action_row">
-                      <button
-                        type="button"
-                        className="alg_library_icon_button"
-                        onClick={this.openAlgLibraryEditor}
-                        aria-label="Edit entry"
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="study_library_text">
-                  Search for a case to open its card. Editing stays one tap away once you find the right comm.
-                </div>
-              )}
-            </article>
+            )}
           </div>
           </React.Fragment>
           ) : null}
@@ -4602,6 +4563,7 @@ class App extends React.Component {
                     className={`nav_item ${this.state.algLibraryTab === tab.value ? "nav_item_active" : ""}`}
                     onClick={() => this.setState({ algLibraryTab: tab.value, algLibraryEditing: false })}
                   >
+                    <span className={`nav_icon nav_icon_library nav_icon_library_${tab.icon}`}></span>
                     <span className="nav_label nav_label_library">{tab.label}</span>
                   </button>
                 ))}
