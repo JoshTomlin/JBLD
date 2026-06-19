@@ -1045,6 +1045,10 @@ textarea {
   gap: 10px;
 }
 
+.alg_library_field {
+  min-width: 0;
+}
+
 .alg_library_control_grid,
 .alg_library_detail_meta,
 .alg_library_detail_header {
@@ -1059,8 +1063,10 @@ textarea {
 }
 
 .alg_library_control_grid_compact {
-  grid-template-columns: minmax(92px, 120px) minmax(92px, 120px) minmax(56px, 72px);
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  align-items: end;
 }
 
 .alg_library_search {
@@ -1079,6 +1085,7 @@ textarea {
 
 .alg_library_search_compact,
 .alg_library_select {
+  width: 100%;
   min-height: 36px;
   padding: 0 10px;
   border-radius: 12px;
