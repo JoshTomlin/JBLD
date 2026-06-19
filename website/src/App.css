@@ -1058,6 +1058,11 @@ textarea {
   justify-content: flex-start;
 }
 
+.alg_library_control_grid_compact {
+  grid-template-columns: minmax(92px, 120px) minmax(92px, 120px) minmax(56px, 72px);
+  gap: 12px;
+}
+
 .alg_library_search {
   width: 100%;
   min-height: 42px;
@@ -1070,6 +1075,15 @@ textarea {
 
 .alg_library_select {
   min-height: 42px;
+}
+
+.alg_library_search_compact,
+.alg_library_select {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: rgba(7, 17, 38, 0.72);
+  color: var(--text-soft);
 }
 
 .alg_library_toolbar_flat {
@@ -1247,6 +1261,7 @@ textarea {
   border: 1px solid rgba(59, 130, 246, 0.14);
   color: inherit;
   text-align: left;
+  background: transparent;
 }
 
 .alg_library_icon_button {
@@ -1276,6 +1291,12 @@ textarea {
   background: rgba(10, 18, 36, 0.9);
 }
 
+.alg_library_recent_card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
 .alg_library_entry_card_editing {
   border-color: rgba(96, 165, 250, 0.4);
   box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.14);
@@ -1302,9 +1323,14 @@ textarea {
 }
 
 .alg_library_card_top span,
-.alg_library_card_meta span,
 .alg_library_card_desc span {
   color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.alg_library_card_meta span {
+  color: #60a5fa;
   font-size: 0.82rem;
   line-height: 1.35;
 }
@@ -1316,13 +1342,15 @@ textarea {
 }
 
 .alg_library_card_meta span:first-child {
-  color: var(--text-soft);
+  color: #60a5fa;
   font-weight: 600;
 }
 
+.alg_library_card_desc span:first-child,
 .alg_library_card_alg span {
   font-size: 0.88rem;
   line-height: 1.45;
+  color: var(--text-soft);
   overflow-wrap: anywhere;
 }
 
@@ -1355,16 +1383,21 @@ textarea {
 }
 
 .alg_library_icon_button_small {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.22);
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(191, 219, 254, 0.72);
+  box-shadow: none;
+  align-self: end;
+  justify-self: end;
 }
 
 .alg_library_icon_button_small svg {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
 }
 
 .alg_library_match_badge {

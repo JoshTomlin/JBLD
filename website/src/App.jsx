@@ -447,19 +447,18 @@ class App extends React.Component {
         return true;
       }
 
-      const haystack = [
-        entry.case_code,
-        entry.description,
-        entry.alg,
-        entry.memo_word,
-        entry.category,
-        entry.notes,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      const caseCode = String(entry.case_code || "").trim().toLowerCase();
+      if (!caseCode) {
+        return false;
+      }
 
-      return haystack.includes(search);
+      if (caseCode.includes(search)) {
+        return true;
+      }
+
+      return entry.piece_type === "parity" && caseCode.length === 1
+        ? search.includes(caseCode)
+        : false;
     });
   };
 
@@ -3793,7 +3792,7 @@ class App extends React.Component {
           {this.state.algLibraryTab === "search" ? (
           <React.Fragment>
           <div className="alg_library_toolbar alg_library_toolbar_flat">
-            <div className="alg_library_control_grid">
+            <div className="alg_library_control_grid alg_library_control_grid_compact">
               <label className="alg_library_field">
                 <span>Type</span>
                 <select
@@ -3828,17 +3827,17 @@ class App extends React.Component {
                   ))}
                 </select>
               </label>
+              <label className="alg_library_field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  className="settings_input alg_library_search alg_library_search_compact"
+                  placeholder=""
+                  value={this.state.algLibrarySearch}
+                  onChange={(event) => this.setState({ algLibrarySearch: event.target.value })}
+                />
+              </label>
             </div>
-            <label className="alg_library_field">
-              <span>Name</span>
-              <input
-                type="text"
-                className="settings_input alg_library_search"
-                placeholder="Search"
-                value={this.state.algLibrarySearch}
-                onChange={(event) => this.setState({ algLibrarySearch: event.target.value })}
-              />
-            </label>
           </div>
           <div className="alg_library_results alg_library_results_flat">
             {this.state.algLibraryLoadingEntries ? (
@@ -3915,8 +3914,15 @@ class App extends React.Component {
                     ) : (
                       <React.Fragment>
                         <div className="alg_library_card_meta">
-                          <span>{entry.memo_word || ""}</span>
-                          <span>{entry.category || ""}</span>
+                          <span>
+                            {entry.memo_word ||
+                              (entry.piece_type === "parity" ? entry.category || "" : "")}
+                          </span>
+                          <span>
+                            {entry.piece_type === "parity" && !entry.memo_word
+                              ? ""
+                              : entry.category || ""}
+                          </span>
                         </div>
                         <div className="alg_library_card_desc">
                           <span>{entry.description || "No description saved yet"}</span>
@@ -3951,59 +3957,75 @@ class App extends React.Component {
           ) : null}
           {this.state.algLibraryTab === "recents" ? (
           <React.Fragment>
-          <div className="study_library_grid">
-            <article className="study_library_card">
-              <div className="study_library_title">Recent Parsed Cases</div>
-              {this.state.algLibraryRecentMatches.length ? (
-                <div className="alg_library_match_list">
-                  {this.state.algLibraryRecentMatches.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className="alg_library_match_row alg_library_match_button"
-                      onClick={() => {
-                        if (entry.preferredEntry) {
-                          this.jumpToAlgLibraryEntry(entry.preferredEntry);
-                        } else {
-                          this.setState({
-                            algLibraryTab: "search",
-                            algLibraryPieceType: entry.pieceType,
-                            algLibrarySearch: entry.caseCode,
-                            algLibraryEditing: false,
-                          });
-                        }
-                      }}
-                    >
-                      <div className="alg_library_match_header">
-                        <strong>{entry.caseCode}</strong>
-                        <span className={`alg_library_match_badge alg_library_match_badge_${entry.status}`}>
-                          {entry.status === "match"
-                            ? "Matches saved alg"
-                            : entry.status === "missing"
-                              ? "Missing from library"
-                              : "Review alg"}
-                        </span>
-                      </div>
-                      <div className="study_library_entry_alg">
-                        {entry.pieceType} {entry.solveDate ? `| ${formatHistoryDate(entry.solveDate)}` : ""}
-                      </div>
-                      <div className="study_library_entry_alg">
-                        Used: {this.formatAlgLibraryAlg(entry.algUsed || "", entry.pieceType) || "--"}
-                      </div>
-                      <div className="study_library_entry_alg">
-                        Preferred: {entry.preferredEntry
-                          ? this.formatAlgLibraryAlg(entry.preferredEntry.alg || "", entry.preferredEntry.piece_type) || "--"
-                          : "--"}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="study_library_text">
+          <div className="alg_library_results alg_library_results_flat">
+            {this.state.algLibraryRecentMatches.length ? (
+              this.state.algLibraryRecentMatches.map((entry) => {
+                const preferredAlg = entry.preferredEntry
+                  ? this.formatAlgLibraryAlg(
+                      entry.preferredEntry.alg || "",
+                      entry.preferredEntry.piece_type
+                    ) || "--"
+                  : "--";
+                const usedAlg = this.formatAlgLibraryAlg(entry.algUsed || "", entry.pieceType) || "--";
+                const preferredStatus = entry.preferredEntry
+                  ? entry.status === "match"
+                    ? "Matches preferred alg"
+                    : "Different from preferred"
+                  : "No preferred alg saved";
+
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className="alg_library_match_button alg_library_entry_card alg_library_recent_card"
+                    onClick={() => {
+                      if (entry.preferredEntry) {
+                        this.jumpToAlgLibraryEntry(entry.preferredEntry);
+                      } else {
+                        this.setState({
+                          algLibraryTab: "search",
+                          algLibraryPieceType: entry.pieceType,
+                          algLibrarySearch: entry.caseCode,
+                          algLibraryEditing: false,
+                        });
+                      }
+                    }}
+                  >
+                    <div className="alg_library_card_top">
+                      <strong>{entry.caseCode}</strong>
+                      <span>
+                        {entry.pieceType
+                          ? `${entry.pieceType.charAt(0).toUpperCase()}${entry.pieceType.slice(1)}`
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="alg_library_card_meta">
+                      <span>{entry.solveDate ? formatHistoryDate(entry.solveDate) : ""}</span>
+                      <span>{preferredStatus}</span>
+                    </div>
+                    <div className="alg_library_card_desc">
+                      <span>{usedAlg}</span>
+                      <span>
+                        {entry.status === "missing"
+                          ? "Missing"
+                          : entry.status === "match"
+                            ? "Match"
+                            : "Review"}
+                      </span>
+                    </div>
+                    <div className="alg_library_card_alg">
+                      <span>{preferredAlg}</span>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="empty_state_card">
+                <div className="placeholder_text">
                   Once recent solves contain parsed edge, corner, or parity cases, they will show up here for comparison.
                 </div>
-              )}
-            </article>
+              </div>
+            )}
           </div>
           </React.Fragment>
           ) : null}
