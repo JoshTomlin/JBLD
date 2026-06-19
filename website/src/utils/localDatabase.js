@@ -33,7 +33,11 @@ function resolvePGliteConstructor(moduleExports, visited = new WeakSet()) {
     }
   }
 
-  const keys = Object.keys(moduleExports);
+  const keys = Array.from(new Set([
+    ...Object.keys(moduleExports),
+    ...Object.getOwnPropertyNames(moduleExports),
+  ]));
+
   for (const key of keys) {
     const value = moduleExports[key];
     if (typeof value === "function" && (key === "PGlite" || value.name === "PGlite")) {
@@ -54,6 +58,34 @@ function resolvePGliteConstructor(moduleExports, visited = new WeakSet()) {
   return null;
 }
 
+function describeModuleShape(moduleExports) {
+  if (!moduleExports) {
+    return "(none)";
+  }
+
+  if (typeof moduleExports !== "object" && typeof moduleExports !== "function") {
+    return typeof moduleExports;
+  }
+
+  const topLevelKeys = Array.from(new Set([
+    ...Object.keys(moduleExports),
+    ...Object.getOwnPropertyNames(moduleExports),
+  ]));
+
+  const defaultValue = moduleExports.default;
+  const defaultKeys =
+    defaultValue && (typeof defaultValue === "object" || typeof defaultValue === "function")
+      ? Array.from(new Set([
+          ...Object.keys(defaultValue),
+          ...Object.getOwnPropertyNames(defaultValue),
+        ]))
+      : [];
+
+  return `top-level keys: ${topLevelKeys.join(", ") || "(none)"}; default keys: ${
+    defaultKeys.join(", ") || "(none)"
+  }`;
+}
+
 async function loadPGliteConstructor() {
   const moduleExports = await import("@electric-sql/pglite/dist/index.cjs");
   const PGliteConstructor = resolvePGliteConstructor(moduleExports);
@@ -61,10 +93,9 @@ async function loadPGliteConstructor() {
     return PGliteConstructor;
   }
 
-  const moduleKeys = moduleExports && typeof moduleExports === "object"
-    ? Object.keys(moduleExports).join(", ")
-    : typeof moduleExports;
-  throw new Error(`PGlite could not be loaded in this browser. Module keys: ${moduleKeys || "(none)"}`);
+  throw new Error(
+    `PGlite could not be loaded in this browser. ${describeModuleShape(moduleExports)}`
+  );
 }
 
 function safeJsonParse(value, fallbackValue) {
@@ -760,6 +791,119 @@ export async function setLocalAppMetaValue(key, value) {
          updated_at = timezone('utc', now())`,
     [key, JSON.stringify(value)]
   );
+}
+
+export async function getAlgLibraryEntries(options = {}) {
+  const db = await getDatabase();
+  const pieceType = options.pieceType || "all";
+  const rawSearch = typeof options.search === "string" ? options.search.trim() : "";
+  const limit = Number.isFinite(Number(options.limit)) ? Math.max(1, Number(options.limit)) : 200;
+  const searchPattern = rawSearch ? `%${rawSearch.toLowerCase()}%` : null;
+
+  const params = [pieceType, searchPattern, limit];
+  const [countResult, entryResult] = await Promise.all([
+    db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM alg_library_entries
+       WHERE ($1 = 'all' OR piece_type = $1)
+         AND (
+           $2 IS NULL
+           OR LOWER(case_code) LIKE $2
+           OR LOWER(description) LIKE $2
+           OR LOWER(alg) LIKE $2
+           OR LOWER(COALESCE(category, '')) LIKE $2
+           OR LOWER(COALESCE(notes, '')) LIKE $2
+         )`,
+      params.slice(0, 2)
+    ),
+    db.query(
+      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
+       FROM alg_library_entries
+       WHERE ($1 = 'all' OR piece_type = $1)
+         AND (
+           $2 IS NULL
+           OR LOWER(case_code) LIKE $2
+           OR LOWER(description) LIKE $2
+           OR LOWER(alg) LIKE $2
+           OR LOWER(COALESCE(category, '')) LIKE $2
+           OR LOWER(COALESCE(notes, '')) LIKE $2
+         )
+       ORDER BY piece_type ASC, case_code ASC, row_index ASC NULLS LAST, updated_at DESC
+       LIMIT $3`,
+      params
+    ),
+  ]);
+
+  return {
+    totalCount: Number(countResult.rows[0] && countResult.rows[0].count) || 0,
+    entries: entryResult.rows || [],
+  };
+}
+
+export async function updateAlgLibraryEntry(id, updates = {}) {
+  const db = await getDatabase();
+  const normalizedId = String(id || "");
+  if (!normalizedId) {
+    throw new Error("An alg library entry id is required.");
+  }
+
+  const fields = {
+    description: typeof updates.description === "string" ? updates.description : "",
+    alg: typeof updates.alg === "string" ? updates.alg : "",
+    category: typeof updates.category === "string" ? updates.category : "",
+    notes: typeof updates.notes === "string" ? updates.notes : "",
+  };
+
+  const result = await db.query(
+    `UPDATE alg_library_entries
+     SET description = $2,
+         alg = $3,
+         category = NULLIF($4, ''),
+         notes = NULLIF($5, ''),
+         updated_at = timezone('utc', now())
+     WHERE id = $1
+     RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at`,
+    [normalizedId, fields.description, fields.alg, fields.category, fields.notes]
+  );
+
+  if (!result.rows || !result.rows.length) {
+    throw new Error("The selected alg library entry could not be found.");
+  }
+
+  return result.rows[0];
+}
+
+export async function getAlgLibraryEntriesForCases(caseRefs = []) {
+  const db = await getDatabase();
+  const normalizedRefs = Array.isArray(caseRefs)
+    ? caseRefs
+        .filter((entry) => entry && entry.caseCode && entry.pieceType)
+        .map((entry) => ({
+          pieceType: String(entry.pieceType),
+          caseCode: String(entry.caseCode),
+        }))
+    : [];
+
+  if (!normalizedRefs.length) {
+    return [];
+  }
+
+  const conditions = [];
+  const params = [];
+  normalizedRefs.forEach((entry, index) => {
+    const base = index * 2;
+    conditions.push(`(piece_type = $${base + 1} AND case_code = $${base + 2})`);
+    params.push(entry.pieceType, entry.caseCode);
+  });
+
+  const result = await db.query(
+    `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, category, notes, updated_at
+     FROM alg_library_entries
+     WHERE ${conditions.join(" OR ")}`,
+    params
+  );
+
+  return result.rows || [];
 }
 
 export async function getAlgLibrarySummary(limit = 6) {

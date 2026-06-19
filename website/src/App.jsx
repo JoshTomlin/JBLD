@@ -17,6 +17,8 @@ import {
 } from "./utils/supabaseSync";
 import {
   bootstrapLegacyStorageIntoDatabase,
+  getAlgLibraryEntries,
+  getAlgLibraryEntriesForCases,
   getAlgLibrarySummary,
   getLocalAppMetaValue,
   getLocalDatabaseSummary,
@@ -25,6 +27,7 @@ import {
   queryLocalDatabase,
   replaceBundledAlgLibraryEntries,
   setLocalAppMetaValue,
+  updateAlgLibraryEntry,
 } from "./utils/localDatabase";
 import { getBundledAlgLibraryEntries } from "./data/bundledAlgLibrary";
 
@@ -69,6 +72,15 @@ class App extends React.Component {
       },
       local_storage_setting: null,
       algLibrarySummary: { counts: [], recentEntries: [] },
+      algLibraryEntries: [],
+      algLibraryEntryTotal: 0,
+      algLibrarySelectedEntryId: null,
+      algLibraryDraft: null,
+      algLibrarySearch: "",
+      algLibraryPieceType: "all",
+      algLibraryLoadingEntries: false,
+      algLibrarySavingEntry: false,
+      algLibraryRecentMatches: [],
       algLibraryImporting: false,
       algLibraryNotice: null,
       renderTable: null,
@@ -312,6 +324,168 @@ class App extends React.Component {
     }
   };
 
+  buildRecentAlgLibraryMatches = async (recentSolves = []) => {
+    const recentComms = [];
+
+    recentSolves.forEach((solve) => {
+      if (!solve || !Array.isArray(solve.comm_stats)) {
+        return;
+      }
+
+      solve.comm_stats.forEach((comm, index) => {
+        if (!comm || !["edge", "corner", "parity"].includes(comm.phase) || !comm.parse_text) {
+          return;
+        }
+
+        recentComms.push({
+          id: `${solve.id || solve.date || "solve"}-${comm.comm_index || index}`,
+          solveId: solve.id || null,
+          solveDate: solve.date || null,
+          pieceType: comm.phase,
+          caseCode: comm.parse_text,
+          algUsed: comm.alg || "",
+        });
+      });
+    });
+
+    const uniqueCaseRefs = [];
+    const seen = new Set();
+    recentComms.forEach((comm) => {
+      const key = `${comm.pieceType}:${comm.caseCode}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueCaseRefs.push({ pieceType: comm.pieceType, caseCode: comm.caseCode });
+      }
+    });
+
+    const libraryEntries = await getAlgLibraryEntriesForCases(uniqueCaseRefs);
+    const libraryByKey = new Map(
+      libraryEntries.map((entry) => [`${entry.piece_type}:${entry.case_code}`, entry])
+    );
+
+    return recentComms.slice(0, 12).map((comm) => {
+      const matchingEntry = libraryByKey.get(`${comm.pieceType}:${comm.caseCode}`) || null;
+      const normalizedUsed = (comm.algUsed || "").replace(/\s+/g, " ").trim();
+      const normalizedPreferred = matchingEntry && matchingEntry.alg
+        ? matchingEntry.alg.replace(/\s+/g, " ").trim()
+        : "";
+
+      return {
+        ...comm,
+        preferredEntry: matchingEntry,
+        status: !matchingEntry
+          ? "missing"
+          : normalizedUsed && normalizedPreferred && normalizedUsed === normalizedPreferred
+            ? "match"
+            : "review",
+      };
+    });
+  };
+
+  refreshAlgLibraryEntries = async (options = {}) => {
+    const pieceType = options.pieceType || this.state.algLibraryPieceType || "all";
+    const search =
+      typeof options.search === "string" ? options.search : this.state.algLibrarySearch || "";
+
+    this.setState({ algLibraryLoadingEntries: true });
+
+    const result = await getAlgLibraryEntries({
+      pieceType,
+      search,
+      limit: 250,
+    });
+    const recentMatches = await this.buildRecentAlgLibraryMatches(
+      [...this.state.solves_stats].slice().reverse().slice(0, 8)
+    );
+
+    this.setState((currentState) => {
+      const entries = Array.isArray(result.entries) ? result.entries : [];
+      const existingSelection = entries.find((entry) => entry.id === currentState.algLibrarySelectedEntryId);
+      const selectedEntry = existingSelection || entries[0] || null;
+
+      return {
+        algLibraryEntries: entries,
+        algLibraryEntryTotal: Number(result.totalCount) || entries.length,
+        algLibraryLoadingEntries: false,
+        algLibraryRecentMatches: recentMatches,
+        algLibrarySelectedEntryId: selectedEntry ? selectedEntry.id : null,
+        algLibraryDraft: selectedEntry
+          ? {
+              description: selectedEntry.description || "",
+              alg: selectedEntry.alg || "",
+              category: selectedEntry.category || "",
+              notes: selectedEntry.notes || "",
+            }
+          : null,
+      };
+    });
+
+    return result;
+  };
+
+  selectAlgLibraryEntry = (entry) => {
+    this.setState({
+      algLibrarySelectedEntryId: entry ? entry.id : null,
+      algLibraryDraft: entry
+        ? {
+            description: entry.description || "",
+            alg: entry.alg || "",
+            category: entry.category || "",
+            notes: entry.notes || "",
+          }
+        : null,
+    });
+  };
+
+  updateAlgLibraryDraftField = (field, value) => {
+    this.setState((currentState) => ({
+      algLibraryDraft: {
+        ...(currentState.algLibraryDraft || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  saveAlgLibraryEntry = async () => {
+    const { algLibrarySelectedEntryId, algLibraryDraft } = this.state;
+    if (!algLibrarySelectedEntryId || !algLibraryDraft) {
+      return;
+    }
+
+    this.setState({
+      algLibrarySavingEntry: true,
+      algLibraryNotice: "Saving Alg Library entry...",
+    });
+
+    try {
+      const savedEntry = await updateAlgLibraryEntry(algLibrarySelectedEntryId, algLibraryDraft);
+      await this.refreshAlgLibrarySummary();
+      const recentMatches = await this.buildRecentAlgLibraryMatches(
+        [...this.state.solves_stats].slice().reverse().slice(0, 8)
+      );
+      this.setState((currentState) => ({
+        algLibrarySavingEntry: false,
+        algLibraryNotice: `Saved ${savedEntry.case_code} in your local Alg Library.`,
+        algLibraryRecentMatches: recentMatches,
+        algLibraryEntries: currentState.algLibraryEntries.map((entry) =>
+          entry.id === savedEntry.id ? savedEntry : entry
+        ),
+        algLibraryDraft: {
+          description: savedEntry.description || "",
+          alg: savedEntry.alg || "",
+          category: savedEntry.category || "",
+          notes: savedEntry.notes || "",
+        },
+      }));
+    } catch (error) {
+      this.setState({
+        algLibrarySavingEntry: false,
+        algLibraryNotice:
+          error && error.message ? `Saving failed. ${error.message}` : "Saving failed for this Alg Library entry.",
+      });
+    }
+  };
+
   ensureBundledAlgLibraryLoaded = async () => {
     const summary = await this.refreshAlgLibrarySummary();
     const totalCount = Array.isArray(summary && summary.counts)
@@ -328,6 +502,9 @@ class App extends React.Component {
       await replaceBundledAlgLibraryEntries(entries);
       await setLocalAppMetaValue("alg_library_seed_version", BUNDLED_ALG_LIBRARY_VERSION);
       const nextSummary = await this.refreshAlgLibrarySummary();
+      if (this.state.activeView === "alg-library") {
+        await this.refreshAlgLibraryEntries();
+      }
       this.setState({
         algLibraryNotice: `Loaded ${entries.length} bundled alg library entries automatically.`,
       });
@@ -1987,7 +2164,23 @@ class App extends React.Component {
       return false;
     }
   }
-  componentDidUpdate = () => {
+  componentDidUpdate = (prevProps, prevState) => {
+    if (
+      this.state.activeView === "alg-library" &&
+      (prevState.activeView !== "alg-library" ||
+        prevState.algLibraryPieceType !== this.state.algLibraryPieceType ||
+        prevState.algLibrarySearch !== this.state.algLibrarySearch)
+    ) {
+      this.refreshAlgLibraryEntries().catch((error) => {
+        console.warn("Failed to refresh alg library entries", error);
+        this.setState({
+          algLibraryLoadingEntries: false,
+          algLibraryNotice:
+            error && error.message ? `Alg Library could not be loaded. ${error.message}` : "Alg Library could not be loaded.",
+        });
+      });
+    }
+
     if (this.state.activeView !== "solve") {
       return;
     }
@@ -2879,6 +3072,9 @@ class App extends React.Component {
       const totalCount = Array.isArray(summary && summary.counts)
         ? summary.counts.reduce((total, entry) => total + (Number(entry.count) || 0), 0)
         : entries.length;
+      if (this.state.activeView === "alg-library") {
+        await this.refreshAlgLibraryEntries();
+      }
 
       this.setState({
         algLibraryImporting: false,
@@ -2908,10 +3104,21 @@ class App extends React.Component {
     const algLibraryRecentEntries = Array.isArray(this.state.algLibrarySummary.recentEntries)
       ? this.state.algLibrarySummary.recentEntries
       : [];
+    const algLibraryEntries = Array.isArray(this.state.algLibraryEntries) ? this.state.algLibraryEntries : [];
     const algLibraryTotal = algLibraryCounts.reduce(
       (total, entry) => total + (Number(entry.count) || 0),
       0
     );
+    const algLibrarySelectedEntry =
+      algLibraryEntries.find((entry) => entry.id === this.state.algLibrarySelectedEntryId) || null;
+    const algLibraryPieceOptions = [
+      { value: "all", label: "All" },
+      { value: "corner", label: "Corners" },
+      { value: "edge", label: "Edges" },
+      { value: "parity", label: "Parity" },
+      { value: "corner_memo", label: "Corner Words" },
+      { value: "edge_memo", label: "Edge Words" },
+    ];
     const recentSolves = [...this.state.solves_stats].slice().reverse();
     const chartSolves = recentSolves
       .filter(({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve)))
@@ -3255,15 +3462,15 @@ class App extends React.Component {
               </strong>
             </div>
             <div className="breakdown_card">
-              <span>Flips</span>
+              <span>Corner Words</span>
               <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "flip") || {}).count || "--"}
+                {(algLibraryCounts.find((entry) => entry.piece_type === "corner_memo") || {}).count || "--"}
               </strong>
             </div>
             <div className="breakdown_card">
-              <span>Twists</span>
+              <span>Edge Words</span>
               <strong>
-                {(algLibraryCounts.find((entry) => entry.piece_type === "twist") || {}).count || "--"}
+                {(algLibraryCounts.find((entry) => entry.piece_type === "edge_memo") || {}).count || "--"}
               </strong>
             </div>
             <div className="breakdown_card">
@@ -3301,10 +3508,170 @@ class App extends React.Component {
               </div>
             </article>
             <article className="study_library_card">
-              <div className="study_library_title">What Is Included</div>
+              <div className="study_library_title">How It Works</div>
               <div className="study_library_text">
-                The bundled seed includes corners, edges, corner memo words, edge memo words, and parity. Flips and twists can be added the same way later.
+                This page now lets you browse saved cases, update your preferred algs or memo words, and compare recent parsed solves against what you have stored.
               </div>
+            </article>
+          </div>
+          <div className="study_section_header">
+            <div className="chart_card_title">Browse Library</div>
+            <div className="section_meta">
+              {this.state.algLibraryEntryTotal
+                ? `${this.state.algLibraryEntryTotal} visible entries`
+                : this.state.algLibraryLoadingEntries
+                  ? "Loading entries"
+                  : "No library entries yet"}
+            </div>
+          </div>
+          <div className="alg_library_shell">
+            <article className="study_library_card alg_library_browser">
+              <div className="alg_library_toolbar">
+                <input
+                  type="text"
+                  className="settings_input alg_library_search"
+                  placeholder="Search case, word, alg, category, or notes"
+                  value={this.state.algLibrarySearch}
+                  onChange={(event) => this.setState({ algLibrarySearch: event.target.value })}
+                />
+                <div className="alg_library_filters">
+                  {algLibraryPieceOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`study_tab ${this.state.algLibraryPieceType === option.value ? "study_tab_active" : ""}`}
+                      onClick={() => this.setState({ algLibraryPieceType: option.value })}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="alg_library_results">
+                {this.state.algLibraryLoadingEntries ? (
+                  <div className="empty_state_card">
+                    <div className="placeholder_text">Loading your Alg Library entries...</div>
+                  </div>
+                ) : algLibraryEntries.length ? (
+                  algLibraryEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`alg_library_row ${
+                        algLibrarySelectedEntry && algLibrarySelectedEntry.id === entry.id ? "alg_library_row_active" : ""
+                      }`}
+                      onClick={() => this.selectAlgLibraryEntry(entry)}
+                    >
+                      <div className="alg_library_row_header">
+                        <strong>{entry.case_code}</strong>
+                        <span>{entry.piece_type}</span>
+                      </div>
+                      <div className="alg_library_row_text">{entry.description || "No description saved yet"}</div>
+                      {entry.alg ? <div className="alg_library_row_alg">{entry.alg}</div> : null}
+                    </button>
+                  ))
+                ) : (
+                  <div className="empty_state_card">
+                    <div className="placeholder_text">No entries matched this filter yet.</div>
+                  </div>
+                )}
+              </div>
+            </article>
+            <article className="study_library_card alg_library_editor">
+              <div className="study_library_title">
+                {algLibrarySelectedEntry
+                  ? `${algLibrarySelectedEntry.case_code} • ${algLibrarySelectedEntry.piece_type}`
+                  : "Select an entry"}
+              </div>
+              {algLibrarySelectedEntry && this.state.algLibraryDraft ? (
+                <div className="alg_library_form">
+                  <label className="alg_library_field">
+                    <span>Description / Word</span>
+                    <textarea
+                      className="settings_textarea alg_library_textarea"
+                      value={this.state.algLibraryDraft.description}
+                      onChange={(event) => this.updateAlgLibraryDraftField("description", event.target.value)}
+                    />
+                  </label>
+                  <label className="alg_library_field">
+                    <span>Preferred Alg</span>
+                    <textarea
+                      className="settings_textarea alg_library_textarea"
+                      value={this.state.algLibraryDraft.alg}
+                      onChange={(event) => this.updateAlgLibraryDraftField("alg", event.target.value)}
+                    />
+                  </label>
+                  <label className="alg_library_field">
+                    <span>Category</span>
+                    <input
+                      type="text"
+                      className="settings_input"
+                      value={this.state.algLibraryDraft.category}
+                      onChange={(event) => this.updateAlgLibraryDraftField("category", event.target.value)}
+                    />
+                  </label>
+                  <label className="alg_library_field">
+                    <span>Notes</span>
+                    <textarea
+                      className="settings_textarea alg_library_textarea"
+                      value={this.state.algLibraryDraft.notes}
+                      onChange={(event) => this.updateAlgLibraryDraftField("notes", event.target.value)}
+                    />
+                  </label>
+                  <div className="study_library_action_row">
+                    <button
+                      type="button"
+                      className="study_library_button"
+                      onClick={this.saveAlgLibraryEntry}
+                      disabled={this.state.algLibrarySavingEntry}
+                    >
+                      {this.state.algLibrarySavingEntry ? "Saving..." : "Save Entry"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="study_library_text">
+                  Pick an alg, parity case, or memo word from the list to review and edit it here.
+                </div>
+              )}
+            </article>
+          </div>
+          <div className="study_section_header">
+            <div className="chart_card_title">Recent Solve References</div>
+            <div className="section_meta">Comms compared to your saved library</div>
+          </div>
+          <div className="study_library_grid">
+            <article className="study_library_card">
+              <div className="study_library_title">Recent Parsed Cases</div>
+              {this.state.algLibraryRecentMatches.length ? (
+                <div className="alg_library_match_list">
+                  {this.state.algLibraryRecentMatches.map((entry) => (
+                    <div key={entry.id} className="alg_library_match_row">
+                      <div className="alg_library_match_header">
+                        <strong>{entry.caseCode}</strong>
+                        <span className={`alg_library_match_badge alg_library_match_badge_${entry.status}`}>
+                          {entry.status === "match"
+                            ? "Matches saved alg"
+                            : entry.status === "missing"
+                              ? "Missing from library"
+                              : "Review alg"}
+                        </span>
+                      </div>
+                      <div className="study_library_entry_alg">
+                        {entry.pieceType} {entry.solveDate ? `• ${formatHistoryDate(entry.solveDate)}` : ""}
+                      </div>
+                      <div className="study_library_entry_alg">Used: {entry.algUsed || "--"}</div>
+                      <div className="study_library_entry_alg">
+                        Preferred: {entry.preferredEntry && entry.preferredEntry.alg ? entry.preferredEntry.alg : "--"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="study_library_text">
+                  Once recent solves contain parsed edge, corner, or parity cases, they will show up here for comparison.
+                </div>
+              )}
             </article>
           </div>
           <div className="study_section_header">
