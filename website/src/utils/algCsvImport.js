@@ -41,20 +41,61 @@ function repairBracketBalance(notation = "") {
   return repairedValue;
 }
 
+function expandGroupedRepeats(notation = "") {
+  let expandedNotation = normalizeCell(notation);
+  let previousNotation = null;
+  const groupPattern = /\(([^()]+)\)(\d+)/g;
+
+  while (expandedNotation !== previousNotation) {
+    previousNotation = expandedNotation;
+    expandedNotation = expandedNotation
+      .replace(groupPattern, (_match, inner, repeatCount) => {
+        const count = Number(repeatCount);
+        if (!Number.isInteger(count) || count < 1) {
+          return `(${inner})${repeatCount}`;
+        }
+
+        return Array.from({ length: count }, () => normalizeCell(inner)).join(" ");
+      })
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  return expandedNotation;
+}
+
 function expandLibraryNotation(notation = "") {
-  if (!hasCommNotation(notation)) {
-    return notation;
+  const normalizedNotation = normalizeCell(notation);
+  if (!normalizedNotation) {
+    return "";
+  }
+
+  const expandedGroupedNotation = /[()]/.test(normalizedNotation)
+    ? expandGroupedRepeats(normalizedNotation)
+    : normalizedNotation;
+
+  if (!hasCommNotation(expandedGroupedNotation)) {
+    return expandedGroupedNotation;
   }
 
   try {
-    return expandCommNotation(notation);
+    return expandCommNotation(expandedGroupedNotation);
   } catch (error) {
-    const repairedNotation = repairBracketBalance(notation);
-    if (repairedNotation !== notation) {
+    const repairedNotation = repairBracketBalance(expandedGroupedNotation);
+    if (repairedNotation !== expandedGroupedNotation) {
       return expandCommNotation(repairedNotation);
     }
     throw error;
   }
+}
+
+function normalizeExpandedAlg(alg = "", fallbackNotation = "") {
+  const normalizedAlg = normalizeCell(alg);
+  if (normalizedAlg) {
+    return expandLibraryNotation(normalizedAlg);
+  }
+
+  return expandLibraryNotation(fallbackNotation);
 }
 
 function parseCsvText(csvText = "") {
@@ -158,7 +199,7 @@ function buildEntry({
   notes,
 }) {
   const normalizedDescription = normalizeCell(description);
-  const normalizedAlg = normalizeCell(alg) || expandLibraryNotation(normalizedDescription);
+  const normalizedAlg = normalizeExpandedAlg(alg, normalizedDescription);
 
   return {
     id: `${pieceType}-${caseCode}`.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"),

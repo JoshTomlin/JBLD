@@ -96,7 +96,7 @@ describe("bldParser", () => {
     expect(toCanonicalAlg("(R U)2 (L U)2")).toBe("R U R U L U L U");
   });
 
-  it("formats parity, flips, and rotations with readable labels", () => {
+  it("formats parity, flips, and twists with readable labels", () => {
     const result = parseSolve([
       "edges",
       "[R U R', M'] // URUF flip",
@@ -121,7 +121,7 @@ describe("bldParser", () => {
         special_type: "rotation",
         target_a: "UBR",
         target_b: "UFR",
-        parse_text: "UBRUFR rotation",
+        parse_text: "UBRUFR Twist",
       })
     );
     expect(result.commStats[2]).toEqual(

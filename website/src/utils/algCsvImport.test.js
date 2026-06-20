@@ -50,6 +50,39 @@ describe("algCsvImport", () => {
     );
   });
 
+  it("expands repeated grouped alg notation from csv descriptions", () => {
+    const csvText = ['BS,"(U M U M\')2"'].join("\n");
+
+    const entries = extractAlgLibraryEntriesFromCsv(csvText, "edge", "edges.csv");
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "edge",
+          caseCode: "BS",
+          expandedAlg: "U M U M' U M U M'",
+        }),
+      ])
+    );
+  });
+
+  it("expands repeated grouped alg notation from a dedicated csv alg column", () => {
+    const csvText = ['Name,Description,Alg', 'BS,"(U M U M\')2","(U M U M\')2"'].join("\n");
+
+    const entries = extractAlgLibraryEntriesFromCsv(csvText, "edge", "edges.csv");
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "edge",
+          caseCode: "BS",
+          alg: "U M U M' U M U M'",
+          expandedAlg: "U M U M' U M U M'",
+        }),
+      ])
+    );
+  });
+
   it("maps memo words and metadata onto the same entry when the csv has dedicated columns", () => {
     const csvText = [
       "Pair,Description,Alg,Memo,Category,Notes",

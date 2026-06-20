@@ -34,6 +34,15 @@ function inferPieceType(sheetName = "") {
   if (normalized.includes("edge")) {
     return "edge";
   }
+  if (normalized.includes("twist")) {
+    return "twist";
+  }
+  if (normalized.includes("flip")) {
+    return "flip";
+  }
+  if (normalized.includes("parity")) {
+    return "parity";
+  }
   return "unknown";
 }
 
@@ -70,26 +79,67 @@ function closeTrailingBracketGap(notation = "") {
   return `${value}${"]".repeat(openCount - closeCount)}`;
 }
 
+function expandGroupedRepeats(notation = "") {
+  let expandedNotation = normalizeCell(notation);
+  let previousNotation = null;
+  const groupPattern = /\(([^()]+)\)(\d+)/g;
+
+  while (expandedNotation !== previousNotation) {
+    previousNotation = expandedNotation;
+    expandedNotation = expandedNotation
+      .replace(groupPattern, (_match, inner, repeatCount) => {
+        const count = Number(repeatCount);
+        if (!Number.isInteger(count) || count < 1) {
+          return `(${inner})${repeatCount}`;
+        }
+
+        return Array.from({ length: count }, () => normalizeCell(inner)).join(" ");
+      })
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  return expandedNotation;
+}
+
 function expandWorkbookNotation(notation = "") {
-  if (!hasCommNotation(notation)) {
-    return notation;
+  const normalizedNotation = normalizeCell(notation);
+  if (!normalizedNotation) {
+    return "";
+  }
+
+  const expandedGroupedNotation = /[()]/.test(normalizedNotation)
+    ? expandGroupedRepeats(normalizedNotation)
+    : normalizedNotation;
+
+  if (!hasCommNotation(expandedGroupedNotation)) {
+    return expandedGroupedNotation;
   }
 
   try {
-    return expandCommNotation(notation);
+    return expandCommNotation(expandedGroupedNotation);
   } catch (error) {
-    const repairedNotation = closeTrailingBracketGap(notation);
-    if (repairedNotation !== notation) {
+    const repairedNotation = closeTrailingBracketGap(expandedGroupedNotation);
+    if (repairedNotation !== expandedGroupedNotation) {
       return expandCommNotation(repairedNotation);
     }
     throw error;
   }
 }
 
+function normalizeExpandedAlg(alg = "", fallbackNotation = "") {
+  const normalizedAlg = normalizeCell(alg);
+  if (normalizedAlg) {
+    return expandWorkbookNotation(normalizedAlg);
+  }
+
+  return expandWorkbookNotation(fallbackNotation);
+}
+
 function buildEntry({ sheetName, rowIndex, caseCode, description, alg, memoWord, category, notes }) {
   const pieceType = inferPieceType(sheetName);
   const normalizedDescription = normalizeCell(description);
-  const expandedAlg = normalizeCell(alg) || expandWorkbookNotation(normalizedDescription);
+  const expandedAlg = normalizeExpandedAlg(alg, normalizedDescription);
 
   return {
     id: `${pieceType}-${caseCode}`.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"),

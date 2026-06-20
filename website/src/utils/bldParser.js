@@ -475,7 +475,7 @@ function targetsToParseText(comm, options = {}) {
       : "Parity";
   }
   if (comm.special_type === "flip" || comm.special_type === "rotation") {
-    return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} ${comm.special_type}`.trim();
+    return `${[comm.target_a, comm.target_b].filter(Boolean).join("")} ${comm.special_type === "rotation" ? "Twist" : "flip"}`.trim();
   }
   return [comm.target_a, comm.target_b].filter(Boolean).join("");
 }

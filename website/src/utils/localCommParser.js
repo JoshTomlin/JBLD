@@ -550,9 +550,18 @@ function stickersForPiece(piece, stickers) {
   return stickers.filter((sticker) => isSamePiece(sticker, piece));
 }
 
-function pickCornerTwistRepresentative(piece) {
-  const representative = pickCornerTwistLabelSticker(piece);
-  return representative;
+function pickCornerTwistRepresentative(piece, stickers = [], lastSolvedPieces = {}) {
+  const changedStickers = Array.isArray(stickers) ? stickers : [];
+  const labelLocation = changedStickers.find((sticker) => {
+    const currentSticker = lastSolvedPieces[sticker]?.[0];
+    return (
+      currentSticker &&
+      isSamePiece(currentSticker, piece) &&
+      (currentSticker[0] === "U" || currentSticker[0] === "D")
+    );
+  });
+
+  return labelLocation || pickCornerTwistLabelSticker(piece);
 }
 
 function detectBufferThreePieceCase(lastSolvedPieces, buffers) {
@@ -681,7 +690,7 @@ function commCoversSamePieces(comm, expectedComm) {
   );
 }
 
-function detectNonBufferSpecialCase(lastSolvedPieces) {
+function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
   const changedStickers = Object.keys(lastSolvedPieces);
   if (!changedStickers.length) {
     return null;
@@ -711,18 +720,23 @@ function detectNonBufferSpecialCase(lastSolvedPieces) {
     const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(cornerStickers), reidCornerOrder);
 
     if (uniquePieces.length === 2) {
-      return {
-        comm: uniquePieces
-          .map((piece) =>
-            toCanonicalStickerName(
-              pickCornerTwistRepresentative(
-                piece,
-                stickersForPiece(piece, cornerStickers),
-                lastSolvedPieces
-              )
-            )
+      const twistTargets = uniquePieces.map((piece) => ({
+        piece,
+        label: toCanonicalStickerName(
+          pickCornerTwistRepresentative(
+            piece,
+            stickersForPiece(piece, cornerStickers),
+            lastSolvedPieces
           )
-          .concat("twist"),
+        ),
+      }));
+      const visibleTargets =
+        buffers.cornerBuffer && twistTargets.some(({ piece }) => isSamePiece(piece, buffers.cornerBuffer))
+          ? twistTargets.filter(({ piece }) => !isSamePiece(piece, buffers.cornerBuffer))
+          : twistTargets;
+
+      return {
+        comm: visibleTargets.map(({ label }) => label).concat("twist"),
         pieceType: { edge: false, corner: true, parity: false },
       };
     }
@@ -808,7 +822,7 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
     return parityCase;
   }
 
-  const nonBufferSpecialCase = detectNonBufferSpecialCase(lastSolvedPieces);
+  const nonBufferSpecialCase = detectNonBufferSpecialCase(lastSolvedPieces, buffers);
   if (nonBufferSpecialCase) {
     return nonBufferSpecialCase;
   }
@@ -913,12 +927,13 @@ function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, bu
 
   if (specialType) {
     const relevantTargets = mappedComm.filter((token) => token !== "flip" && token !== "twist");
+    const label = specialType === "rotation" ? "Twist" : "flip";
     return {
       bufferTarget: null,
       targetA: relevantTargets[0] || null,
       targetB: relevantTargets[1] || null,
       specialType,
-      parseText: `${relevantTargets.join("")} ${specialType}`.trim(),
+      parseText: `${relevantTargets.join("")} ${label}`.trim(),
     };
   }
 

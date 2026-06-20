@@ -115,4 +115,59 @@ describe("algWorkbookImport", () => {
 
     spy.mockRestore();
   });
+
+  it("expands repeated grouped alg notation and recognizes twist sheets", () => {
+    const workbook = {
+      SheetNames: ["Twists"],
+      Sheets: {
+        Twists: {},
+      },
+    };
+
+    const spy = jest.spyOn(require("xlsx/dist/xlsx.full.min.js").utils, "sheet_to_json");
+
+    spy.mockImplementationOnce(() => [["N", "(U M U M')2"]]);
+
+    const entries = extractAlgLibraryEntriesFromWorkbook(workbook);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "twist",
+          caseCode: "N",
+          expandedAlg: "U M U M' U M U M'",
+        }),
+      ])
+    );
+
+    spy.mockRestore();
+  });
+
+  it("expands repeated grouped alg notation from a dedicated workbook alg column", () => {
+    const workbook = {
+      SheetNames: ["Edges"],
+      Sheets: {
+        Edges: {},
+      },
+    };
+
+    const spy = jest.spyOn(require("xlsx/dist/xlsx.full.min.js").utils, "sheet_to_json");
+
+    spy.mockImplementationOnce(() => [["Name", "Description", "Alg"], ["BS", "(U M U M')2", "(U M U M')2"]]);
+
+    const entries = extractAlgLibraryEntriesFromWorkbook(workbook);
+
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pieceType: "edge",
+          caseCode: "BS",
+          alg: "U M U M' U M U M'",
+          expandedAlg: "U M U M' U M U M'",
+        }),
+      ])
+    );
+
+    spy.mockRestore();
+  });
 });

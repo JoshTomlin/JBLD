@@ -1,0 +1,65 @@
+rows: 98
+mismatches: 56
+unresolved: 2
+
+Mismatches
+RQ -> QR | Twister | [U2 : [R' D R D' R' D R , U']]
+EN -> NE | Twister | [U : [R' D R D' R' D R , U]]
+FQ -> QF | Twister | [U' : [R' D R D' R' D R , U2]]
+IN -> NI | Twister | [U : [R' D R D' R' D R , U2]]
+KN -> NK | Top-Bottom | [R' D' R : U] [D' R' D R : U']
+PQ -> QP | Top-Bottom | [D' R' D R : U] [R' D' R : U']
+HQ -> QH | Top-Bottom | [U' : [D' R D R' : U] [R D' R' : U']]
+GN -> NG | Top-Bottom | [D R' D' R : U] [R' D R : U']
+LQ -> QL | Top-Bottom | [R' D R : U] [D R' D' R : U']
+IR -> RI | Twister | [U2 : [R' D R D' R' D R , U]]
+KR -> RK | Top-Bottom | [R' D' R : U2] [D' R' D R : U2]
+PE -> EP | Top-Bottom | [D' R' D R : U2] [R' D' R : U2]
+OR -> RO | Top-Bottom | [D R D' R' : U] [R D R' : U']
+RO -> RG | Top-Bottom | [D R' D' R : U2] [R' D R : U2]
+OP -> PO | Bottom-Twister | [D' , R U' R' U R U' R']
+GP -> PG | Bottom-Twister | [D , R U' R' U R U' R']
+NR -> BA | 3-Twister | Right Twist x3
+EQ -> BA | 3-Twister | Letf Twist x3
+KQ -> BV | TOWY | Letters [BP] [KQ]
+NP -> BV | TOWY | Letters [BK] [PN]
+QO -> BW | TOWY | Letters [BT] [OQ]
+NT -> VT | TOWY | Letters [BO] [TN]
+QS -> BX | TOWY | Letters [BH] [SQ]
+HN -> BX | TOWY | Letters [BS] [HN]
+GQ -> BU | TOWY | Letters [BL] [GQ]
+LN -> BU | TOWY | Letters [BG] [LN]
+FR -> AD | 3-Twister | Right Twist x3
+EI -> AD | 3-Twister | Left Twist x3
+EK -> AV | TOWY | Letters [AP] [KE]
+RP -> AV | TOWY | Letters [AK] [PR]
+OE -> AW | TOWY | Letters [AT] [OE]
+RT -> AW | TOWY | Letters [AO] [TR]
+ES -> AX | TOWY | Letters [AH] [SE]
+HR -> AX | TOWY | Letters [AS] [HR]
+EG -> AU | TOWY | Letters [AL] [GE]
+LR -> AU | TOWY | Letters [AG] [LR]
+IK -> DV | TOWY | Letters [DP] [KI]
+FP -> DV | TOWY | Letters [DK] [PF]
+IO -> DW | TOWY | Letters [DT] [OI]
+FT -> DW | TOWY | Letters [DO] [TF]
+IS -> XF | TOWY | Letters [DH] [SI]
+FH -> DX | TOWY | Letters [DS] [HF]
+GI -> DU | TOWY | Letters [DL] [GI]
+FL -> DU | TOWY | Letters [DG] [LF]
+KO -> VW | WWOB | Letters [KO] [WP]
+PT -> VW | WWOB | Letters [PT] [WK]
+KS -> VX | WWOB | Letters [KS] [XP]
+HP -> VX | WWOB | Letters [PH] [XK]
+GK -> VU | WWOB | Letters [KG] [UP]
+LP -> VU | WWOB | Letters [PL] [UK]
+OS -> XW | WWOB | Letters [OS] [XT]
+HT -> XW | WWOB | Letters [TH] [XO]
+GO -> UW | WWOB | Letters [OG] [UT]
+HL -> UW | WWOB | Letters [TL] [UO]
+GS -> UX | WWOB | Letters [GS] [XL]
+HL -> UX | WWOB | Letters [LH] [XG]
+
+Unresolved
+FN | 3-Twister | U' Right Twist x3 U'
+IQ | 3-Twister | U' Left Twist x3 U'
