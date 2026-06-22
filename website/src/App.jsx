@@ -35,6 +35,7 @@ import LZString from "lz-string";
 import "react-base-table/styles.css";
 
 const BUNDLED_ALG_LIBRARY_VERSION = "2026-06-19-v5";
+const APP_LAST_UPDATED_LABEL = "2026-06-20 19:59";
 
 class App extends React.Component {
   constructor() {
@@ -50,6 +51,7 @@ class App extends React.Component {
       showSettings: false,
       showLastSolveDetails: false,
       loadingSolveDetails: false,
+      loadingSolveDetailsCommLibrary: false,
       gan: false,
       sessions: [],
       activeSessionId: null,
@@ -114,6 +116,9 @@ class App extends React.Component {
       parsed_solve_txt: null,
       parsed_solve_cubedb: null,
       selectedSolveDetails: null,
+      solveDetailsLibraryByCase: {},
+      solveDetailsCommStatusByKey: {},
+      selectedSolveCommCard: null,
       parse_settings:
         localStorage.getItem("setting") === null
           ? {
@@ -930,9 +935,15 @@ class App extends React.Component {
       showLastSolveDetails: true,
       historySessionMenuOpen: false,
       loadingSolveDetails: Boolean(solve && solve.id),
+      loadingSolveDetailsCommLibrary: false,
       selectedSolveDetails: solve || null,
+      selectedSolveCommCard: null,
+      solveDetailsLibraryByCase: {},
+      solveDetailsCommStatusByKey: {},
       parsed_solve_txt: (solve && solve.txt_solve) || "No parsed solve text available yet.",
     });
+
+    this.loadSolveDetailsCommLibrary(solve);
 
     if (!solve || !solve.id) {
       return;
@@ -949,6 +960,7 @@ class App extends React.Component {
           parsed_solve_txt: detailedSolve.txt_solve || "No parsed solve text available yet.",
           loadingSolveDetails: false,
         });
+        this.loadSolveDetailsCommLibrary(detailedSolve);
       })
       .catch((error) => {
         console.warn("Failed to load solve details from server", error);
@@ -1723,6 +1735,141 @@ class App extends React.Component {
     return this.formatSpecialCommText(token);
   };
 
+  getSolveDetailsCommLookup = (comm) => {
+    const label = this.formatCommSummaryToken(comm);
+    if (!comm || !label) {
+      return null;
+    }
+
+    if (comm.phase === "parity" || comm.special_type === "parity") {
+      return {
+        label,
+        pieceType: "parity",
+        caseCode: label.replace(/-Parity$/i, ""),
+      };
+    }
+
+    if (comm.special_type === "flip") {
+      return {
+        label,
+        pieceType: "flip",
+        caseCode: label.replace(/-Flip$/i, ""),
+      };
+    }
+
+    if (comm.special_type === "rotation" || comm.special_type === "twist") {
+      return {
+        label,
+        pieceType: "twist",
+        caseCode: label.replace(/-Twist$/i, ""),
+      };
+    }
+
+    if (comm.phase === "edge" || comm.phase === "corner") {
+      return {
+        label,
+        pieceType: comm.phase,
+        caseCode: label,
+      };
+    }
+
+    return null;
+  };
+
+  getSolveDetailsCommRowKey = (comm) =>
+    [
+      comm && comm.comm_index,
+      comm && comm.phase,
+      comm && comm.move_start_index,
+      comm && comm.move_end_index,
+      comm && comm.parse_text,
+    ]
+      .filter((value) => value !== null && value !== undefined && value !== "")
+      .join(":");
+
+  buildSolveDetailsCaseKey = (pieceType, caseCode) => `${pieceType}:${caseCode}`;
+
+  loadSolveDetailsCommLibrary = async (solve) => {
+    const commStats = Array.isArray(solve && solve.comm_stats) ? solve.comm_stats : [];
+    const lookups = commStats
+      .map((comm) => ({ comm, lookup: this.getSolveDetailsCommLookup(comm) }))
+      .filter(({ lookup }) => lookup);
+
+    if (!lookups.length) {
+      this.setState({
+        loadingSolveDetailsCommLibrary: false,
+        solveDetailsLibraryByCase: {},
+        solveDetailsCommStatusByKey: {},
+        selectedSolveCommCard: null,
+      });
+      return;
+    }
+
+    const caseRefs = [];
+    const seen = new Set();
+    lookups.forEach(({ lookup }) => {
+      const key = this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode);
+      if (!seen.has(key)) {
+        seen.add(key);
+        caseRefs.push({
+          pieceType: lookup.pieceType,
+          caseCode: lookup.caseCode,
+        });
+      }
+    });
+
+    this.setState({ loadingSolveDetailsCommLibrary: true });
+
+    try {
+      const entries = await getAlgLibraryEntriesForCases(caseRefs);
+      const libraryByCase = {};
+      entries.forEach((entry) => {
+        libraryByCase[this.buildSolveDetailsCaseKey(entry.piece_type, entry.case_code)] = entry;
+      });
+
+      const statusByRow = {};
+      lookups.forEach(({ comm, lookup }) => {
+        const rowKey = this.getSolveDetailsCommRowKey(comm);
+        const entry = libraryByCase[this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode)] || null;
+        const usedAlg = this.formatAlgLibraryAlg(comm.alg || "", lookup.pieceType) || "";
+        const preferredAlg = entry
+          ? this.formatAlgLibraryAlg(entry.alg || "", entry.piece_type) || ""
+          : "";
+
+        statusByRow[rowKey] = !entry
+          ? "missing"
+          : usedAlg && preferredAlg && usedAlg === preferredAlg
+            ? "match"
+            : "mismatch";
+      });
+
+      this.setState({
+        loadingSolveDetailsCommLibrary: false,
+        solveDetailsLibraryByCase: libraryByCase,
+        solveDetailsCommStatusByKey: statusByRow,
+      });
+    } catch (error) {
+      console.warn("Failed to load solve-details comm library entries", error);
+      this.setState({
+        loadingSolveDetailsCommLibrary: false,
+        solveDetailsLibraryByCase: {},
+        solveDetailsCommStatusByKey: {},
+      });
+    }
+  };
+
+  openSolveDetailsCommCard = (comm) => {
+    if (!comm) {
+      return;
+    }
+
+    this.setState({ selectedSolveCommCard: comm });
+  };
+
+  closeSolveDetailsCommCard = () => {
+    this.setState({ selectedSolveCommCard: null });
+  };
+
   formatDateLine = (dateValue) => {
     const date = new Date(dateValue);
     if (Number.isNaN(date.getTime())) {
@@ -1819,6 +1966,7 @@ class App extends React.Component {
       cornerSummary: formatSummary(cornerSummaryComms, cornerSpan),
       edgeRows: reconstructionRows.filter((comm) => comm.displayPhase === "edge"),
       cornerRows: reconstructionRows.filter((comm) => comm.displayPhase === "corner"),
+      reconstructionRows,
       transitionSeconds,
       scramble: this.formatScrambleForDetails(solve.scramble || ""),
       link: this.withRecordedScrambleInCubedb(
@@ -3198,13 +3346,17 @@ class App extends React.Component {
 
     this.initialAveragesNoSolves();
     this.setState(
-      {
-        showMenu: false,
-        showSettings: false,
-        showLastSolveDetails: false,
-        loadingSolveDetails: false,
-        selectedSolveDetails: null,
-        activeView: "solve",
+        {
+          showMenu: false,
+          showSettings: false,
+          showLastSolveDetails: false,
+          loadingSolveDetails: false,
+          loadingSolveDetailsCommLibrary: false,
+          selectedSolveDetails: null,
+          selectedSolveCommCard: null,
+          solveDetailsLibraryByCase: {},
+          solveDetailsCommStatusByKey: {},
+          activeView: "solve",
         sessions: [freshSession],
         activeSessionId: freshSession.id,
         solves_stats: [],
@@ -3499,6 +3651,41 @@ class App extends React.Component {
       this.state.selectedSolveDetails,
       activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : []
     );
+    const selectedSolveCommLookup = this.state.selectedSolveCommCard
+      ? this.getSolveDetailsCommLookup(this.state.selectedSolveCommCard)
+      : null;
+    const selectedSolveCommEntry = selectedSolveCommLookup
+      ? this.state.solveDetailsLibraryByCase[
+          this.buildSolveDetailsCaseKey(selectedSolveCommLookup.pieceType, selectedSolveCommLookup.caseCode)
+        ] || null
+      : null;
+    const selectedSolveCommStatus = this.state.selectedSolveCommCard
+      ? this.state.solveDetailsCommStatusByKey[this.getSolveDetailsCommRowKey(this.state.selectedSolveCommCard)] || null
+      : null;
+    const selectedSolveCommCardData = this.state.selectedSolveCommCard && selectedSolveCommLookup
+      ? {
+          label: selectedSolveCommLookup.label,
+          pieceType: selectedSolveCommLookup.pieceType,
+          category: selectedSolveCommEntry ? this.formatAlgLibraryCategory(selectedSolveCommEntry.category) : "",
+          memoWord: selectedSolveCommEntry ? selectedSolveCommEntry.memo_word || "" : "",
+          description: selectedSolveCommEntry
+            ? selectedSolveCommEntry.description || "No description saved yet"
+            : "No library entry saved for this comm.",
+          preferredAlg: selectedSolveCommEntry
+            ? this.formatAlgLibraryAlg(
+                selectedSolveCommEntry.alg || "",
+                selectedSolveCommEntry.piece_type
+              ) || "--"
+            : "--",
+          usedAlg:
+            this.formatAlgLibraryAlg(
+              this.state.selectedSolveCommCard.alg || "",
+              selectedSolveCommLookup.pieceType
+            ) || "--",
+          status: selectedSolveCommStatus,
+          timing: this.formatCommTimingPair(this.state.selectedSolveCommCard) || "--",
+        }
+      : null;
     const lastSolvePanelData = this.getLastSolvePanelData(latestSolve);
     const timerDisplayMs = this.getTimerDisplayMs(latestSolve);
     let mainView;
@@ -3881,16 +4068,16 @@ class App extends React.Component {
                           <input
                             type="text"
                             className="settings_input alg_library_inline_input"
-                            placeholder="Memo"
-                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.memoWord : ""}
-                            onChange={(event) => this.updateAlgLibraryDraftField("memoWord", event.target.value)}
+                            placeholder="Category"
+                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.category : ""}
+                            onChange={(event) => this.updateAlgLibraryDraftField("category", event.target.value)}
                           />
                           <input
                             type="text"
                             className="settings_input alg_library_inline_input"
-                            placeholder="Category"
-                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.category : ""}
-                            onChange={(event) => this.updateAlgLibraryDraftField("category", event.target.value)}
+                            placeholder="Memo"
+                            value={this.state.algLibraryDraft ? this.state.algLibraryDraft.memoWord : ""}
+                            onChange={(event) => this.updateAlgLibraryDraftField("memoWord", event.target.value)}
                           />
                         </div>
                         <div className="alg_library_card_desc alg_library_card_desc_editing">
@@ -3925,15 +4112,10 @@ class App extends React.Component {
                       <React.Fragment>
                         <div className="alg_library_card_meta">
                           <span>
-                            {entry.memo_word ||
-                              (entry.piece_type === "parity"
-                                ? this.formatAlgLibraryCategory(entry.category)
-                                : "")}
+                            {this.formatAlgLibraryCategory(entry.category)}
                           </span>
                           <span>
-                            {entry.piece_type === "parity" && !entry.memo_word
-                              ? ""
-                              : this.formatAlgLibraryCategory(entry.category)}
+                            {entry.memo_word || ""}
                           </span>
                         </div>
                         <div className="alg_library_card_desc">
@@ -4012,17 +4194,17 @@ class App extends React.Component {
                       </span>
                     </div>
                     <div className="alg_library_card_meta">
-                      <span>{entry.solveDate ? formatHistoryDate(entry.solveDate) : ""}</span>
-                      <span>{preferredStatus}</span>
+                      <span>
+                        {entry.preferredEntry
+                          ? this.formatAlgLibraryCategory(entry.preferredEntry.category)
+                          : ""}
+                      </span>
+                      <span>{entry.preferredEntry ? entry.preferredEntry.memo_word || "" : ""}</span>
                     </div>
                     <div className="alg_library_card_desc">
                       <span>{usedAlg}</span>
                       <span>
-                        {entry.status === "missing"
-                          ? "Missing"
-                          : entry.status === "match"
-                            ? "Match"
-                            : "Review"}
+                        {preferredStatus}
                       </span>
                     </div>
                     <div className="alg_library_card_alg">
@@ -4705,6 +4887,7 @@ class App extends React.Component {
                 >
                   Reset Local Data
                 </button>
+                <div className="menu_update_note">Last updated {APP_LAST_UPDATED_LABEL}</div>
               </div>
             </div>
           </div>
@@ -4746,31 +4929,91 @@ class App extends React.Component {
         {this.state.showLastSolveDetails ? (
           <div
             className="solve_modal_backdrop solve_modal_backdrop_top"
-            onClick={() =>
-              this.setState({
-                showLastSolveDetails: false,
-                loadingSolveDetails: false,
-                selectedSolveDetails: null,
-              })
-            }
-          >
+              onClick={() =>
+                this.setState({
+                  showLastSolveDetails: false,
+                  loadingSolveDetails: false,
+                  loadingSolveDetailsCommLibrary: false,
+                  selectedSolveDetails: null,
+                  selectedSolveCommCard: null,
+                  solveDetailsLibraryByCase: {},
+                  solveDetailsCommStatusByKey: {},
+                })
+              }
+            >
             <div className="solve_modal" onClick={(event) => event.stopPropagation()}>
               <button
                 type="button"
                 className="solve_modal_close solve_modal_close_corner"
                 aria-label="Close solve details"
-                onClick={() =>
-                  this.setState({
-                    showLastSolveDetails: false,
-                    loadingSolveDetails: false,
-                    selectedSolveDetails: null,
-                  })
-                }
-              >
-                x
-              </button>
+                  onClick={() =>
+                    this.setState({
+                      showLastSolveDetails: false,
+                      loadingSolveDetails: false,
+                      loadingSolveDetailsCommLibrary: false,
+                      selectedSolveDetails: null,
+                      selectedSolveCommCard: null,
+                      solveDetailsLibraryByCase: {},
+                      solveDetailsCommStatusByKey: {},
+                    })
+                  }
+                >
+                  x
+                </button>
               {selectedSolveDetailsData ? (
                 <React.Fragment>
+                  {selectedSolveCommCardData ? (
+                    <div
+                      className={`solve_comm_overlay_card ${
+                        selectedSolveCommCardData.status === "mismatch"
+                          ? "solve_comm_overlay_card_warning"
+                          : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="solve_comm_overlay_close"
+                        aria-label="Close comm card"
+                        onClick={this.closeSolveDetailsCommCard}
+                      >
+                        x
+                      </button>
+                      <div className="alg_library_card_top">
+                        <strong>{selectedSolveCommCardData.label}</strong>
+                        <span>
+                          {selectedSolveCommCardData.pieceType
+                            ? `${selectedSolveCommCardData.pieceType.charAt(0).toUpperCase()}${selectedSolveCommCardData.pieceType.slice(1)}`
+                            : ""}
+                        </span>
+                      </div>
+                      <div className="alg_library_card_meta">
+                        <span>{selectedSolveCommCardData.category}</span>
+                        <span>{selectedSolveCommCardData.memoWord}</span>
+                      </div>
+                      <div className="alg_library_card_desc">
+                        <span>{selectedSolveCommCardData.description}</span>
+                        <span>
+                          {selectedSolveCommCardData.status === "mismatch"
+                            ? "Different from library"
+                            : selectedSolveCommCardData.status === "match"
+                              ? "Matches library"
+                              : selectedSolveCommCardData.status === "missing"
+                                ? "Missing from library"
+                                : selectedSolveCommCardData.timing}
+                        </span>
+                      </div>
+                      <div className="solve_comm_overlay_alg_block">
+                        <div className="solve_comm_overlay_alg_row">
+                          <span>Library</span>
+                          <strong>{selectedSolveCommCardData.preferredAlg}</strong>
+                        </div>
+                        <div className="solve_comm_overlay_alg_row">
+                          <span>Used</span>
+                          <strong>{selectedSolveCommCardData.usedAlg}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="solve_details_header">
                     <div>
                       <div className="solve_modal_title">{selectedSolveDetailsData.title}</div>
@@ -4809,7 +5052,17 @@ class App extends React.Component {
                             <span>
                               {this.formatReconstructionAlg(comm) || "--"}
                               {comm.label ? (
-                                <span className="reconstruction_comm_label"> ({comm.label})</span>
+                                <button
+                                  type="button"
+                                  className={`reconstruction_comm_button ${
+                                    this.state.solveDetailsCommStatusByKey[this.getSolveDetailsCommRowKey(comm)] === "mismatch"
+                                      ? "reconstruction_comm_button_warning"
+                                      : ""
+                                  }`}
+                                  onClick={() => this.openSolveDetailsCommCard(comm)}
+                                >
+                                  <span className="reconstruction_comm_label"> ({comm.label})</span>
+                                </button>
                               ) : null}
                             </span>
                             <strong>{this.formatCommTimingPair(comm)}</strong>
@@ -4836,7 +5089,17 @@ class App extends React.Component {
                             <span>
                               {this.formatReconstructionAlg(comm) || "--"}
                               {comm.label ? (
-                                <span className="reconstruction_comm_label"> ({comm.label})</span>
+                                <button
+                                  type="button"
+                                  className={`reconstruction_comm_button ${
+                                    this.state.solveDetailsCommStatusByKey[this.getSolveDetailsCommRowKey(comm)] === "mismatch"
+                                      ? "reconstruction_comm_button_warning"
+                                      : ""
+                                  }`}
+                                  onClick={() => this.openSolveDetailsCommCard(comm)}
+                                >
+                                  <span className="reconstruction_comm_label"> ({comm.label})</span>
+                                </button>
                               ) : null}
                             </span>
                             <strong>{this.formatCommTimingPair(comm)}</strong>

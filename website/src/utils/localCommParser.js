@@ -1319,6 +1319,7 @@ export function buildLocalCommAnalysis(setting) {
       if (candidateSegment.accepted) {
         acceptedSegment = candidateSegment;
         acceptedEnd = end;
+        break;
       }
     }
 

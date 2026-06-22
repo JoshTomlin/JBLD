@@ -2196,6 +2196,68 @@ textarea {
   scrollbar-width: none;
 }
 
+.solve_comm_overlay_card {
+  position: absolute;
+  top: 82px;
+  left: 14px;
+  right: 14px;
+  z-index: 4;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  background: rgba(8, 16, 34, 0.98);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.46);
+  display: grid;
+  gap: 10px;
+}
+
+.solve_comm_overlay_card_warning {
+  border-color: rgba(251, 191, 36, 0.48);
+  background:
+    linear-gradient(180deg, rgba(55, 42, 12, 0.98), rgba(24, 18, 6, 0.98)),
+    rgba(8, 16, 34, 0.98);
+}
+
+.solve_comm_overlay_close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  min-width: 0;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.solve_comm_overlay_alg_block {
+  display: grid;
+  gap: 8px;
+}
+
+.solve_comm_overlay_alg_row {
+  display: grid;
+  gap: 4px;
+}
+
+.solve_comm_overlay_alg_row span {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.solve_comm_overlay_alg_row strong {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .solve_details_metrics::-webkit-scrollbar {
   display: none;
 }
@@ -2282,6 +2344,17 @@ textarea {
   font-weight: 700;
 }
 
+.reconstruction_comm_button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.reconstruction_comm_button_warning .reconstruction_comm_label {
+  color: #fde68a;
+}
+
 .reconstruction_phase_detail {
   color: var(--text-dim);
   font-size: 0.82rem;
@@ -2344,6 +2417,13 @@ textarea {
   padding: 0 18px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.055);
+}
+
+.menu_update_note {
+  padding: 6px 6px 0;
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .setting_collapse_menu {
