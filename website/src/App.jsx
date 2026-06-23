@@ -505,9 +505,9 @@ class App extends React.Component {
 
     return recentComms.slice(0, 12).map((comm) => {
       const matchingEntry = libraryByKey.get(`${comm.pieceType}:${comm.caseCode}`) || null;
-      const normalizedUsed = this.formatAlgLibraryAlg(comm.algUsed || "", comm.pieceType);
+      const normalizedUsed = this.normalizeAlgComparisonText(comm.algUsed || "", comm.pieceType);
       const normalizedPreferred = matchingEntry
-        ? this.formatAlgLibraryAlg(matchingEntry.alg || "", matchingEntry.piece_type)
+        ? this.normalizeAlgComparisonText(matchingEntry.alg || "", matchingEntry.piece_type)
         : "";
 
       return {
@@ -1473,6 +1473,43 @@ class App extends React.Component {
     return compacted.join(" ");
   };
 
+  normalizeAlgComparisonText = (algText, pieceType) => {
+    const compacted = this.compactRepeatedTurns(algText, {
+      convertSlices: pieceType === "edge",
+    });
+    if (!compacted) {
+      return "";
+    }
+
+    const tokens = compacted
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((token) => {
+        const normalizedToken = String(token).trim();
+        return normalizedToken.endsWith("2'") ? normalizedToken.slice(0, -1) : normalizedToken;
+      });
+
+    const commutingOppositePairs = new Set(["U:D", "D:U", "L:R", "R:L", "F:B", "B:F"]);
+    const baseForToken = (token) => String(token).replace(/(2|')$/, "");
+    const axisOrder = { D: 0, U: 1, L: 0, R: 1, B: 0, F: 1 };
+
+    for (let index = 0; index < tokens.length - 1; index += 1) {
+      const firstBase = baseForToken(tokens[index]);
+      const secondBase = baseForToken(tokens[index + 1]);
+      if (!commutingOppositePairs.has(`${firstBase}:${secondBase}`)) {
+        continue;
+      }
+
+      if ((axisOrder[firstBase] || 0) > (axisOrder[secondBase] || 0)) {
+        const current = tokens[index];
+        tokens[index] = tokens[index + 1];
+        tokens[index + 1] = current;
+      }
+    }
+
+    return tokens.join(" ");
+  };
+
   simplifyTurnSequence = (algText) => {
     const displayText = this.normalizeDisplayAlgText(algText);
     if (!displayText) {
@@ -1532,7 +1569,9 @@ class App extends React.Component {
 
   formatReconstructionAlg = (comm) => {
     const formattedAlg = this.compactRepeatedTurns(comm && comm.alg, {
-      convertSlices: comm && comm.phase === "edge",
+      convertSlices:
+        comm &&
+        (comm.phase === "edge" || (comm.phase === "unknown" && comm.displayPhase === "edge")),
     });
     return [formattedAlg, comm && comm.implicit_rotation].filter(Boolean).join(" ");
   };
@@ -1962,9 +2001,9 @@ class App extends React.Component {
       lookups.forEach(({ comm, lookup }) => {
         const rowKey = this.getSolveDetailsCommRowKey(comm);
         const entry = libraryByCase[this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode)] || null;
-        const usedAlg = this.formatAlgLibraryAlg(comm.alg || "", lookup.pieceType) || "";
+        const usedAlg = this.normalizeAlgComparisonText(comm.alg || "", lookup.pieceType) || "";
         const preferredAlg = entry
-          ? this.formatAlgLibraryAlg(entry.alg || "", entry.piece_type) || ""
+          ? this.normalizeAlgComparisonText(entry.alg || "", entry.piece_type) || ""
           : "";
 
         statusByRow[rowKey] = !entry
