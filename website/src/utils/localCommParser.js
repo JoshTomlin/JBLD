@@ -707,10 +707,11 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
     const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(edgeStickers), reidEdgeOrder);
 
     if (uniquePieces.length === 2) {
+      const labels = uniquePieces
+        .map((piece) => toCanonicalStickerName(pickEdgeFlipLabelSticker(piece)))
+        .sort((a, b) => String(a).localeCompare(String(b)));
       return {
-        comm: uniquePieces
-          .map((piece) => toCanonicalStickerName(pickEdgeFlipLabelSticker(piece)))
-          .concat("flip"),
+        comm: labels.concat("flip"),
         pieceType: { edge: true, corner: false, parity: false },
       };
     }
@@ -734,9 +735,12 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
         buffers.cornerBuffer && twistTargets.some(({ piece }) => isSamePiece(piece, buffers.cornerBuffer))
           ? twistTargets.filter(({ piece }) => !isSamePiece(piece, buffers.cornerBuffer))
           : twistTargets;
+      const labels = visibleTargets
+        .map(({ label }) => label)
+        .sort((a, b) => String(a).localeCompare(String(b)));
 
       return {
-        comm: visibleTargets.map(({ label }) => label).concat("twist"),
+        comm: labels.concat("twist"),
         pieceType: { edge: false, corner: true, parity: false },
       };
     }

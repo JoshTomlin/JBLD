@@ -1176,7 +1176,10 @@ textarea {
 }
 
 .alg_library_results_flat {
+  align-items: start;
   align-content: start;
+  justify-items: stretch;
+  grid-auto-rows: min-content;
 }
 
 .alg_library_row {
@@ -2319,7 +2322,7 @@ textarea {
 .reconstruction_row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  align-items: start;
   gap: 12px;
   color: var(--text-dim);
   font-size: 0.88rem;
@@ -2329,8 +2332,9 @@ textarea {
   color: #fca5a5;
 }
 
-.reconstruction_row span {
+.reconstruction_row_main {
   min-width: 0;
+  line-height: 1.28;
   overflow-wrap: anywhere;
 }
 
@@ -2349,6 +2353,7 @@ textarea {
   padding: 0;
   background: transparent;
   color: inherit;
+  vertical-align: baseline;
 }
 
 .reconstruction_comm_button_warning .reconstruction_comm_label {
@@ -2362,7 +2367,28 @@ textarea {
   text-transform: none;
 }
 
-.reconstruction_row strong {
+.reconstruction_timing_grid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  align-items: start;
+  gap: 10px;
+}
+
+.reconstruction_timing_cell {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.reconstruction_timing_cell span {
+  color: var(--text-faint);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.reconstruction_timing_cell strong {
   color: var(--text-soft);
   font-weight: 700;
   text-align: right;

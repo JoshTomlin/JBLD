@@ -1605,6 +1605,10 @@ class App extends React.Component {
     return total !== null ? this.formatInlineDuration(total) : "--";
   };
 
+  formatCommTimingValue = (seconds) => {
+    return Number.isFinite(seconds) ? this.formatInlineDuration(seconds) || "--" : "--";
+  };
+
   assignReconstructionDisplayPhases = (rows = []) => {
     const nextKnownDisplayPhases = new Array(rows.length).fill(null);
     let nextKnown = null;
@@ -5247,9 +5251,11 @@ class App extends React.Component {
                             key={`edge-${comm.comm_index || index}`}
                             className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
                           >
-                            <span>
+                            <span className="reconstruction_row_main">
                               {this.formatReconstructionAlg(comm) || "--"}
                               {comm.label ? (
+                                <>
+                                  {" "}
                                 <button
                                   type="button"
                                   className={`reconstruction_comm_button ${
@@ -5261,9 +5267,19 @@ class App extends React.Component {
                                 >
                                   <span className="reconstruction_comm_label"> ({comm.label})</span>
                                 </button>
+                                </>
                               ) : null}
                             </span>
-                            <strong>{this.formatCommTimingPair(comm)}</strong>
+                            <div className="reconstruction_timing_grid">
+                              <div className="reconstruction_timing_cell">
+                                <span>Recog</span>
+                                <strong>{this.formatCommTimingValue(comm.recogDuration)}</strong>
+                              </div>
+                              <div className="reconstruction_timing_cell">
+                                <span>Exec</span>
+                                <strong>{this.formatCommTimingValue(comm.execDuration)}</strong>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </React.Fragment>
@@ -5284,9 +5300,11 @@ class App extends React.Component {
                             key={`corner-${comm.comm_index || index}`}
                             className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
                           >
-                            <span>
+                            <span className="reconstruction_row_main">
                               {this.formatReconstructionAlg(comm) || "--"}
                               {comm.label ? (
+                                <>
+                                  {" "}
                                 <button
                                   type="button"
                                   className={`reconstruction_comm_button ${
@@ -5298,9 +5316,19 @@ class App extends React.Component {
                                 >
                                   <span className="reconstruction_comm_label"> ({comm.label})</span>
                                 </button>
+                                </>
                               ) : null}
                             </span>
-                            <strong>{this.formatCommTimingPair(comm)}</strong>
+                            <div className="reconstruction_timing_grid">
+                              <div className="reconstruction_timing_cell">
+                                <span>Recog</span>
+                                <strong>{this.formatCommTimingValue(comm.recogDuration)}</strong>
+                              </div>
+                              <div className="reconstruction_timing_cell">
+                                <span>Exec</span>
+                                <strong>{this.formatCommTimingValue(comm.execDuration)}</strong>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </React.Fragment>
