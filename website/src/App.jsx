@@ -43,6 +43,7 @@ class App extends React.Component {
     this.GiikerCube = this.GiikerCube.bind(this);
     this.connectGanCubeDirect = this.connectGanCubeDirect.bind(this);
     this.newMovesNotation = this.newMovesNotation.bind(this);
+    this.backupImportInputRef = React.createRef();
     this.deferredInstallPrompt = null;
     this.localDatabaseWritePromise = Promise.resolve();
     this.state = {
@@ -223,6 +224,136 @@ class App extends React.Component {
     this.setState({ showMenu: false }, () => {
       this.promptInstall();
     });
+  };
+  exportSolveBackup = async () => {
+    const { sessions, activeSessionId } = this.ensureSessionStorage();
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appLastUpdated: APP_LAST_UPDATED_LABEL,
+      activeSessionId,
+      sessions,
+      parseSettings: this.state.parse_settings || null,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const objectUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `jbld-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(objectUrl);
+
+    this.setState({
+      showMenu: false,
+      connectionNotice: "Backup exported. Keep the JSON file somewhere safe outside the browser.",
+    });
+  };
+  triggerSolveBackupImport = () => {
+    this.setState({ showMenu: false }, () => {
+      if (this.backupImportInputRef.current) {
+        this.backupImportInputRef.current.value = "";
+        this.backupImportInputRef.current.click();
+      }
+    });
+  };
+  importSolveBackup = async (event) => {
+    const file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file) {
+      return;
+    }
+
+    try {
+      const rawText = await file.text();
+      const backup = JSON.parse(rawText);
+      const sessions = Array.isArray(backup && backup.sessions) ? backup.sessions : null;
+      const activeSessionId = backup ? backup.activeSessionId || null : null;
+      const parseSettings = backup && backup.parseSettings && typeof backup.parseSettings === "object"
+        ? backup.parseSettings
+        : null;
+
+      if (!sessions || !sessions.length) {
+        throw new Error("Backup file does not contain any sessions.");
+      }
+
+      if (parseSettings) {
+        localStorage.setItem("setting", JSON.stringify(parseSettings));
+      }
+
+      this.persistSessionStorage(sessions, activeSessionId);
+      this.setState(
+        {
+          parse_settings: parseSettings || this.state.parse_settings,
+          sessions,
+          activeSessionId: this.getActiveSessionFromList(sessions, activeSessionId)
+            ? this.getActiveSessionFromList(sessions, activeSessionId).id
+            : (sessions[0] && sessions[0].id) || null,
+          connectionNotice: `Backup restored from ${file.name}.`,
+        },
+        () => {
+          this.initialStatsFromLocalstorage();
+          this.syncSessionsWithCloud(this.state.activeSessionId).catch((error) => {
+            console.warn("Cloud sync after backup restore failed", error);
+          });
+        }
+      );
+    } catch (error) {
+      this.setState({
+        connectionNotice:
+          error && error.message
+            ? `Backup restore failed. ${error.message}`
+            : "Backup restore failed.",
+      });
+    } finally {
+      if (event && event.target) {
+        event.target.value = "";
+      }
+    }
+  };
+  refreshAppWithoutClearingData = async () => {
+    try {
+      const { sessions, activeSessionId } = this.ensureSessionStorage({ skipDatabaseMirror: true });
+      await this.persistLocalDatabaseSnapshot(sessions, activeSessionId);
+
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(
+          registrations.map(async (registration) => {
+            try {
+              await registration.update();
+            } catch (_error) {
+              // Ignore update failures and continue with unregister below.
+            }
+
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            }
+
+            await registration.unregister();
+          })
+        );
+      }
+
+      if ("caches" in window) {
+        const cacheKeys = await window.caches.keys();
+        await Promise.all(cacheKeys.map((key) => window.caches.delete(key)));
+      }
+
+      this.setState({ connectionNotice: "Refreshing app without clearing solve data..." }, () => {
+        window.location.reload();
+      });
+    } catch (error) {
+      this.setState({
+        connectionNotice:
+          error && error.message
+            ? `App refresh failed. ${error.message}`
+            : "App refresh failed.",
+      });
+    }
   };
   dismissConnectionNotice = () => {
     this.setState({ connectionNotice: null });
@@ -4688,6 +4819,13 @@ class App extends React.Component {
         <div className="application">
           <Helmet id="background_page"></Helmet>
         </div>
+        <input
+          ref={this.backupImportInputRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: "none" }}
+          onChange={this.importSolveBackup}
+        />
         <div className="app_shell">
           <div className={`app_frame ${this.state.activeView === "solve" ? "app_frame_solve" : ""}`}>
             <header className="app_header">
@@ -4879,6 +5017,27 @@ class App extends React.Component {
                   onClick={() => this.setState({ showMenu: false, showSettings: true })}
                 >
                   Settings
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
+                  onClick={this.refreshAppWithoutClearingData}
+                >
+                  Update App
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
+                  onClick={this.exportSolveBackup}
+                >
+                  Export Backup
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
+                  onClick={this.triggerSolveBackupImport}
+                >
+                  Restore Backup
                 </button>
                 <button
                   type="button"
