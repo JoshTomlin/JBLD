@@ -1744,6 +1744,37 @@ class App extends React.Component {
     return total ? this.formatInlineDuration(total) : null;
   };
 
+  formatCornerPhaseElapsedTime = (solve, edgeComms, cornerComms) => {
+    if (!solve || !Array.isArray(cornerComms) || !cornerComms.length) {
+      return null;
+    }
+
+    const offsets = this.getTimedMoveOffsets(solve);
+    const lastCornerBoundary = this.getCommBoundary(
+      cornerComms[cornerComms.length - 1],
+      null
+    );
+    const lastEdge =
+      Array.isArray(edgeComms) && edgeComms.length
+        ? edgeComms[edgeComms.length - 1]
+        : null;
+    const lastEdgeBoundary = lastEdge ? this.getCommBoundary(lastEdge, null) : null;
+    const endOffset =
+      lastCornerBoundary.end !== null
+        ? offsets[lastCornerBoundary.end - 1]
+        : null;
+    const startOffset =
+      lastEdgeBoundary && lastEdgeBoundary.end !== null
+        ? offsets[lastEdgeBoundary.end - 1]
+        : 0;
+
+    if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset)) {
+      return null;
+    }
+
+    return this.formatInlineDuration(Math.max(endOffset - startOffset, 0));
+  };
+
   getTimedMoveOffsets = (solve) =>
     Array.isArray(solve && solve.move_timeline)
       ? solve.move_timeline
@@ -2180,7 +2211,7 @@ class App extends React.Component {
     const edgeComms = commStats.filter((comm) => comm.phase === "edge");
     const cornerComms = commStats.filter((comm) => comm.phase === "corner" || comm.phase === "parity");
     const edgeTime = this.formatCommElapsedTime(solve, edgeComms);
-    const cornerTime = this.formatCommElapsedTime(solve, cornerComms);
+    const cornerTime = this.formatCornerPhaseElapsedTime(solve, edgeComms, cornerComms);
     const uncertain = Boolean(solve.parseError);
     const edgeSummary = groups.edges.length
       ? `${groups.edges.join(", ")}${edgeTime ? ` (${edgeTime})` : ""}${uncertain ? " ?" : ""}`
@@ -5243,6 +5274,13 @@ class App extends React.Component {
                     ))}
                   </div>
                   <div className="solve_reconstruction_box">
+                    {(selectedSolveDetailsData.edgeRows.length ||
+                      selectedSolveDetailsData.cornerRows.length) ? (
+                      <div className="reconstruction_timing_header">
+                        <span>Recog</span>
+                        <span>Exec</span>
+                      </div>
+                    ) : null}
                     {selectedSolveDetailsData.edgeRows.length ? (
                       <React.Fragment>
                         <div className="reconstruction_phase_title">Edges</div>
@@ -5272,11 +5310,11 @@ class App extends React.Component {
                             </span>
                             <div className="reconstruction_timing_grid">
                               <div className="reconstruction_timing_cell">
-                                <span>Recog</span>
-                                <strong>{this.formatCommTimingValue(comm.recogDuration)}</strong>
+                                <strong className="reconstruction_recog_time">
+                                  {this.formatCommTimingValue(comm.recogDuration)}
+                                </strong>
                               </div>
                               <div className="reconstruction_timing_cell">
-                                <span>Exec</span>
                                 <strong>{this.formatCommTimingValue(comm.execDuration)}</strong>
                               </div>
                             </div>
@@ -5321,11 +5359,11 @@ class App extends React.Component {
                             </span>
                             <div className="reconstruction_timing_grid">
                               <div className="reconstruction_timing_cell">
-                                <span>Recog</span>
-                                <strong>{this.formatCommTimingValue(comm.recogDuration)}</strong>
+                                <strong className="reconstruction_recog_time">
+                                  {this.formatCommTimingValue(comm.recogDuration)}
+                                </strong>
                               </div>
                               <div className="reconstruction_timing_cell">
-                                <span>Exec</span>
                                 <strong>{this.formatCommTimingValue(comm.execDuration)}</strong>
                               </div>
                             </div>

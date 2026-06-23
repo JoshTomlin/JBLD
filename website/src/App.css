@@ -2367,9 +2367,23 @@ textarea {
   text-transform: none;
 }
 
+.reconstruction_timing_header {
+  display: grid;
+  grid-template-columns: repeat(2, 3.4rem);
+  justify-content: end;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: right;
+  text-transform: uppercase;
+}
+
 .reconstruction_timing_grid {
   display: grid;
-  grid-template-columns: repeat(2, auto);
+  grid-template-columns: repeat(2, 3.4rem);
   align-items: start;
   gap: 10px;
 }
@@ -2380,19 +2394,15 @@ textarea {
   gap: 2px;
 }
 
-.reconstruction_timing_cell span {
-  color: var(--text-faint);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 .reconstruction_timing_cell strong {
   color: var(--text-soft);
   font-weight: 700;
   text-align: right;
   white-space: nowrap;
+}
+
+.reconstruction_timing_cell .reconstruction_recog_time {
+  color: #aeb5bf;
 }
 
 .section_label {
