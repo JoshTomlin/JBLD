@@ -33,6 +33,8 @@
   },
   "scripts": {
     "postinstall": "node scripts/postinstall-fixes.js",
+    "prestart": "node scripts/write-build-meta.js",
+    "prebuild": "node scripts/write-build-meta.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

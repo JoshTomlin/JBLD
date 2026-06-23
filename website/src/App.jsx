@@ -30,12 +30,12 @@ import {
   updateAlgLibraryEntry,
 } from "./utils/localDatabase";
 import { getBundledAlgLibraryEntries } from "./data/bundledAlgLibrary";
+import { APP_LAST_UPDATED_LABEL } from "./buildMeta";
 
 import LZString from "lz-string";
 import "react-base-table/styles.css";
 
 const BUNDLED_ALG_LIBRARY_VERSION = "2026-06-19-v5";
-const APP_LAST_UPDATED_LABEL = "2026-06-20 19:59";
 
 class App extends React.Component {
   constructor() {
