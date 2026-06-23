@@ -1544,6 +1544,22 @@ textarea {
   gap: 4px;
 }
 
+.history_entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.history_entry_index {
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  min-width: 1.5rem;
+}
+
 .history_card_button {
   width: 100%;
   text-align: left;
@@ -1676,7 +1692,6 @@ textarea {
   font-size: 0.82rem;
 }
 
-.history_card_time,
 .session_card_value {
   color: var(--accent);
   font-size: 1.1rem;
@@ -2367,11 +2382,18 @@ textarea {
   text-transform: none;
 }
 
+.reconstruction_phase_header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+}
+
 .reconstruction_timing_header {
   display: grid;
-  grid-template-columns: repeat(2, 3.4rem);
+  grid-template-columns: repeat(2, 2.7rem);
   justify-content: end;
-  gap: 10px;
+  gap: 0.35rem;
   color: var(--text-faint);
   font-size: 0.66rem;
   font-weight: 700;
@@ -2383,9 +2405,9 @@ textarea {
 
 .reconstruction_timing_grid {
   display: grid;
-  grid-template-columns: repeat(2, 3.4rem);
+  grid-template-columns: repeat(2, 2.7rem);
   align-items: start;
-  gap: 10px;
+  gap: 0.35rem;
 }
 
 .reconstruction_timing_cell {

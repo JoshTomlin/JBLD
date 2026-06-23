@@ -1606,7 +1606,7 @@ class App extends React.Component {
   };
 
   formatCommTimingValue = (seconds) => {
-    return Number.isFinite(seconds) ? this.formatInlineDuration(seconds) || "--" : "--";
+    return Number.isFinite(seconds) ? seconds.toFixed(1) : "--";
   };
 
   assignReconstructionDisplayPhases = (rows = []) => {
@@ -2142,6 +2142,10 @@ class App extends React.Component {
       };
     });
     const reconstructionRows = this.assignReconstructionDisplayPhases(timedRows);
+    const pauseSeconds = timedRows.reduce(
+      (sum, comm) => (Number.isFinite(comm.recogDuration) ? sum + Number(comm.recogDuration) : sum),
+      0
+    );
 
     const lastEdge = edgeComms[edgeComms.length - 1];
     const firstCorner = cornerSummaryComms[0];
@@ -2159,12 +2163,13 @@ class App extends React.Component {
         : null;
 
     return {
-      title: `Solve ${solveNumber}${isDnfValue(solve.DNF) ? " (DNF)" : ""}`,
+      title: this.formatSolveResultLabel(solve),
+      solveNumber,
       date: this.formatDateLine(solve.date),
       metrics: [
-        { label: "Total", value: this.formatSolveResultLabel(solve) },
         { label: "Memo", value: this.convert_sec_to_format(solve.memo_time) },
         { label: "Exec", value: this.convert_sec_to_format(solve.exe_time) },
+        { label: "Pauses", value: this.convert_sec_to_format(pauseSeconds) },
         { label: "Algs", value: String(commStats.length) },
       ],
       edgeSummary: formatSummary(edgeComms, edgeSpan),
@@ -4529,28 +4534,27 @@ class App extends React.Component {
           <div className="history_list">
             {recentSolves.length ? (
               recentSolves.map((solve, index) => (
-                <button
-                  key={solve.date || index}
-                  type="button"
-                  className="history_card history_card_button"
-                  onClick={() => this.openSolveDetails(solve)}
-                >
-                  <div className="history_solve_row">
-                    <div className="history_card_title">
-                      Solve {sessionCount - index}
-                      {isDnfValue(solve.DNF) ? " (DNF)" : ""}
+                <div key={solve.date || index} className="history_entry">
+                  <div className="history_entry_index">{sessionCount - index}</div>
+                  <button
+                    type="button"
+                    className="history_card history_card_button"
+                    onClick={() => this.openSolveDetails(solve)}
+                  >
+                    <div className="history_solve_row">
+                      <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
+                      <div className="history_card_subtitle history_split_times">
+                        {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
+                      </div>
                     </div>
-                    <div className="history_card_time">
-                      {this.convert_sec_to_format(solve.time_solve)}
+                    <div className="history_solve_row history_solve_row_meta">
+                      <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
+                      <div className="history_card_subtitle">
+                        {Array.isArray(solve.comm_stats) ? solve.comm_stats.length : 0} algs
+                      </div>
                     </div>
-                  </div>
-                  <div className="history_solve_row history_solve_row_meta">
-                    <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
-                    <div className="history_card_subtitle history_split_times">
-                      {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               ))
             ) : (
               <div className="empty_state_card">
@@ -5274,16 +5278,15 @@ class App extends React.Component {
                     ))}
                   </div>
                   <div className="solve_reconstruction_box">
-                    {(selectedSolveDetailsData.edgeRows.length ||
-                      selectedSolveDetailsData.cornerRows.length) ? (
-                      <div className="reconstruction_timing_header">
-                        <span>Recog</span>
-                        <span>Exec</span>
-                      </div>
-                    ) : null}
                     {selectedSolveDetailsData.edgeRows.length ? (
                       <React.Fragment>
-                        <div className="reconstruction_phase_title">Edges</div>
+                        <div className="reconstruction_phase_header">
+                          <div className="reconstruction_phase_title">Edges</div>
+                          <div className="reconstruction_timing_header">
+                            <span>Recog</span>
+                            <span>Exec</span>
+                          </div>
+                        </div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
                           <div
                             key={`edge-${comm.comm_index || index}`}
@@ -5324,14 +5327,20 @@ class App extends React.Component {
                     ) : null}
                     {selectedSolveDetailsData.cornerRows.length ? (
                       <React.Fragment>
-                        <div className="reconstruction_phase_title">
-                          Corners
-                          {Number.isFinite(selectedSolveDetailsData.transitionSeconds) ? (
-                            <span className="reconstruction_phase_detail">
-                              {" "}
-                              ({this.formatInlineDuration(selectedSolveDetailsData.transitionSeconds)} transition)
-                            </span>
-                          ) : null}
+                        <div className="reconstruction_phase_header">
+                          <div className="reconstruction_phase_title">
+                            Corners
+                            {Number.isFinite(selectedSolveDetailsData.transitionSeconds) ? (
+                              <span className="reconstruction_phase_detail">
+                                {" "}
+                                ({this.formatInlineDuration(selectedSolveDetailsData.transitionSeconds)} transition)
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="reconstruction_timing_header">
+                            <span>Recog</span>
+                            <span>Exec</span>
+                          </div>
                         </div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div
