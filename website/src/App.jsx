@@ -1429,10 +1429,62 @@ class App extends React.Component {
     return output.join(" ");
   };
 
+  expandSliceMovesForDisplay = (algText) => {
+    const rawTokens = this.normalizeDisplayAlgText(algText).split(/\s+/).filter(Boolean);
+    if (!rawTokens.length) {
+      return "";
+    }
+
+    const expandDoubles = [];
+    rawTokens.forEach((token) => {
+      const match = token.match(/^([MES])(2|')?$/i);
+      if (!match) {
+        expandDoubles.push(token);
+        return;
+      }
+
+      const base = match[1].toUpperCase();
+      const suffix = match[2] || "";
+      if (suffix === "2") {
+        expandDoubles.push(base, base);
+      } else if (suffix === "'") {
+        expandDoubles.push(`${base}'`);
+      } else {
+        expandDoubles.push(base);
+      }
+    });
+
+    const sliceExpansion = {
+      M: { turns: ["L'", "R"], unwindRotation: "x'" },
+      "M'": { turns: ["L", "R'"], unwindRotation: "x" },
+      E: { turns: ["D'", "U"], unwindRotation: "y'" },
+      "E'": { turns: ["D", "U'"], unwindRotation: "y" },
+      S: { turns: ["B", "F'"], unwindRotation: "z" },
+      "S'": { turns: ["B'", "F"], unwindRotation: "z'" },
+    };
+
+    const output = [];
+    let remainder = this.convertWideMovesForDisplay(expandDoubles);
+
+    while (remainder.length) {
+      const token = remainder.shift();
+      const expansion = sliceExpansion[token];
+      if (!expansion) {
+        output.push(token);
+        continue;
+      }
+
+      output.push(...expansion.turns);
+      remainder = this.applyDisplayRotation(remainder, expansion.unwindRotation);
+    }
+
+    return output.join(" ");
+  };
+
   compactRepeatedTurns = (algText, { convertSlices = true } = {}) => {
     const displayText = convertSlices
       ? this.convertSmartCubeSlicesForDisplay(algText)
-      : this.normalizeDisplayAlgText(algText);
+      : this.expandSliceMovesForDisplay(algText);
     if (!displayText) {
       return "";
     }
@@ -1470,7 +1522,7 @@ class App extends React.Component {
       }
     }
 
-    return compacted.join(" ");
+    return this.simplifyTurnSequence(compacted.join(" ")) || "";
   };
 
   normalizeAlgComparisonText = (algText, pieceType) => {
@@ -4534,27 +4586,26 @@ class App extends React.Component {
           <div className="history_list">
             {recentSolves.length ? (
               recentSolves.map((solve, index) => (
-                <div key={solve.date || index} className="history_entry">
+                <button
+                  key={solve.date || index}
+                  type="button"
+                  className="history_card history_card_button"
+                  onClick={() => this.openSolveDetails(solve)}
+                >
                   <div className="history_entry_index">{sessionCount - index}</div>
-                  <button
-                    type="button"
-                    className="history_card history_card_button"
-                    onClick={() => this.openSolveDetails(solve)}
-                  >
-                    <div className="history_solve_row">
-                      <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
-                      <div className="history_card_subtitle history_split_times">
-                        {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
-                      </div>
+                  <div className="history_solve_row">
+                    <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
+                    <div className="history_card_subtitle history_split_times">
+                      {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
                     </div>
-                    <div className="history_solve_row history_solve_row_meta">
-                      <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
-                      <div className="history_card_subtitle">
-                        {Array.isArray(solve.comm_stats) ? solve.comm_stats.length : 0} algs
-                      </div>
+                  </div>
+                  <div className="history_solve_row history_solve_row_meta">
+                    <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
+                    <div className="history_card_subtitle">
+                      {Array.isArray(solve.comm_stats) ? solve.comm_stats.length : 0} algs
                     </div>
-                  </button>
-                </div>
+                  </div>
+                </button>
               ))
             ) : (
               <div className="empty_state_card">
