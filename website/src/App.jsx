@@ -90,6 +90,16 @@ class App extends React.Component {
       algLibraryRecentMatches: [],
       algLibraryImporting: false,
       algLibraryNotice: null,
+      drillPieceTypes: ["corner"],
+      drillLoading: false,
+      drillSessionActive: false,
+      drillQueue: [],
+      drillCurrentIndex: 0,
+      drillCurrentEntry: null,
+      drillNextEntry: null,
+      drillCompletedCount: 0,
+      drillSkippedCount: 0,
+      drillReviewEntries: [],
       renderTable: null,
       solves_stats: [],
       timer_focus: null,
@@ -2316,6 +2326,128 @@ class App extends React.Component {
     );
   };
 
+  toggleDrillPieceType = (pieceType) => {
+    this.setState((currentState) => {
+      const currentTypes = Array.isArray(currentState.drillPieceTypes) ? currentState.drillPieceTypes : [];
+      const exists = currentTypes.includes(pieceType);
+      const nextTypes = exists
+        ? currentTypes.filter((type) => type !== pieceType)
+        : [...currentTypes, pieceType];
+
+      return {
+        drillPieceTypes: nextTypes.length ? nextTypes : [pieceType],
+      };
+    });
+  };
+
+  buildDrillPromptText = (entry) => {
+    if (!entry) {
+      return "--";
+    }
+
+    return entry.memo_word || entry.case_code || "--";
+  };
+
+  buildDrillQueue = (entries = []) => {
+    const queue = entries
+      .filter((entry) => entry && (entry.memo_word || entry.case_code) && entry.alg)
+      .map((entry) => ({ ...entry }));
+
+    for (let index = queue.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      const current = queue[index];
+      queue[index] = queue[swapIndex];
+      queue[swapIndex] = current;
+    }
+
+    return queue;
+  };
+
+  startDrillSession = async () => {
+    const selectedTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
+    if (!selectedTypes.length) {
+      return;
+    }
+
+    this.setState({ drillLoading: true });
+
+    try {
+      await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+      const result = await getAlgLibraryEntries({ limit: 2000 });
+      const allEntries = Array.isArray(result && result.entries) ? result.entries : [];
+      const filteredEntries = allEntries.filter((entry) => selectedTypes.includes(entry.piece_type));
+      const queue = this.buildDrillQueue(filteredEntries);
+
+      this.setState({
+        drillLoading: false,
+        drillSessionActive: true,
+        drillQueue: queue,
+        drillCurrentIndex: 0,
+        drillCurrentEntry: queue[0] || null,
+        drillNextEntry: queue[1] || null,
+        drillCompletedCount: 0,
+        drillSkippedCount: 0,
+        drillReviewEntries: [],
+      });
+    } catch (error) {
+      console.warn("Failed to start drill session", error);
+      this.setState({
+        drillLoading: false,
+        drillSessionActive: true,
+        drillQueue: [],
+        drillCurrentIndex: 0,
+        drillCurrentEntry: null,
+        drillNextEntry: null,
+        drillCompletedCount: 0,
+        drillSkippedCount: 0,
+        drillReviewEntries: [],
+      });
+    }
+  };
+
+  advanceDrillSession = (options = {}) => {
+    const { skipped = false, missed = false } = options;
+    const currentEntry = this.state.drillCurrentEntry;
+    const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
+    const nextIndex = this.state.drillCurrentIndex + 1;
+    const nextEntry = queue[nextIndex] || null;
+    const followingEntry = queue[nextIndex + 1] || null;
+
+    this.setState((currentState) => {
+      const nextReviewEntries = missed && currentEntry
+        ? (() => {
+            const existingIndex = currentState.drillReviewEntries.findIndex((entry) => entry.id === currentEntry.id);
+            if (existingIndex >= 0) {
+              return currentState.drillReviewEntries.map((entry, index) =>
+                index === existingIndex ? { ...entry, misses: (entry.misses || 1) + 1 } : entry
+              );
+            }
+            return [...currentState.drillReviewEntries, { ...currentEntry, misses: 1 }];
+          })()
+        : currentState.drillReviewEntries;
+
+      return {
+        drillCurrentIndex: nextIndex,
+        drillCurrentEntry: nextEntry,
+        drillNextEntry: followingEntry,
+        drillCompletedCount: currentState.drillCompletedCount + (skipped ? 0 : 1),
+        drillSkippedCount: currentState.drillSkippedCount + (skipped ? 1 : 0),
+        drillReviewEntries: nextReviewEntries,
+        drillSessionActive: Boolean(nextEntry),
+      };
+    });
+  };
+
+  endDrillSession = () => {
+    this.setState({
+      drillSessionActive: false,
+      drillQueue: [],
+      drillCurrentIndex: 0,
+      drillCurrentEntry: null,
+      drillNextEntry: null,
+    });
+  };
+
   formatDateLine = (dateValue) => {
     const date = new Date(dateValue);
     if (Number.isNaN(date.getTime())) {
@@ -2374,10 +2506,36 @@ class App extends React.Component {
 
     const rank = this.getSolveRankInSession(solve, solves);
     return {
-      prefix: rank ? `#${rank}` : "--",
-      reason: "",
+      prefix: "Success.",
+      reason: rank ? `#${rank}` : "",
       isDnf: false,
     };
+  };
+
+  getSolveTpsValue = (solve) => {
+    if (!solve) {
+      return null;
+    }
+
+    const execSeconds = parseFloat(solve.exe_time);
+    if (!Number.isFinite(execSeconds) || execSeconds <= 0) {
+      return null;
+    }
+
+    const moveCount =
+      Number.isFinite(parseFloat(solve.move_count))
+        ? parseFloat(solve.move_count)
+        : Array.isArray(solve.solve)
+          ? solve.solve.length
+          : typeof solve.solve === "string"
+            ? solve.solve.trim().split(/\s+/).filter(Boolean).length
+            : null;
+
+    if (!Number.isFinite(moveCount) || moveCount <= 0) {
+      return null;
+    }
+
+    return (moveCount / execSeconds).toFixed(2);
   };
 
   getSolveDetailsViewData = (solve, solves) => {
@@ -2418,10 +2576,7 @@ class App extends React.Component {
       };
     });
     const reconstructionRows = this.assignReconstructionDisplayPhases(timedRows);
-    const pauseSeconds = timedRows.reduce(
-      (sum, comm) => (Number.isFinite(comm.recogDuration) ? sum + Number(comm.recogDuration) : sum),
-      0
-    );
+    const solveTps = this.getSolveTpsValue(solve);
 
     const lastEdge = edgeComms[edgeComms.length - 1];
     const firstCorner = cornerSummaryComms[0];
@@ -2445,7 +2600,7 @@ class App extends React.Component {
       metrics: [
         { label: "Memo", value: this.convert_sec_to_format(solve.memo_time) },
         { label: "Exec", value: this.convert_sec_to_format(solve.exe_time) },
-        { label: "Pauses", value: this.convert_sec_to_format(pauseSeconds) },
+        { label: "TPS", value: solveTps || "--" },
         { label: "Algs", value: String(commStats.length) },
       ],
       edgeSummary: formatSummary(edgeComms, edgeSpan),
@@ -4177,72 +4332,116 @@ class App extends React.Component {
     let mainView;
 
     if (this.state.activeView === "drill") {
+      const drillOptions = [
+        { value: "corner", label: "Corners" },
+        { value: "edge", label: "Edges" },
+        { value: "parity", label: "Parity" },
+        { value: "flip", label: "Flips" },
+        { value: "twist", label: "Twists" },
+      ];
+      const selectedDrillTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
+      const currentPrompt = this.buildDrillPromptText(this.state.drillCurrentEntry);
+      const nextPrompt = this.buildDrillPromptText(this.state.drillNextEntry);
       mainView = (
         <section className="drill_screen view_panel">
           <div className="section_header">
             <div>
-              <div className="placeholder_title">Drill Builder</div>
-              <div className="placeholder_text">{currentView.body}</div>
+              <div className="placeholder_title">Drill</div>
+              <div className="placeholder_text">Pick the sets you want, then cycle memo prompts while logging skips and misses for review.</div>
+            </div>
+            <div className="section_meta">
+              {this.state.drillSessionActive
+                ? `${this.state.drillCompletedCount} done | ${this.state.drillSkippedCount} skipped`
+                : `${selectedDrillTypes.length} set${selectedDrillTypes.length === 1 ? "" : "s"} selected`}
             </div>
           </div>
-          <div className="drill_tabs">
-            <button type="button" className="drill_tab drill_tab_active">
-              Corners
-            </button>
-            <button type="button" className="drill_tab">Edges</button>
-            <button type="button" className="drill_tab">Parity</button>
-            <button type="button" className="drill_tab">Flip/Twists</button>
-          </div>
-          <div className="drill_filters">
-            <div className="drill_filter_group">
-              <span className="drill_filter_label">Filter Drill Sets</span>
-              <div className="drill_filter_chips">
-                <button type="button" className="drill_chip drill_chip_active">
-                  Commutators
-                </button>
-                <button type="button" className="drill_chip">3-Style</button>
-                <button type="button" className="drill_chip">Unmastered</button>
-              </div>
+          <div className="drill_filter_group">
+            <span className="drill_filter_label">Include Sets</span>
+            <div className="drill_filter_chips">
+              {drillOptions.map((option) => {
+                const active = selectedDrillTypes.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`drill_chip ${active ? "drill_chip_active" : ""}`}
+                    onClick={() => this.toggleDrillPieceType(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
-          <div className="drill_card_list">
-            <article className="drill_card">
-              <div>
-                <div className="drill_card_title">Corner Commutators (Pure)</div>
-                <div className="drill_card_text">Warm up with pure commutators around your current corner buffer.</div>
+          {this.state.drillSessionActive ? (
+            <React.Fragment>
+              <article className="drill_prompt_card">
+                <div className="drill_prompt_eyebrow">Memo</div>
+                <div className="drill_prompt_word">{currentPrompt}</div>
+                <div className="drill_prompt_hint">
+                  {this.state.drillNextEntry ? `Next: ${nextPrompt}` : "Last prompt in this run"}
+                </div>
+                <div className="drill_prompt_actions">
+                  <button type="button" className="drill_action_button" onClick={() => this.advanceDrillSession()}>
+                    Started
+                  </button>
+                  <button
+                    type="button"
+                    className="drill_action_button drill_action_button_secondary"
+                    onClick={() => this.advanceDrillSession({ skipped: true })}
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    className="drill_action_button drill_action_button_secondary"
+                    onClick={() => this.advanceDrillSession({ missed: true })}
+                  >
+                    Missed
+                  </button>
+                </div>
+              </article>
+              <div className="drill_card_list">
+                <article className="drill_card">
+                  <div>
+                    <div className="drill_card_title">Review Queue</div>
+                    <div className="drill_card_text">
+                      {this.state.drillReviewEntries.length
+                        ? this.state.drillReviewEntries
+                            .map((entry) => `${entry.case_code}${entry.misses > 1 ? ` x${entry.misses}` : ""}`)
+                            .join(", ")
+                        : "Missed algs will stack here for review."}
+                    </div>
+                  </div>
+                  <div className="drill_card_side">
+                    <div className="drill_badge">
+                      {this.state.drillReviewEntries.length} review
+                    </div>
+                    <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.endDrillSession}>
+                      End Drill
+                    </button>
+                  </div>
+                </article>
               </div>
-              <div className="drill_card_side">
-                <div className="drill_badge">Level 1</div>
-                <button type="button" className="drill_action_button">
-                  Start Drill
-                </button>
-              </div>
-            </article>
-            <article className="drill_card">
-              <div>
-                <div className="drill_card_title">Buffer UFR Distance</div>
-                <div className="drill_card_text">Review cases that travel far from your corner buffer and slow recognition.</div>
-              </div>
-              <div className="drill_card_side">
-                <div className="drill_badge">25 cases</div>
-                <button type="button" className="drill_action_button drill_action_button_secondary">
-                  Resume Practice
-                </button>
-              </div>
-            </article>
-            <article className="drill_card">
-              <div>
-                <div className="drill_card_title">Edge Flips & Corner Twists</div>
-                <div className="drill_card_text">Quick isolated rep set for the special cases that still break flow.</div>
-              </div>
-              <div className="drill_card_side">
-                <div className="drill_badge">Mixed</div>
-                <button type="button" className="drill_action_button drill_action_button_secondary">
-                  Configure Drill
-                </button>
-              </div>
-            </article>
-          </div>
+            </React.Fragment>
+          ) : (
+            <div className="drill_card_list">
+              <article className="drill_card">
+                <div>
+                  <div className="drill_card_title">Memo Flow Drill</div>
+                  <div className="drill_card_text">
+                    Starts with a memo word, then lets you advance to the next prompt the moment you begin the alg. Skips and misses are tracked separately.
+                  </div>
+                </div>
+                <div className="drill_card_side">
+                  <div className="drill_badge">{selectedDrillTypes.join(", ") || "None"}</div>
+                  <button type="button" className="drill_action_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
+                    {this.state.drillLoading ? "Loading..." : "Start Drill"}
+                  </button>
+                </div>
+              </article>
+            </div>
+          )}
         </section>
       );
     } else if (this.state.activeView === "study") {
