@@ -6,6 +6,7 @@ import "bootstrap/dist/css/bootstrap.css";
 import Timer from "./component/Timer";
 import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
+import { buildLocalCommAnalysis } from "./utils/localCommParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
 import { computeSessionAggregateStats, isDnfValue } from "./utils/solveAverages";
 import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
@@ -97,6 +98,10 @@ class App extends React.Component {
       drillCurrentIndex: 0,
       drillCurrentEntry: null,
       drillNextEntry: null,
+      drillExecutingEntry: null,
+      drillExecutionStartIndex: null,
+      drillProcessedMoveCount: 0,
+      drillStatusMessage: "",
       drillCompletedCount: 0,
       drillSkippedCount: 0,
       drillReviewEntries: [],
@@ -2363,6 +2368,141 @@ class App extends React.Component {
     return queue;
   };
 
+  addDrillReviewEntry = (entries = [], entry) => {
+    if (!entry) {
+      return entries;
+    }
+
+    const existingIndex = entries.findIndex((item) => item.id === entry.id);
+    if (existingIndex >= 0) {
+      return entries.map((item, index) =>
+        index === existingIndex ? { ...item, misses: (item.misses || 1) + 1 } : item
+      );
+    }
+
+    return [...entries, { ...entry, misses: 1 }];
+  };
+
+  getDrillEntryLookup = (entry) => {
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      pieceType: entry.piece_type || "",
+      caseCode: String(entry.case_code || "").toUpperCase(),
+    };
+  };
+
+  drillCommMatchesEntry = (comm, entry) => {
+    const commLookup = this.getSolveDetailsCommLookup(comm);
+    const entryLookup = this.getDrillEntryLookup(entry);
+    if (!commLookup || !entryLookup) {
+      return false;
+    }
+
+    return (
+      commLookup.pieceType === entryLookup.pieceType &&
+      String(commLookup.caseCode || "").toUpperCase() === entryLookup.caseCode
+    );
+  };
+
+  analyzeDrillMoves = (cubeMoves = []) => {
+    if (!Array.isArray(cubeMoves) || !cubeMoves.length) {
+      return [];
+    }
+
+    try {
+      const analysis = buildLocalCommAnalysis({
+        ...this.state.parse_settings,
+        SCRAMBLE: "",
+        SOLVE: cubeMoves.join(" "),
+        PARSE_TO_LETTER_PAIR: true,
+      });
+      return Array.isArray(analysis && analysis.commStats) ? analysis.commStats : [];
+    } catch (error) {
+      console.warn("Failed to parse live drill moves", error);
+      return [];
+    }
+  };
+
+  getCompletedDrillComm = (cubeMoves, startIndex) => {
+    if (!Number.isFinite(startIndex)) {
+      return null;
+    }
+
+    const comms = this.analyzeDrillMoves(cubeMoves);
+    return (
+      comms.find(
+        (comm) =>
+          comm &&
+          comm.phase !== "unknown" &&
+          Number(comm.move_start_index) <= startIndex &&
+          Number(comm.move_end_index) >= startIndex
+      ) || null
+    );
+  };
+
+  handleDrillMoveStream = (cubeMoves = []) => {
+    if (!this.state.drillSessionActive || !Array.isArray(cubeMoves)) {
+      return;
+    }
+
+    const previousMoveCount = this.state.drillProcessedMoveCount || 0;
+    if (cubeMoves.length <= previousMoveCount) {
+      return;
+    }
+
+    let executingEntry = this.state.drillExecutingEntry;
+    let executionStartIndex = this.state.drillExecutionStartIndex;
+    let currentIndex = this.state.drillCurrentIndex;
+    let currentEntry = this.state.drillCurrentEntry;
+    let nextEntry = this.state.drillNextEntry;
+    const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
+    const nextState = {
+      drillProcessedMoveCount: cubeMoves.length,
+    };
+
+    if (!executingEntry && currentEntry) {
+      executingEntry = currentEntry;
+      executionStartIndex = previousMoveCount + 1;
+      currentIndex += 1;
+      currentEntry = queue[currentIndex] || null;
+      nextEntry = queue[currentIndex + 1] || null;
+
+      Object.assign(nextState, {
+        drillExecutingEntry: executingEntry,
+        drillExecutionStartIndex: executionStartIndex,
+        drillCurrentIndex: currentIndex,
+        drillCurrentEntry: currentEntry,
+        drillNextEntry: nextEntry,
+        drillStatusMessage: `Executing ${this.buildDrillPromptText(executingEntry)}`,
+      });
+    }
+
+    const completedComm = executingEntry
+      ? this.getCompletedDrillComm(cubeMoves, executionStartIndex)
+      : null;
+
+    if (completedComm && executingEntry) {
+      const matched = this.drillCommMatchesEntry(completedComm, executingEntry);
+      Object.assign(nextState, {
+        drillExecutingEntry: null,
+        drillExecutionStartIndex: null,
+        drillCompletedCount: this.state.drillCompletedCount + 1,
+        drillReviewEntries: matched
+          ? this.state.drillReviewEntries
+          : this.addDrillReviewEntry(this.state.drillReviewEntries, executingEntry),
+        drillStatusMessage: matched
+          ? `Finished ${this.buildDrillPromptText(executingEntry)}`
+          : `Review ${this.buildDrillPromptText(executingEntry)}`,
+        drillSessionActive: Boolean(currentEntry || nextEntry),
+      });
+    }
+
+    this.setState(nextState);
+  };
+
   startDrillSession = async () => {
     const selectedTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
     if (!selectedTypes.length) {
@@ -2385,6 +2525,10 @@ class App extends React.Component {
         drillCurrentIndex: 0,
         drillCurrentEntry: queue[0] || null,
         drillNextEntry: queue[1] || null,
+        drillExecutingEntry: null,
+        drillExecutionStartIndex: null,
+        drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
+        drillStatusMessage: queue.length ? "Ready" : "No algs found for these sets",
         drillCompletedCount: 0,
         drillSkippedCount: 0,
         drillReviewEntries: [],
@@ -2398,6 +2542,10 @@ class App extends React.Component {
         drillCurrentIndex: 0,
         drillCurrentEntry: null,
         drillNextEntry: null,
+        drillExecutingEntry: null,
+        drillExecutionStartIndex: null,
+        drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
+        drillStatusMessage: "Could not load drill algs",
         drillCompletedCount: 0,
         drillSkippedCount: 0,
         drillReviewEntries: [],
@@ -2407,33 +2555,30 @@ class App extends React.Component {
 
   advanceDrillSession = (options = {}) => {
     const { skipped = false, missed = false } = options;
-    const currentEntry = this.state.drillCurrentEntry;
+    const currentEntry = this.state.drillExecutingEntry || this.state.drillCurrentEntry;
     const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
-    const nextIndex = this.state.drillCurrentIndex + 1;
+    const nextIndex = this.state.drillExecutingEntry
+      ? this.state.drillCurrentIndex
+      : this.state.drillCurrentIndex + 1;
     const nextEntry = queue[nextIndex] || null;
     const followingEntry = queue[nextIndex + 1] || null;
 
     this.setState((currentState) => {
       const nextReviewEntries = missed && currentEntry
-        ? (() => {
-            const existingIndex = currentState.drillReviewEntries.findIndex((entry) => entry.id === currentEntry.id);
-            if (existingIndex >= 0) {
-              return currentState.drillReviewEntries.map((entry, index) =>
-                index === existingIndex ? { ...entry, misses: (entry.misses || 1) + 1 } : entry
-              );
-            }
-            return [...currentState.drillReviewEntries, { ...currentEntry, misses: 1 }];
-          })()
+        ? this.addDrillReviewEntry(currentState.drillReviewEntries, currentEntry)
         : currentState.drillReviewEntries;
 
       return {
         drillCurrentIndex: nextIndex,
         drillCurrentEntry: nextEntry,
         drillNextEntry: followingEntry,
+        drillExecutingEntry: null,
+        drillExecutionStartIndex: null,
         drillCompletedCount: currentState.drillCompletedCount + (skipped ? 0 : 1),
         drillSkippedCount: currentState.drillSkippedCount + (skipped ? 1 : 0),
         drillReviewEntries: nextReviewEntries,
         drillSessionActive: Boolean(nextEntry),
+        drillStatusMessage: skipped ? "Skipped" : missed ? "Marked for review" : currentState.drillStatusMessage,
       };
     });
   };
@@ -2445,6 +2590,9 @@ class App extends React.Component {
       drillCurrentIndex: 0,
       drillCurrentEntry: null,
       drillNextEntry: null,
+      drillExecutingEntry: null,
+      drillExecutionStartIndex: null,
+      drillStatusMessage: "",
     });
   };
 
@@ -3945,6 +4093,8 @@ class App extends React.Component {
     });
   };
   handle_moves_to_show = (cube_moves) => {
+    this.handleDrillMoveStream(cube_moves);
+
     if (this.state.gan) {
       this.setState({ moves_to_show: "" });
     } else if (this.state.solve_status === "Scrambling") {
@@ -4343,7 +4493,59 @@ class App extends React.Component {
       const currentPrompt = this.buildDrillPromptText(this.state.drillCurrentEntry);
       const nextPrompt = this.buildDrillPromptText(this.state.drillNextEntry);
       mainView = (
-        <section className="drill_screen view_panel">
+        <section className={`drill_screen view_panel ${this.state.drillSessionActive ? "drill_screen_active" : ""}`}>
+          {this.state.drillSessionActive ? (
+            <React.Fragment>
+              <button type="button" className="drill_close_button" onClick={this.endDrillSession} aria-label="End drill">
+                x
+              </button>
+              <article className="drill_prompt_card drill_prompt_card_active">
+                <div className="drill_prompt_eyebrow">
+                  {this.state.drillExecutingEntry ? "Next memo" : "Memo"}
+                </div>
+                <div className="drill_prompt_word">
+                  {this.state.drillCurrentEntry
+                    ? currentPrompt
+                    : this.state.drillExecutingEntry
+                      ? "Finish"
+                      : "Done"}
+                </div>
+                <div className="drill_prompt_hint">
+                  {this.state.drillStatusMessage || "Turn to start"}
+                  {this.state.drillNextEntry ? ` | Up next: ${nextPrompt}` : ""}
+                </div>
+                <div className="drill_prompt_actions drill_prompt_actions_active">
+                  <button
+                    type="button"
+                    className="drill_action_button drill_action_button_secondary"
+                    onClick={() => this.advanceDrillSession({ skipped: true })}
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    className="drill_action_button drill_action_button_secondary"
+                    onClick={() => this.advanceDrillSession({ missed: true })}
+                  >
+                    Missed
+                  </button>
+                </div>
+              </article>
+              <div className="drill_fullscreen_stats">
+                <span>{this.state.drillCompletedCount} done</span>
+                <span>{this.state.drillSkippedCount} skipped</span>
+                <span>{this.state.drillReviewEntries.length} review</span>
+              </div>
+              <div className="drill_review_strip">
+                {this.state.drillReviewEntries.length
+                  ? this.state.drillReviewEntries
+                      .map((entry) => `${entry.case_code}${entry.misses > 1 ? ` x${entry.misses}` : ""}`)
+                      .join(", ")
+                  : "Missed algs will collect here"}
+              </div>
+            </React.Fragment>
+          ) : (
+          <React.Fragment>
           <div className="section_header">
             <div>
               <div className="placeholder_title">Drill</div>
@@ -4373,58 +4575,6 @@ class App extends React.Component {
               })}
             </div>
           </div>
-          {this.state.drillSessionActive ? (
-            <React.Fragment>
-              <article className="drill_prompt_card">
-                <div className="drill_prompt_eyebrow">Memo</div>
-                <div className="drill_prompt_word">{currentPrompt}</div>
-                <div className="drill_prompt_hint">
-                  {this.state.drillNextEntry ? `Next: ${nextPrompt}` : "Last prompt in this run"}
-                </div>
-                <div className="drill_prompt_actions">
-                  <button type="button" className="drill_action_button" onClick={() => this.advanceDrillSession()}>
-                    Started
-                  </button>
-                  <button
-                    type="button"
-                    className="drill_action_button drill_action_button_secondary"
-                    onClick={() => this.advanceDrillSession({ skipped: true })}
-                  >
-                    Skip
-                  </button>
-                  <button
-                    type="button"
-                    className="drill_action_button drill_action_button_secondary"
-                    onClick={() => this.advanceDrillSession({ missed: true })}
-                  >
-                    Missed
-                  </button>
-                </div>
-              </article>
-              <div className="drill_card_list">
-                <article className="drill_card">
-                  <div>
-                    <div className="drill_card_title">Review Queue</div>
-                    <div className="drill_card_text">
-                      {this.state.drillReviewEntries.length
-                        ? this.state.drillReviewEntries
-                            .map((entry) => `${entry.case_code}${entry.misses > 1 ? ` x${entry.misses}` : ""}`)
-                            .join(", ")
-                        : "Missed algs will stack here for review."}
-                    </div>
-                  </div>
-                  <div className="drill_card_side">
-                    <div className="drill_badge">
-                      {this.state.drillReviewEntries.length} review
-                    </div>
-                    <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.endDrillSession}>
-                      End Drill
-                    </button>
-                  </div>
-                </article>
-              </div>
-            </React.Fragment>
-          ) : (
             <div className="drill_card_list">
               <article className="drill_card">
                 <div>
@@ -4441,6 +4591,7 @@ class App extends React.Component {
                 </div>
               </article>
             </div>
+          </React.Fragment>
           )}
         </section>
       );

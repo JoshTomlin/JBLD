@@ -953,6 +953,45 @@ textarea {
   gap: 14px;
 }
 
+.drill_screen_active {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  height: 100dvh;
+  margin: 0;
+  padding: max(20px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 14%, rgba(96, 165, 250, 0.16), transparent 36%),
+    linear-gradient(180deg, #030816 0%, #020617 55%, #01040e 100%);
+  align-content: center;
+  overflow: hidden;
+}
+
+.drill_close_button {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.82);
+  color: var(--text-faint);
+  font-size: 0.9rem;
+}
+
+.drill_prompt_card_active {
+  width: min(520px, 100%);
+  justify-self: center;
+  border-radius: 8px;
+  padding: 28px 22px;
+  text-align: center;
+  background: rgba(8, 17, 38, 0.76);
+}
+
 .drill_prompt_eyebrow {
   color: var(--text-faint);
   font-size: 0.72rem;
@@ -962,9 +1001,13 @@ textarea {
 
 .drill_prompt_word {
   color: var(--text-soft);
-  font-size: clamp(2rem, 7vw, 3.2rem);
+  font-size: 3.2rem;
   font-weight: 700;
   line-height: 1;
+}
+
+.drill_prompt_card_active .drill_prompt_word {
+  font-size: 4rem;
 }
 
 .drill_prompt_hint {
@@ -976,6 +1019,33 @@ textarea {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.drill_prompt_actions_active {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.drill_fullscreen_stats {
+  width: min(520px, 100%);
+  justify-self: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.drill_review_strip {
+  width: min(520px, 100%);
+  justify-self: center;
+  min-height: 20px;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .study_chart_card,
