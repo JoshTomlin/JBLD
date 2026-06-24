@@ -1545,16 +1545,6 @@ textarea {
   gap: 4px;
 }
 
-.history_entry_index {
-  color: var(--text-faint);
-  font-size: 0.7rem;
-  font-weight: 600;
-  opacity: 0.7;
-  line-height: 1;
-  text-align: left;
-  margin-bottom: 2px;
-}
-
 .history_card_button {
   width: 100%;
   text-align: left;
@@ -1707,6 +1697,17 @@ textarea {
 .history_solve_row_meta .history_card_subtitle:last-child {
   text-align: right;
   white-space: nowrap;
+}
+
+.history_solve_tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.history_solve_tag em {
+  font-style: italic;
+  color: var(--text-dim);
 }
 
 .history_metric_chip {
@@ -2352,9 +2353,9 @@ textarea {
 .reconstruction_identity {
   min-width: 0;
   display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
+  grid-template-columns: 2.4rem minmax(0, 1fr);
   align-items: start;
-  gap: 8px;
+  gap: 10px;
 }
 
 .reconstruction_row_unknown {
@@ -2375,6 +2376,15 @@ textarea {
 .reconstruction_comm_label {
   color: #93c5fd;
   font-weight: 700;
+  display: inline-grid;
+  justify-items: start;
+  line-height: 1.02;
+  gap: 1px;
+}
+
+.reconstruction_comm_label_sub {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
 }
 
 .reconstruction_comm_button {
@@ -2405,14 +2415,14 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 10px;
+  gap: 4px;
 }
 
 .reconstruction_timing_header {
   display: grid;
-  grid-template-columns: repeat(2, 2.15rem);
+  grid-template-columns: 1.9rem 2.35rem;
   justify-content: end;
-  gap: 0.06rem;
+  gap: 0.16rem;
   color: var(--text-faint);
   font-size: 0.66rem;
   font-weight: 700;
@@ -2424,9 +2434,9 @@ textarea {
 
 .reconstruction_timing_grid {
   display: grid;
-  grid-template-columns: repeat(2, 2.15rem);
+  grid-template-columns: 1.9rem 2.35rem;
   align-items: start;
-  gap: 0.06rem;
+  gap: 0.16rem;
 }
 
 .reconstruction_timing_cell {
@@ -2453,12 +2463,16 @@ textarea {
 
 .solve_details_dnf_controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
 }
 
 .solve_details_select {
   min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  border-radius: 10px;
 }
 
 .solve_details_action {

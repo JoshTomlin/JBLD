@@ -2012,6 +2012,36 @@ class App extends React.Component {
     return this.formatSpecialCommText(token);
   };
 
+  formatSolveDetailsCommLabel = (comm) => {
+    const label = this.formatCommSummaryToken(comm);
+    if (!label) {
+      return { primary: "--", secondary: "" };
+    }
+
+    if (/-Parity$/i.test(label)) {
+      return {
+        primary: label.replace(/-Parity$/i, ""),
+        secondary: "Prty",
+      };
+    }
+
+    if (/-Flip$/i.test(label)) {
+      return {
+        primary: label.replace(/-Flip$/i, ""),
+        secondary: "Flip",
+      };
+    }
+
+    if (/-Twist$/i.test(label)) {
+      return {
+        primary: label.replace(/-Twist$/i, ""),
+        secondary: "Twst",
+      };
+    }
+
+    return { primary: label, secondary: "" };
+  };
+
   getSolveDetailsCommLookup = (comm) => {
     const label = this.formatCommSummaryToken(comm);
     if (!comm || !label) {
@@ -2258,6 +2288,34 @@ class App extends React.Component {
     );
   };
 
+  handleSolveDetailsDnfCategoryChange = (value) => {
+    this.setState(
+      {
+        solveDetailsDnfCategory: value,
+      },
+      () => {
+        if (value) {
+          this.saveSelectedSolveDnfReason();
+        } else {
+          this.clearSelectedSolveDnfReason();
+        }
+      }
+    );
+  };
+
+  handleSolveDetailsDnfStageChange = (value) => {
+    this.setState(
+      {
+        solveDetailsDnfStage: value,
+      },
+      () => {
+        if (this.state.solveDetailsDnfCategory) {
+          this.saveSelectedSolveDnfReason();
+        }
+      }
+    );
+  };
+
   formatDateLine = (dateValue) => {
     const date = new Date(dateValue);
     if (Number.isNaN(date.getTime())) {
@@ -2303,15 +2361,23 @@ class App extends React.Component {
 
   getSolveHistoryTag = (solve, solves) => {
     if (!solve) {
-      return "--";
+      return { prefix: "--", reason: "", isDnf: false };
     }
 
     if (isDnfValue(solve.DNF)) {
-      return solve.dnf_reason || "DNF";
+      return {
+        prefix: "DNF.",
+        reason: solve.dnf_reason || "",
+        isDnf: true,
+      };
     }
 
     const rank = this.getSolveRankInSession(solve, solves);
-    return rank ? `#${rank}` : "--";
+    return {
+      prefix: rank ? `#${rank}` : "--",
+      reason: "",
+      isDnf: false,
+    };
   };
 
   getSolveDetailsViewData = (solve, solves) => {
@@ -4750,7 +4816,6 @@ class App extends React.Component {
                   className="history_card history_card_button"
                   onClick={() => this.openSolveDetails(solve)}
                 >
-                  <div className="history_entry_index">{sessionCount - index}</div>
                   <div className="history_solve_row">
                     <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
                     <div className="history_card_subtitle history_split_times">
@@ -4758,9 +4823,18 @@ class App extends React.Component {
                     </div>
                   </div>
                   <div className="history_solve_row history_solve_row_meta">
-                    <div className="history_card_subtitle">
-                      {this.getSolveHistoryTag(solve, activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : [])}
-                    </div>
+                    {(() => {
+                      const tag = this.getSolveHistoryTag(
+                        solve,
+                        activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : []
+                      );
+                      return (
+                        <div className="history_card_subtitle history_solve_tag">
+                          <span>{tag.prefix}</span>
+                          {tag.reason ? <em>{tag.reason}</em> : null}
+                        </div>
+                      );
+                    })()}
                     <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
                   </div>
                 </button>
@@ -5477,6 +5551,9 @@ class App extends React.Component {
                           </div>
                         </div>
                         {selectedSolveDetailsData.edgeRows.map((comm, index) => (
+                          (() => {
+                            const displayLabel = this.formatSolveDetailsCommLabel(comm);
+                            return (
                           <div
                             key={`edge-${comm.comm_index || index}`}
                             className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
@@ -5492,7 +5569,12 @@ class App extends React.Component {
                                   }`}
                                   onClick={() => this.openSolveDetailsCommCard(comm)}
                                 >
-                                  <span className="reconstruction_comm_label">{comm.label}</span>
+                                  <span className="reconstruction_comm_label">
+                                    <span>{displayLabel.primary}</span>
+                                    {displayLabel.secondary ? (
+                                      <span className="reconstruction_comm_label_sub">{displayLabel.secondary}</span>
+                                    ) : null}
+                                  </span>
                                 </button>
                               ) : (
                                 <span className="reconstruction_comm_label">--</span>
@@ -5512,6 +5594,8 @@ class App extends React.Component {
                               </div>
                             </div>
                           </div>
+                            );
+                          })()
                         ))}
                       </React.Fragment>
                     ) : null}
@@ -5529,6 +5613,9 @@ class App extends React.Component {
                           </div>
                         </div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
+                          (() => {
+                            const displayLabel = this.formatSolveDetailsCommLabel(comm);
+                            return (
                           <div
                             key={`corner-${comm.comm_index || index}`}
                             className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
@@ -5544,7 +5631,12 @@ class App extends React.Component {
                                   }`}
                                   onClick={() => this.openSolveDetailsCommCard(comm)}
                                 >
-                                  <span className="reconstruction_comm_label">{comm.label}</span>
+                                  <span className="reconstruction_comm_label">
+                                    <span>{displayLabel.primary}</span>
+                                    {displayLabel.secondary ? (
+                                      <span className="reconstruction_comm_label_sub">{displayLabel.secondary}</span>
+                                    ) : null}
+                                  </span>
                                 </button>
                               ) : (
                                 <span className="reconstruction_comm_label">--</span>
@@ -5564,6 +5656,8 @@ class App extends React.Component {
                               </div>
                             </div>
                           </div>
+                            );
+                          })()
                         ))}
                       </React.Fragment>
                     ) : null}
@@ -5583,7 +5677,7 @@ class App extends React.Component {
                       <select
                         className="settings_input solve_details_select"
                         value={this.state.solveDetailsDnfCategory}
-                        onChange={(event) => this.setState({ solveDetailsDnfCategory: event.target.value })}
+                        onChange={(event) => this.handleSolveDetailsDnfCategoryChange(event.target.value)}
                       >
                         <option value="">DNF reason</option>
                         <option value="Forgot Memo">Forgot Memo</option>
@@ -5592,7 +5686,7 @@ class App extends React.Component {
                       <select
                         className="settings_input solve_details_select"
                         value={this.state.solveDetailsDnfStage}
-                        onChange={(event) => this.setState({ solveDetailsDnfStage: event.target.value })}
+                        onChange={(event) => this.handleSolveDetailsDnfStageChange(event.target.value)}
                       >
                         <option value="">Stage</option>
                         <option value="Edge">Edge</option>
@@ -5601,16 +5695,6 @@ class App extends React.Component {
                         <option value="Flip">Flip</option>
                         <option value="Twist">Twist</option>
                       </select>
-                      <button type="button" className="study_library_button solve_details_action" onClick={this.saveSelectedSolveDnfReason}>
-                        Save DNF
-                      </button>
-                      <button
-                        type="button"
-                        className="study_library_button solve_details_action solve_details_action_secondary"
-                        onClick={this.clearSelectedSolveDnfReason}
-                      >
-                        Clear
-                      </button>
                     </div>
                     <button
                       type="button"
