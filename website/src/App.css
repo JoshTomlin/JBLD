@@ -1679,6 +1679,7 @@ textarea {
 
 .history_solve_row_meta {
   margin-top: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .history_card_subtitle,
@@ -1694,6 +1695,16 @@ textarea {
 }
 
 .history_split_times {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.history_solve_row_meta .history_card_subtitle:first-child {
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.history_solve_row_meta .history_card_subtitle:last-child {
   text-align: right;
   white-space: nowrap;
 }
@@ -2333,9 +2344,17 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 12px;
+  gap: 8px;
   color: var(--text-dim);
   font-size: 0.88rem;
+}
+
+.reconstruction_identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
 }
 
 .reconstruction_row_unknown {
@@ -2366,6 +2385,11 @@ textarea {
   vertical-align: baseline;
 }
 
+.reconstruction_comm_name {
+  justify-self: start;
+  text-align: left;
+}
+
 .reconstruction_comm_button_warning .reconstruction_comm_label {
   color: #fde68a;
 }
@@ -2386,9 +2410,9 @@ textarea {
 
 .reconstruction_timing_header {
   display: grid;
-  grid-template-columns: repeat(2, 2.45rem);
+  grid-template-columns: repeat(2, 2.15rem);
   justify-content: end;
-  gap: 0.18rem;
+  gap: 0.06rem;
   color: var(--text-faint);
   font-size: 0.66rem;
   font-weight: 700;
@@ -2400,9 +2424,9 @@ textarea {
 
 .reconstruction_timing_grid {
   display: grid;
-  grid-template-columns: repeat(2, 2.45rem);
+  grid-template-columns: repeat(2, 2.15rem);
   align-items: start;
-  gap: 0.18rem;
+  gap: 0.06rem;
 }
 
 .reconstruction_timing_cell {
@@ -2420,6 +2444,37 @@ textarea {
 
 .reconstruction_timing_cell .reconstruction_recog_time {
   color: #aeb5bf;
+}
+
+.solve_details_footer {
+  display: grid;
+  gap: 10px;
+}
+
+.solve_details_dnf_controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.solve_details_select {
+  min-height: 38px;
+}
+
+.solve_details_action {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+}
+
+.solve_details_action_secondary {
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--text-soft);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+}
+
+.solve_details_action_danger {
+  background: rgba(127, 29, 29, 0.9);
 }
 
 .section_label {
@@ -2956,6 +3011,14 @@ textarea {
   .alg_library_row_header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .solve_details_dnf_controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .solve_details_action_danger {
+    width: 100%;
   }
 
   .settings_screen {

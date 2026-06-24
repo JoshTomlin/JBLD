@@ -117,6 +117,8 @@ class App extends React.Component {
       parsed_solve_txt: null,
       parsed_solve_cubedb: null,
       selectedSolveDetails: null,
+      solveDetailsDnfCategory: "",
+      solveDetailsDnfStage: "",
       solveDetailsLibraryByCase: {},
       solveDetailsCommStatusByKey: {},
       selectedSolveCommCard: null,
@@ -1062,12 +1064,30 @@ class App extends React.Component {
   };
 
   openSolveDetails = (solve) => {
+    const existingReason = solve && typeof solve.dnf_reason === "string" ? solve.dnf_reason.trim() : "";
+    let category = "";
+    let stage = "";
+    const wrongExecMatch = existingReason.match(/^Wrong\s+(Edge|Corner|Parity|Flip|Twist)\s+Exec$/i);
+    const forgotMemoMatch = existingReason.match(/^Forgot\s+(Edge|Corner|Parity|Flip|Twist)\s+Memo$/i);
+    if (wrongExecMatch) {
+      category = "Wrong Exec";
+      stage = wrongExecMatch[1];
+    } else if (forgotMemoMatch) {
+      category = "Forgot Memo";
+      stage = forgotMemoMatch[1];
+    } else if (/^Wrong Exec$/i.test(existingReason)) {
+      category = "Wrong Exec";
+    } else if (/^Forgot Memo$/i.test(existingReason)) {
+      category = "Forgot Memo";
+    }
     this.setState({
       showLastSolveDetails: true,
       historySessionMenuOpen: false,
       loadingSolveDetails: Boolean(solve && solve.id),
       loadingSolveDetailsCommLibrary: false,
       selectedSolveDetails: solve || null,
+      solveDetailsDnfCategory: category,
+      solveDetailsDnfStage: stage,
       selectedSolveCommCard: null,
       solveDetailsLibraryByCase: {},
       solveDetailsCommStatusByKey: {},
@@ -2127,6 +2147,117 @@ class App extends React.Component {
     this.setState({ selectedSolveCommCard: null });
   };
 
+  closeSolveDetailsModal = () => {
+    this.setState({
+      showLastSolveDetails: false,
+      loadingSolveDetails: false,
+      loadingSolveDetailsCommLibrary: false,
+      selectedSolveDetails: null,
+      selectedSolveCommCard: null,
+      solveDetailsLibraryByCase: {},
+      solveDetailsCommStatusByKey: {},
+      solveDetailsDnfCategory: "",
+      solveDetailsDnfStage: "",
+    });
+  };
+
+  isSameSolveRecord = (left, right) => {
+    if (!left || !right) {
+      return false;
+    }
+
+    if (left.id && right.id) {
+      return left.id === right.id;
+    }
+
+    return left.date && right.date && left.date === right.date;
+  };
+
+  updateCurrentSolveRecord = (updater, options = {}) => {
+    const { closeModal = false } = options;
+    const selectedSolve = this.state.selectedSolveDetails;
+    if (!selectedSolve) {
+      return;
+    }
+
+    let nextSelectedSolve = null;
+    let updated = false;
+
+    this.updateActiveSessionSolves((solveStats) =>
+      solveStats.reduce((nextSolves, solve) => {
+        if (!updated && this.isSameSolveRecord(solve, selectedSolve)) {
+          updated = true;
+          const nextSolve = updater({ ...solve });
+          if (nextSolve) {
+            nextSelectedSolve = nextSolve;
+            nextSolves.push(nextSolve);
+          }
+          return nextSolves;
+        }
+
+        nextSolves.push(solve);
+        return nextSolves;
+      }, [])
+    );
+
+    if (!updated) {
+      return;
+    }
+
+    if (closeModal) {
+      this.closeSolveDetailsModal();
+      return;
+    }
+
+    this.setState({ selectedSolveDetails: nextSelectedSolve });
+  };
+
+  deleteSelectedSolve = () => {
+    if (!this.state.selectedSolveDetails) {
+      return;
+    }
+
+    if (!window.confirm("Delete this solve?")) {
+      return;
+    }
+
+    this.updateCurrentSolveRecord(() => null, { closeModal: true });
+  };
+
+  saveSelectedSolveDnfReason = () => {
+    const category = this.state.solveDetailsDnfCategory || "";
+    const stage = this.state.solveDetailsDnfStage || "";
+    let reason = "";
+
+    if (category === "Wrong Exec") {
+      reason = stage ? `Wrong ${stage} Exec` : "Wrong Exec";
+    } else if (category === "Forgot Memo") {
+      reason = stage ? `Forgot ${stage} Memo` : "Forgot Memo";
+    }
+
+    this.updateCurrentSolveRecord((solve) => ({
+      ...solve,
+      DNF: Boolean(reason),
+      dnf_reason: reason,
+    }));
+  };
+
+  clearSelectedSolveDnfReason = () => {
+    this.setState(
+      {
+        solveDetailsDnfCategory: "",
+        solveDetailsDnfStage: "",
+      },
+      () => {
+        this.updateCurrentSolveRecord((solve) => ({
+          ...solve,
+          DNF: false,
+          dnf_reason: "",
+        }));
+      }
+    );
+  };
+
   formatDateLine = (dateValue) => {
     const date = new Date(dateValue);
     if (Number.isNaN(date.getTime())) {
@@ -2154,6 +2285,33 @@ class App extends React.Component {
     );
 
     return index >= 0 ? index + 1 : "--";
+  };
+
+  getSolveRankInSession = (solve, solves) => {
+    if (!solve || !Array.isArray(solves) || isDnfValue(solve.DNF)) {
+      return null;
+    }
+
+    const completedSolves = solves
+      .filter((entry) => !isDnfValue(entry.DNF) && Number.isFinite(parseFloat(entry.time_solve)))
+      .slice()
+      .sort((a, b) => parseFloat(a.time_solve) - parseFloat(b.time_solve));
+
+    const index = completedSolves.findIndex((entry) => this.isSameSolveRecord(entry, solve));
+    return index >= 0 ? index + 1 : null;
+  };
+
+  getSolveHistoryTag = (solve, solves) => {
+    if (!solve) {
+      return "--";
+    }
+
+    if (isDnfValue(solve.DNF)) {
+      return solve.dnf_reason || "DNF";
+    }
+
+    const rank = this.getSolveRankInSession(solve, solves);
+    return rank ? `#${rank}` : "--";
   };
 
   getSolveDetailsViewData = (solve, solves) => {
@@ -4600,10 +4758,10 @@ class App extends React.Component {
                     </div>
                   </div>
                   <div className="history_solve_row history_solve_row_meta">
-                    <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
                     <div className="history_card_subtitle">
-                      {Array.isArray(solve.comm_stats) ? solve.comm_stats.length : 0} algs
+                      {this.getSolveHistoryTag(solve, activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : [])}
                     </div>
+                    <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
                   </div>
                 </button>
               ))
@@ -5217,34 +5375,14 @@ class App extends React.Component {
         {this.state.showLastSolveDetails ? (
           <div
             className="solve_modal_backdrop solve_modal_backdrop_top"
-              onClick={() =>
-                this.setState({
-                  showLastSolveDetails: false,
-                  loadingSolveDetails: false,
-                  loadingSolveDetailsCommLibrary: false,
-                  selectedSolveDetails: null,
-                  selectedSolveCommCard: null,
-                  solveDetailsLibraryByCase: {},
-                  solveDetailsCommStatusByKey: {},
-                })
-              }
+              onClick={this.closeSolveDetailsModal}
             >
             <div className="solve_modal" onClick={(event) => event.stopPropagation()}>
               <button
                 type="button"
                 className="solve_modal_close solve_modal_close_corner"
                 aria-label="Close solve details"
-                  onClick={() =>
-                    this.setState({
-                      showLastSolveDetails: false,
-                      loadingSolveDetails: false,
-                      loadingSolveDetailsCommLibrary: false,
-                      selectedSolveDetails: null,
-                      selectedSolveCommCard: null,
-                      solveDetailsLibraryByCase: {},
-                      solveDetailsCommStatusByKey: {},
-                    })
-                  }
+                  onClick={this.closeSolveDetailsModal}
                 >
                   x
                 </button>
@@ -5343,25 +5481,26 @@ class App extends React.Component {
                             key={`edge-${comm.comm_index || index}`}
                             className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
                           >
-                            <span className="reconstruction_row_main">
-                              {this.formatReconstructionAlg(comm) || "--"}
+                            <div className="reconstruction_identity">
                               {comm.label ? (
-                                <>
-                                  {" "}
                                 <button
                                   type="button"
-                                  className={`reconstruction_comm_button ${
+                                  className={`reconstruction_comm_button reconstruction_comm_name ${
                                     this.state.solveDetailsCommStatusByKey[this.getSolveDetailsCommRowKey(comm)] === "mismatch"
                                       ? "reconstruction_comm_button_warning"
                                       : ""
                                   }`}
                                   onClick={() => this.openSolveDetailsCommCard(comm)}
                                 >
-                                  <span className="reconstruction_comm_label"> ({comm.label})</span>
+                                  <span className="reconstruction_comm_label">{comm.label}</span>
                                 </button>
-                                </>
-                              ) : null}
-                            </span>
+                              ) : (
+                                <span className="reconstruction_comm_label">--</span>
+                              )}
+                              <span className="reconstruction_row_main">
+                                {this.formatReconstructionAlg(comm) || "--"}
+                              </span>
+                            </div>
                             <div className="reconstruction_timing_grid">
                               <div className="reconstruction_timing_cell">
                                 <strong className="reconstruction_recog_time">
@@ -5388,35 +5527,32 @@ class App extends React.Component {
                               </span>
                             ) : null}
                           </div>
-                          <div className="reconstruction_timing_header">
-                            <span>Recog</span>
-                            <span>Exec</span>
-                          </div>
                         </div>
                         {selectedSolveDetailsData.cornerRows.map((comm, index) => (
                           <div
                             key={`corner-${comm.comm_index || index}`}
                             className={`reconstruction_row ${comm.phase === "unknown" ? "reconstruction_row_unknown" : ""}`}
                           >
-                            <span className="reconstruction_row_main">
-                              {this.formatReconstructionAlg(comm) || "--"}
+                            <div className="reconstruction_identity">
                               {comm.label ? (
-                                <>
-                                  {" "}
                                 <button
                                   type="button"
-                                  className={`reconstruction_comm_button ${
+                                  className={`reconstruction_comm_button reconstruction_comm_name ${
                                     this.state.solveDetailsCommStatusByKey[this.getSolveDetailsCommRowKey(comm)] === "mismatch"
                                       ? "reconstruction_comm_button_warning"
                                       : ""
                                   }`}
                                   onClick={() => this.openSolveDetailsCommCard(comm)}
                                 >
-                                  <span className="reconstruction_comm_label"> ({comm.label})</span>
+                                  <span className="reconstruction_comm_label">{comm.label}</span>
                                 </button>
-                                </>
-                              ) : null}
-                            </span>
+                              ) : (
+                                <span className="reconstruction_comm_label">--</span>
+                              )}
+                              <span className="reconstruction_row_main">
+                                {this.formatReconstructionAlg(comm) || "--"}
+                              </span>
+                            </div>
                             <div className="reconstruction_timing_grid">
                               <div className="reconstruction_timing_cell">
                                 <strong className="reconstruction_recog_time">
@@ -5441,6 +5577,48 @@ class App extends React.Component {
                     <div className="solve_details_scramble_text">
                       {selectedSolveDetailsData.scramble || "--"}
                     </div>
+                  </div>
+                  <div className="solve_details_footer">
+                    <div className="solve_details_dnf_controls">
+                      <select
+                        className="settings_input solve_details_select"
+                        value={this.state.solveDetailsDnfCategory}
+                        onChange={(event) => this.setState({ solveDetailsDnfCategory: event.target.value })}
+                      >
+                        <option value="">DNF reason</option>
+                        <option value="Forgot Memo">Forgot Memo</option>
+                        <option value="Wrong Exec">Wrong Exec</option>
+                      </select>
+                      <select
+                        className="settings_input solve_details_select"
+                        value={this.state.solveDetailsDnfStage}
+                        onChange={(event) => this.setState({ solveDetailsDnfStage: event.target.value })}
+                      >
+                        <option value="">Stage</option>
+                        <option value="Edge">Edge</option>
+                        <option value="Corner">Corner</option>
+                        <option value="Parity">Parity</option>
+                        <option value="Flip">Flip</option>
+                        <option value="Twist">Twist</option>
+                      </select>
+                      <button type="button" className="study_library_button solve_details_action" onClick={this.saveSelectedSolveDnfReason}>
+                        Save DNF
+                      </button>
+                      <button
+                        type="button"
+                        className="study_library_button solve_details_action solve_details_action_secondary"
+                        onClick={this.clearSelectedSolveDnfReason}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="study_library_button solve_details_action solve_details_action_danger"
+                      onClick={this.deleteSelectedSolve}
+                    >
+                      Delete Solve
+                    </button>
                   </div>
                 </React.Fragment>
               ) : null}
