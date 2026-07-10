@@ -1,5 +1,7 @@
 import React from "react";
 import cubeSolver from "cube-solver";
+import { Alg } from "cubing/alg";
+import { countMoves } from "cubing/notation";
 import { connectGanCube } from "gan-web-bluetooth";
 import Setting from "./component/Settings";
 import "bootstrap/dist/css/bootstrap.css";
@@ -92,6 +94,7 @@ class App extends React.Component {
       algLibraryImporting: false,
       algLibraryNotice: null,
       drillPieceTypes: ["corner"],
+      drillDisplayMode: "next",
       drillLoading: false,
       drillSessionActive: false,
       drillQueue: [],
@@ -105,6 +108,9 @@ class App extends React.Component {
       drillCompletedCount: 0,
       drillSkippedCount: 0,
       drillReviewEntries: [],
+      practiceSolves: this.parseJsonStorage("practiceSolves", []),
+      practiceScrambleType: "edges",
+      practiceTab: "solve",
       renderTable: null,
       solves_stats: [],
       timer_focus: null,
@@ -2353,6 +2359,22 @@ class App extends React.Component {
     return entry.memo_word || entry.case_code || "--";
   };
 
+  getActiveDrillPromptEntry = () => {
+    if (this.state.drillDisplayMode === "current") {
+      return this.state.drillExecutingEntry || this.state.drillCurrentEntry;
+    }
+
+    return this.state.drillCurrentEntry || this.state.drillExecutingEntry;
+  };
+
+  getActiveDrillPromptLabel = () => {
+    if (this.state.drillDisplayMode === "current") {
+      return this.state.drillExecutingEntry ? "Current comm" : "Memo";
+    }
+
+    return this.state.drillExecutingEntry ? "Next comm" : "Memo";
+  };
+
   buildDrillQueue = (entries = []) => {
     const queue = entries
       .filter((entry) => entry && (entry.memo_word || entry.case_code) && entry.alg)
@@ -2660,6 +2682,53 @@ class App extends React.Component {
     };
   };
 
+  countAlgMoves = (algText) => {
+    const normalizedAlg = this.normalizeDisplayAlgText(algText);
+    if (!normalizedAlg) {
+      return null;
+    }
+
+    try {
+      return countMoves(new Alg(normalizedAlg));
+    } catch (_error) {
+      return null;
+    }
+  };
+
+  getSolveMoveCountForTps = (solve) => {
+    if (!solve) {
+      return null;
+    }
+
+    if (Array.isArray(solve.comm_stats) && solve.comm_stats.length) {
+      const parsedMoveCount = solve.comm_stats.reduce((total, comm) => {
+        const moveCount = this.countAlgMoves(comm && comm.alg);
+        return Number.isFinite(moveCount) ? total + moveCount : total;
+      }, 0);
+
+      if (parsedMoveCount > 0) {
+        return parsedMoveCount;
+      }
+    }
+
+    if (Array.isArray(solve.solve)) {
+      const parsedMoveCount = this.countAlgMoves(solve.solve.join(" "));
+      if (Number.isFinite(parsedMoveCount) && parsedMoveCount > 0) {
+        return parsedMoveCount;
+      }
+    }
+
+    if (typeof solve.solve === "string") {
+      const parsedMoveCount = this.countAlgMoves(solve.solve);
+      if (Number.isFinite(parsedMoveCount) && parsedMoveCount > 0) {
+        return parsedMoveCount;
+      }
+    }
+
+    const storedMoveCount = parseFloat(solve.move_count);
+    return Number.isFinite(storedMoveCount) && storedMoveCount > 0 ? storedMoveCount : null;
+  };
+
   getSolveTpsValue = (solve) => {
     if (!solve) {
       return null;
@@ -2670,14 +2739,7 @@ class App extends React.Component {
       return null;
     }
 
-    const moveCount =
-      Number.isFinite(parseFloat(solve.move_count))
-        ? parseFloat(solve.move_count)
-        : Array.isArray(solve.solve)
-          ? solve.solve.length
-          : typeof solve.solve === "string"
-            ? solve.solve.trim().split(/\s+/).filter(Boolean).length
-            : null;
+    const moveCount = this.getSolveMoveCountForTps(solve);
 
     if (!Number.isFinite(moveCount) || moveCount <= 0) {
       return null;
@@ -3306,7 +3368,7 @@ class App extends React.Component {
       this.applyAlgLibraryFilters();
     }
 
-    if (this.state.activeView !== "solve") {
+    if (!this.isLiveTimerView()) {
       return;
     }
 
@@ -3737,8 +3799,37 @@ class App extends React.Component {
     }
     return solveStats;
   };
+
+  getPracticeLabel = (practiceType = this.state.practiceScrambleType) => {
+    return practiceType === "corners" ? "Corners only" : "Edges only";
+  };
+
+  persistPracticeSolves = (practiceSolves) => {
+    const nextSolves = Array.isArray(practiceSolves) ? practiceSolves : [];
+    localStorage.setItem("practiceSolves", JSON.stringify(nextSolves));
+    this.setState({ practiceSolves: nextSolves });
+  };
+
+  addPracticeSolveToLocalStorage = (data, setting, parseError = null) => {
+    const practiceType = (setting && setting.PRACTICE_TYPE) || this.state.practiceScrambleType;
+    const solveStats = {
+      ...this.buildSolveRecord(data, setting, parseError),
+      practice_type: practiceType,
+      practice_label: this.getPracticeLabel(practiceType),
+    };
+    const currentSolves = Array.isArray(this.state.practiceSolves) ? this.state.practiceSolves : [];
+    const nextSolves = [...currentSolves, solveStats];
+    this.persistPracticeSolves(nextSolves);
+    return solveStats;
+  };
+
   safelyStoreSolveResult = (result, setting) => {
     try {
+      if (setting && setting.PRACTICE_MODE) {
+        this.addPracticeSolveToLocalStorage(result, setting);
+        return;
+      }
+
       if (this.hasCloudSync()) {
         this.addSolveToLocalStorage(result, setting);
         return;
@@ -3784,7 +3875,11 @@ class App extends React.Component {
       this.addSolveToLocalStorage(result, setting);
     } catch (error) {
       console.error("Failed to store solve result from server response", error, result);
-      this.addSolveToLocalStorage(result, setting, "Server response merge failed");
+      if (setting && setting.PRACTICE_MODE) {
+        this.addPracticeSolveToLocalStorage(result, setting, "Server response merge failed");
+      } else {
+        this.addSolveToLocalStorage(result, setting, "Server response merge failed");
+      }
       this.setState({ connectionNotice: null });
     }
   };
@@ -3812,7 +3907,9 @@ class App extends React.Component {
       .toString()
       .replace(/  +/g, " ");
     const hasRecordedCubeMoves = Array.isArray(moves) && moves.length > 0;
+    const isPracticeSolve = this.state.activeView === "practice";
     parse_setting_new["PLANNED_SCRAMBLE"] = this.state.scramble || "";
+    parse_setting_new["SCRAMBLE_TYPE"] = isPracticeSolve ? this.state.practiceScrambleType : parse_setting_new["SCRAMBLE_TYPE"];
     parse_setting_new["SCRAMBLE"] = extractedScramble || (hasRecordedCubeMoves ? "" : this.state.scramble || "");
     parse_setting_new["SOLVE"] = solve
       .join(" ")
@@ -3824,8 +3921,10 @@ class App extends React.Component {
     // console.log(this.state.cube_moves_time);
 
     parse_setting_new["SOLVE_TIME_MOVES"] = JSON.stringify(extracted.solveMoveOffsets);
-    parse_setting_new["SAVE_SOLVE"] = true;
-    parse_setting_new["SESSION_ID"] = this.isServerSessionId(this.state.activeSessionId)
+    parse_setting_new["SAVE_SOLVE"] = !isPracticeSolve;
+    parse_setting_new["PRACTICE_MODE"] = isPracticeSolve;
+    parse_setting_new["PRACTICE_TYPE"] = isPracticeSolve ? this.state.practiceScrambleType : null;
+    parse_setting_new["SESSION_ID"] = !isPracticeSolve && this.isServerSessionId(this.state.activeSessionId)
       ? this.state.activeSessionId
       : null;
     this.setState({ parse_settings: parse_setting_new });
@@ -4086,10 +4185,27 @@ class App extends React.Component {
         });
       });
   };
+  isLiveTimerView = () => {
+    return (
+      this.state.activeView === "solve" ||
+      (this.state.activeView === "practice" && (this.state.practiceTab || "solve") === "solve")
+    );
+  };
+
+  getActiveScrambleType = () => {
+    return this.state.activeView === "practice"
+      ? this.state.practiceScrambleType
+      : this.state.parse_settings["SCRAMBLE_TYPE"];
+  };
+
+  handlePracticeScrambleTypeChange = (practiceScrambleType) => {
+    this.setState({ practiceScrambleType }, this.handle_scramble);
+  };
+
   handle_scramble = () => {
     this.setState({ last_scramble: this.state.scramble });
     this.setState({
-      scramble: cubeSolver.scramble(this.state.parse_settings["SCRAMBLE_TYPE"]),
+      scramble: cubeSolver.scramble(this.getActiveScrambleType()),
     });
   };
   handle_moves_to_show = (cube_moves) => {
@@ -4128,6 +4244,7 @@ class App extends React.Component {
       localStorage.removeItem("activeSessionId");
       localStorage.removeItem("solves");
       localStorage.removeItem("averages");
+      localStorage.removeItem("practiceSolves");
       localStorage.removeItem("setting");
       localStorage.setItem("setting", JSON.stringify(preservedSetting));
       this.persistSessionStorage([freshSession], freshSession.id);
@@ -4148,6 +4265,9 @@ class App extends React.Component {
           solveDetailsLibraryByCase: {},
           solveDetailsCommStatusByKey: {},
           activeView: "solve",
+          practiceSolves: [],
+          practiceScrambleType: "edges",
+          practiceTab: "solve",
         sessions: [freshSession],
         activeSessionId: freshSession.id,
         solves_stats: [],
@@ -4314,6 +4434,38 @@ class App extends React.Component {
     const dnfCount = recentSolves.filter(({ DNF }) => isDnfValue(DNF)).length;
     const completedCount = recentSolves.length - dnfCount;
     const latestSolve = recentSolves[0] || null;
+    const practiceSolves = Array.isArray(this.state.practiceSolves) ? this.state.practiceSolves : [];
+    const recentPracticeSolves = [...practiceSolves].slice().reverse();
+    const latestPracticeSolve = recentPracticeSolves[0] || null;
+    const practiceCompletedSolves = recentPracticeSolves.filter(({ DNF }) => !isDnfValue(DNF));
+    const practiceValidSolves = recentPracticeSolves.filter(
+      ({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve))
+    );
+    const practiceValidTimes = practiceValidSolves.map(({ time_solve }) => parseFloat(time_solve));
+    const formatAverageValue = (values) => {
+      const validValues = values.filter((value) => Number.isFinite(value));
+      if (!validValues.length) {
+        return "--";
+      }
+      return this.convert_sec_to_format(validValues.reduce((total, value) => total + value, 0) / validValues.length);
+    };
+    const practiceMemoText = latestPracticeSolve ? this.convert_sec_to_format(latestPracticeSolve.memo_time) : "--";
+    const practiceExecText = latestPracticeSolve ? this.convert_sec_to_format(latestPracticeSolve.exe_time) : "--";
+    const practiceCountLabel = `${practiceSolves.length} ${practiceSolves.length === 1 ? "attempt" : "attempts"}`;
+    const practiceAo5Text = formatAverageValue(practiceValidTimes.slice(0, 5));
+    const practiceMeanText = formatAverageValue(practiceValidTimes);
+    const practiceMemoAvgText = formatAverageValue(practiceValidSolves.map(({ memo_time }) => parseFloat(memo_time)));
+    const practiceExecAvgText = formatAverageValue(practiceValidSolves.map(({ exe_time }) => parseFloat(exe_time)));
+    const practiceBestSingle = practiceValidTimes.length ? Math.min(...practiceValidTimes) : null;
+    const practiceBestText = practiceBestSingle === null ? "--" : this.convert_sec_to_format(practiceBestSingle);
+    const practiceDnfCount = recentPracticeSolves.filter(({ DNF }) => isDnfValue(DNF)).length;
+    const practiceCompletedCount = practiceCompletedSolves.length;
+    const practiceAccuracyText = practiceSolves.length ? `${practiceCompletedCount}/${practiceSolves.length}` : "--";
+    const practiceEdgesCount = practiceSolves.filter((solve) => solve.practice_type === "edges").length;
+    const practiceCornersCount = practiceSolves.filter((solve) => solve.practice_type === "corners").length;
+    const practiceRecentCommHistory = this.getRecentCommHistory(recentPracticeSolves, 8);
+    const practiceChartSolves = practiceValidSolves.slice(0, 20);
+    const practiceChartTimes = practiceChartSolves.map(({ time_solve }) => parseFloat(time_solve));
     const memoText = latestSolve ? this.convert_sec_to_format(latestSolve.memo_time) : "--";
     const execText = latestSolve ? this.convert_sec_to_format(latestSolve.exe_time) : "--";
     const latestFive = recentSolves.slice(0, 5);
@@ -4378,26 +4530,34 @@ class App extends React.Component {
 
       return `${getPart("day")} ${getPart("month")}, ${getPart("hour")}:${getPart("minute")}`;
     };
-    const chartPath =
-      chartTimes.length > 1
+    const buildChartPath = (times) =>
+      times.length > 1
         ? (() => {
-            const min = Math.min(...chartTimes);
-            const max = Math.max(...chartTimes);
+            const min = Math.min(...times);
+            const max = Math.max(...times);
             const spread = Math.max(max - min, 0.01);
-            return chartTimes
+            return times
               .map((value, index) => {
-                const x = (index / (chartTimes.length - 1)) * 100;
+                const x = (index / (times.length - 1)) * 100;
                 const y = 100 - ((value - min) / spread) * 72 - 14;
                 return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
               })
               .join(" ");
           })()
         : "";
+    const chartPath = buildChartPath(chartTimes);
+    const practiceChartPath = buildChartPath(practiceChartTimes);
     const viewConfig = {
       solve: {
         title: "Solve",
         eyebrow: "Live Session",
         heading: "Timer, scramble, and smart-cube flow stay front and center here.",
+        body: null,
+      },
+      practice: {
+        title: "Practise",
+        eyebrow: "Practise",
+        heading: "Edges-only and corners-only solves live separately from normal sessions.",
         body: null,
       },
       drill: {
@@ -4438,9 +4598,15 @@ class App extends React.Component {
       },
     };
     const currentView = viewConfig[this.state.activeView] || viewConfig.solve;
+    const selectedSolveDetailsPool =
+      this.state.selectedSolveDetails && this.state.selectedSolveDetails.practice_type
+        ? practiceSolves
+        : activeSession && Array.isArray(activeSession.solves)
+          ? activeSession.solves
+          : [];
     const selectedSolveDetailsData = this.getSolveDetailsViewData(
       this.state.selectedSolveDetails,
-      activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : []
+      selectedSolveDetailsPool
     );
     const selectedSolveCommLookup = this.state.selectedSolveCommCard
       ? this.getSolveDetailsCommLookup(this.state.selectedSolveCommCard)
@@ -4478,7 +4644,10 @@ class App extends React.Component {
         }
       : null;
     const lastSolvePanelData = this.getLastSolvePanelData(latestSolve);
-    const timerDisplayMs = this.getTimerDisplayMs(latestSolve);
+    const lastPracticePanelData = this.getLastSolvePanelData(latestPracticeSolve);
+    const timerDisplayMs = this.getTimerDisplayMs(
+      this.state.activeView === "practice" ? latestPracticeSolve : latestSolve
+    );
     let mainView;
 
     if (this.state.activeView === "drill") {
@@ -4490,7 +4659,8 @@ class App extends React.Component {
         { value: "twist", label: "Twists" },
       ];
       const selectedDrillTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
-      const currentPrompt = this.buildDrillPromptText(this.state.drillCurrentEntry);
+      const activeDrillPromptEntry = this.getActiveDrillPromptEntry();
+      const activeDrillPrompt = this.buildDrillPromptText(activeDrillPromptEntry);
       const nextPrompt = this.buildDrillPromptText(this.state.drillNextEntry);
       mainView = (
         <section className={`drill_screen view_panel ${this.state.drillSessionActive ? "drill_screen_active" : ""}`}>
@@ -4501,11 +4671,11 @@ class App extends React.Component {
               </button>
               <article className="drill_prompt_card drill_prompt_card_active">
                 <div className="drill_prompt_eyebrow">
-                  {this.state.drillExecutingEntry ? "Next memo" : "Memo"}
+                  {this.getActiveDrillPromptLabel()}
                 </div>
                 <div className="drill_prompt_word">
-                  {this.state.drillCurrentEntry
-                    ? currentPrompt
+                  {activeDrillPromptEntry
+                    ? activeDrillPrompt
                     : this.state.drillExecutingEntry
                       ? "Finish"
                       : "Done"}
@@ -4573,6 +4743,25 @@ class App extends React.Component {
                   </button>
                 );
               })}
+            </div>
+          </div>
+          <div className="drill_filter_group">
+            <span className="drill_filter_label">Prompt Mode</span>
+            <div className="drill_mode_toggle">
+              <button
+                type="button"
+                className={`drill_chip ${this.state.drillDisplayMode === "current" ? "drill_chip_active" : ""}`}
+                onClick={() => this.setState({ drillDisplayMode: "current" })}
+              >
+                Current
+              </button>
+              <button
+                type="button"
+                className={`drill_chip ${this.state.drillDisplayMode === "next" ? "drill_chip_active" : ""}`}
+                onClick={() => this.setState({ drillDisplayMode: "next" })}
+              >
+                Think Ahead
+              </button>
             </div>
           </div>
             <div className="drill_card_list">
@@ -5449,6 +5638,325 @@ class App extends React.Component {
           </section>
         );
       }
+    } else if (this.state.activeView === "practice") {
+      const practiceTab = this.state.practiceTab || "solve";
+
+      if (practiceTab === "history") {
+        mainView = (
+          <section className="history_screen view_panel">
+            <div className="history_header">
+              <div>
+                <div className="placeholder_title">Practise History</div>
+                <div className="placeholder_text">Edges-only and corners-only attempts only.</div>
+              </div>
+              <div className="history_solve_count">{practiceCountLabel}</div>
+            </div>
+            <div className="history_list">
+              {recentPracticeSolves.length ? (
+                recentPracticeSolves.map((solve, index) => (
+                  <button
+                    key={solve.date || index}
+                    type="button"
+                    className="history_card history_card_button"
+                    onClick={() => this.openSolveDetails(solve)}
+                  >
+                    <div className="history_solve_row">
+                      <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
+                      <div className="history_card_subtitle history_split_times">
+                        {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
+                      </div>
+                    </div>
+                    <div className="history_solve_row history_solve_row_meta">
+                      {(() => {
+                        const tag = this.getSolveHistoryTag(solve, practiceSolves);
+                        const label = solve.practice_label || this.getPracticeLabel(solve.practice_type);
+                        const status = `${tag.prefix}${tag.reason ? ` ${tag.reason}` : ""}`;
+                        return (
+                          <div className="history_card_subtitle history_solve_tag">
+                            <span>{label}</span>
+                            <em>{status}</em>
+                          </div>
+                        );
+                      })()}
+                      <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="empty_state_card">
+                  <div className="placeholder_eyebrow">Practise</div>
+                  <div className="placeholder_text">
+                    Complete an edges-only or corners-only solve and it will appear here.
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      } else if (practiceTab === "stats") {
+        mainView = (
+          <section className="stats_screen view_panel">
+            <div className="stats_header">
+              <div>
+                <div className="placeholder_title">Practise Stats</div>
+                <div className="placeholder_text">Only practise solves are included here.</div>
+              </div>
+              <div className="section_meta">{practiceCompletedCount} completed</div>
+            </div>
+            <div className="stats_grid">
+              <div className="stats_tile">
+                <span>Ao5</span>
+                <strong>{practiceAo5Text}</strong>
+              </div>
+              <div className="stats_tile">
+                <span>Mean</span>
+                <strong>{practiceMeanText}</strong>
+              </div>
+              <div className="stats_tile">
+                <span>Best</span>
+                <strong>{practiceBestText}</strong>
+              </div>
+              <div className="stats_tile">
+                <span>Success</span>
+                <strong>{practiceAccuracyText}</strong>
+              </div>
+            </div>
+            <div className="stats_breakdown_grid">
+              <div className="breakdown_card">
+                <span>Memo Avg</span>
+                <strong>{practiceMemoAvgText}</strong>
+              </div>
+              <div className="breakdown_card">
+                <span>Exec Avg</span>
+                <strong>{practiceExecAvgText}</strong>
+              </div>
+              <div className="breakdown_card">
+                <span>DNFs</span>
+                <strong>{practiceDnfCount}</strong>
+              </div>
+              <div className="breakdown_card">
+                <span>Total</span>
+                <strong>{practiceSolves.length}</strong>
+              </div>
+            </div>
+            <div className="chart_card">
+              <div className="chart_card_header">
+                <div className="chart_card_title">Practise Progress</div>
+                <div className="section_meta">Last {practiceChartTimes.length || 0} solves</div>
+              </div>
+              {practiceChartPath ? (
+                <div className="chart_canvas">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <path className="chart_grid" d="M 0 20 L 100 20 M 0 50 L 100 50 M 0 80 L 100 80" />
+                    <path className="chart_area" d={`${practiceChartPath} L 100 100 L 0 100 Z`} />
+                    <path className="chart_line" d={practiceChartPath} />
+                  </svg>
+                </div>
+              ) : (
+                <div className="empty_chart_state">Practise a few attempts to draw your progress chart.</div>
+              )}
+            </div>
+            <div className="chart_card">
+              <div className="chart_card_header">
+                <div>
+                  <div className="chart_card_title">Practise Comm History</div>
+                  <div className="study_stat_caption">Most frequent parsed cases from practise solves</div>
+                </div>
+                <div className="section_meta">{practiceRecentCommHistory.length ? `${practiceRecentCommHistory.length} tracked` : "No comms yet"}</div>
+              </div>
+              {practiceRecentCommHistory.length ? (
+                <div className="stats_comm_list">
+                  {practiceRecentCommHistory.map((entry) => (
+                    <article key={`${entry.phase}-${entry.token}`} className="stats_comm_card">
+                      <div className="stats_comm_identity">
+                        <div className="stats_comm_title_row">
+                          <div className="stats_comm_token">{entry.token}</div>
+                          <div className={`stats_comm_phase stats_comm_phase_${entry.phase}`}>{entry.phase}</div>
+                        </div>
+                        <div className="stats_comm_meta">
+                          Seen {entry.count} {entry.count === 1 ? "time" : "times"}
+                          {entry.lastSeen ? ` | ${formatHistoryDate(entry.lastSeen)}` : ""}
+                        </div>
+                      </div>
+                      <div className="stats_comm_metrics">
+                        <div className="stats_comm_metric">
+                          <span>Recog</span>
+                          <strong>{this.formatInlineDuration(entry.avgRecog) || "--"}</strong>
+                        </div>
+                        <div className="stats_comm_metric">
+                          <span>Exec</span>
+                          <strong>{this.formatInlineDuration(entry.avgExec) || "--"}</strong>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty_state_card">
+                  <div className="placeholder_eyebrow">Practise</div>
+                  <div className="placeholder_text">Parsed comm history will appear here after practise solves.</div>
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      } else if (practiceTab === "sessions") {
+        mainView = (
+          <section className="sessions_screen view_panel">
+            <div className="section_header">
+              <div>
+                <div className="placeholder_title">Practise Session</div>
+                <div className="placeholder_text">A separate practice-only block for edges and corners scrambles.</div>
+              </div>
+            </div>
+            <div className="session_hero">
+              <div className="session_hero_main">
+                <div className="placeholder_eyebrow">Current Practise Block</div>
+                <div className="session_hero_title">Edges + Corners</div>
+                <div className="session_hero_text">
+                  {practiceSolves.length
+                    ? `${practiceSolves.length} practise solves logged locally.`
+                    : "No practise solves logged yet."}
+                </div>
+              </div>
+              <div className="session_hero_stats">
+                <div>
+                  <span>Best</span>
+                  <strong>{practiceBestText}</strong>
+                </div>
+                <div>
+                  <span>Success</span>
+                  <strong>{practiceAccuracyText}</strong>
+                </div>
+              </div>
+            </div>
+            <div className="session_cards">
+              <article className="session_card">
+                <div>
+                  <div className="session_card_title">Edges Only</div>
+                  <div className="session_card_subtitle">Practise solves</div>
+                </div>
+                <div className="session_card_value">{practiceEdgesCount}</div>
+              </article>
+              <article className="session_card">
+                <div>
+                  <div className="session_card_title">Corners Only</div>
+                  <div className="session_card_subtitle">Practise solves</div>
+                </div>
+                <div className="session_card_value">{practiceCornersCount}</div>
+              </article>
+              <article className="session_card">
+                <div>
+                  <div className="session_card_title">Latest Attempt</div>
+                  <div className="session_card_subtitle">
+                    {latestPracticeSolve ? formatDate(latestPracticeSolve.date) : "No solves yet"}
+                  </div>
+                </div>
+                <div className="session_card_value">
+                  {latestPracticeSolve ? this.convert_sec_to_format(latestPracticeSolve.time_solve) : "--"}
+                </div>
+              </article>
+              <article className="session_card">
+                <div>
+                  <div className="session_card_title">Current Type</div>
+                  <div className="session_card_subtitle">Scramble selector</div>
+                </div>
+                <div className="session_card_value">{this.getPracticeLabel()}</div>
+              </article>
+            </div>
+          </section>
+        );
+      } else {
+        mainView = (
+          <section className="solve_screen practice_screen">
+            <div className="practice_selector" aria-label="Practise scramble type">
+              <button
+                type="button"
+                className={`practice_toggle ${this.state.practiceScrambleType === "edges" ? "practice_toggle_active" : ""}`}
+                onClick={() => this.handlePracticeScrambleTypeChange("edges")}
+              >
+                Edges only
+              </button>
+              <button
+                type="button"
+                className={`practice_toggle ${this.state.practiceScrambleType === "corners" ? "practice_toggle_active" : ""}`}
+                onClick={() => this.handlePracticeScrambleTypeChange("corners")}
+              >
+                Corners only
+              </button>
+            </div>
+
+            <div className="timer_stage">
+              <Timer
+                scramble={this.state.scramble}
+                solve_status={this.state.solve_status}
+                displayTimeMs={timerDisplayMs}
+                onStart={(timer_start) => this.handle_onStart_timer(timer_start)}
+                onStop={(timer_finish) => this.handle_onStop_timer(timer_finish)}
+                minStopDelayMs={350}
+                footer={
+                  <div className="solve_metrics">
+                    <div className="split_metric">
+                      <div className="split_metric_label">Memo</div>
+                      <div className="split_metric_value">{practiceMemoText}</div>
+                    </div>
+                    <div className="split_metric_divider"></div>
+                    <div className="split_metric">
+                      <div className="split_metric_label">Exec</div>
+                      <div className="split_metric_value">{practiceExecText}</div>
+                    </div>
+                    <div className="split_metric_divider"></div>
+                    <div className="split_metric">
+                      <div className="split_metric_label">Type</div>
+                      <div className="split_metric_value split_metric_value_small">{this.getPracticeLabel()}</div>
+                    </div>
+                    <div className="split_metric_divider"></div>
+                    <div className="split_metric">
+                      <div className="split_metric_label">Logged</div>
+                      <div className="split_metric_value split_metric_value_small">{practiceCountLabel}</div>
+                    </div>
+                  </div>
+                }
+              />
+            </div>
+
+            <div className="last_solve_block">
+              <div className="last_solve_heading">Last Practise Solve</div>
+              {latestPracticeSolve ? (
+                <button
+                  type="button"
+                  className="last_solve_panel last_solve_panel_button"
+                  onClick={() => this.openSolveDetails(latestPracticeSolve)}
+                  aria-label="Open last practise solve details"
+                >
+                  <div className="last_solve_metrics">
+                    {lastPracticePanelData.metrics.map((metric) => (
+                      <div key={metric.label} className="last_solve_metric">
+                        <div className="split_metric_label">{metric.label}</div>
+                        <div className="split_metric_value">{metric.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="last_solve_summary">
+                    {lastPracticePanelData.lines.map((line) => (
+                      <div key={line.label} className="last_solve_comm_line">
+                        <span className="last_solve_comm_label">{line.label}:</span>
+                        <span className="last_solve_comm_value">{line.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              ) : (
+                <div className="last_solve_panel">
+                  <div className="last_solve_summary">
+                    Practise solves will appear here without changing normal history.
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      }
     } else {
       mainView = (
         <section className="solve_screen">
@@ -5538,7 +6046,7 @@ class App extends React.Component {
           onChange={this.importSolveBackup}
         />
         <div className="app_shell">
-          <div className={`app_frame ${this.state.activeView === "solve" ? "app_frame_solve" : ""}`}>
+          <div className={`app_frame ${this.isLiveTimerView() ? "app_frame_solve" : ""}`}>
             <header className="app_header">
               <button
                 type="button"
@@ -5577,7 +6085,7 @@ class App extends React.Component {
               </button>
             </header>
 
-            {this.state.activeView === "solve" ? (
+            {this.isLiveTimerView() ? (
               <div
                 className="scramble_block"
                 onClick={this.copyScramble}
@@ -5613,7 +6121,7 @@ class App extends React.Component {
 
             <main
               className={`main_view ${
-                this.state.activeView === "solve" ? "main_view_solve" : "main_view_page"
+                this.isLiveTimerView() ? "main_view_solve" : "main_view_page"
               }`}
             >
               {mainView}
@@ -5633,12 +6141,47 @@ class App extends React.Component {
                   </button>
                 ))}
               </nav>
+            ) : this.state.activeView === "practice" ? (
+              <nav className="bottom_nav" aria-label="Practise">
+                <button
+                  type="button"
+                  className={`nav_item ${(this.state.practiceTab || "solve") === "solve" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ practiceTab: "solve" }, this.handle_scramble)}
+                >
+                  <span className="nav_icon nav_icon_practice"></span>
+                  <span className="nav_label">Practise</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.practiceTab === "history" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ practiceTab: "history" })}
+                >
+                  <span className="nav_icon nav_icon_history"></span>
+                  <span className="nav_label">History</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.practiceTab === "stats" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ practiceTab: "stats" })}
+                >
+                  <span className="nav_icon nav_icon_stats"></span>
+                  <span className="nav_label">Stats</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.practiceTab === "sessions" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ practiceTab: "sessions" })}
+                >
+                  <span className="nav_icon nav_icon_sessions"></span>
+                  <span className="nav_label">Sessions</span>
+                </button>
+              </nav>
             ) : (
               <nav className="bottom_nav" aria-label="Primary">
                 <button
                   type="button"
                   className={`nav_item ${this.state.activeView === "solve" ? "nav_item_active" : ""}`}
-                  onClick={() => this.setState({ activeView: "solve" })}
+                  onClick={() => this.setState({ activeView: "solve" }, this.handle_scramble)}
                 >
                   <span className="nav_icon nav_icon_solve"></span>
                   <span className="nav_label">Solve</span>
@@ -5697,9 +6240,16 @@ class App extends React.Component {
                 <button
                   type="button"
                   className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "solve" })}
+                  onClick={() => this.setState({ showMenu: false, activeView: "solve" }, this.handle_scramble)}
                 >
                   Solve
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
+                  onClick={() => this.setState({ showMenu: false, activeView: "practice", practiceTab: "solve" }, this.handle_scramble)}
+                >
+                  Practise
                 </button>
                 <button
                   type="button"
