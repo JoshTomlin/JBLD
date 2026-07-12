@@ -23,6 +23,7 @@ import {
   getAlgLibraryEntries,
   getAlgLibraryEntriesForCases,
   getAlgLibrarySummary,
+  importAlgLibraryEntries,
   getLocalAppMetaValue,
   getLocalDatabaseSummary,
   loadDatasetFromDatabase,
@@ -250,13 +251,28 @@ class App extends React.Component {
   };
   exportSolveBackup = async () => {
     const { sessions, activeSessionId } = this.ensureSessionStorage();
+    const algLibraryResult = await getAlgLibraryEntries({
+      pieceType: "all",
+      search: "",
+      limit: 50000,
+    });
+    const algLibraryEntries = Array.isArray(algLibraryResult.entries)
+      ? algLibraryResult.entries
+      : [];
+    const exportedAt = new Date().toISOString();
     const payload = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
+      version: 2,
+      exportedAt,
       appLastUpdated: APP_LAST_UPDATED_LABEL,
       activeSessionId,
       sessions,
       parseSettings: this.state.parse_settings || null,
+      algLibrary: {
+        version: 1,
+        exportedAt,
+        totalCount: Number(algLibraryResult.totalCount) || algLibraryEntries.length,
+        entries: algLibraryEntries,
+      },
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -273,7 +289,7 @@ class App extends React.Component {
 
     this.setState({
       showMenu: false,
-      connectionNotice: "Backup exported. Keep the JSON file somewhere safe outside the browser.",
+      connectionNotice: `Backup exported with ${algLibraryEntries.length} Alg Library entries. Keep the JSON file somewhere safe outside the browser.`,
     });
   };
   triggerSolveBackupImport = () => {
@@ -298,6 +314,11 @@ class App extends React.Component {
       const parseSettings = backup && backup.parseSettings && typeof backup.parseSettings === "object"
         ? backup.parseSettings
         : null;
+      const algLibraryEntries = Array.isArray(backup && backup.algLibrary && backup.algLibrary.entries)
+        ? backup.algLibrary.entries
+        : Array.isArray(backup && backup.algLibraryEntries)
+          ? backup.algLibraryEntries
+          : [];
 
       if (!sessions || !sessions.length) {
         throw new Error("Backup file does not contain any sessions.");
@@ -305,6 +326,10 @@ class App extends React.Component {
 
       if (parseSettings) {
         localStorage.setItem("setting", JSON.stringify(parseSettings));
+      }
+
+      if (algLibraryEntries.length) {
+        await importAlgLibraryEntries(algLibraryEntries);
       }
 
       this.persistSessionStorage(sessions, activeSessionId);
@@ -315,10 +340,18 @@ class App extends React.Component {
           activeSessionId: this.getActiveSessionFromList(sessions, activeSessionId)
             ? this.getActiveSessionFromList(sessions, activeSessionId).id
             : (sessions[0] && sessions[0].id) || null,
-          connectionNotice: `Backup restored from ${file.name}.`,
+          connectionNotice: `Backup restored from ${file.name}${algLibraryEntries.length ? ` with ${algLibraryEntries.length} Alg Library entries` : ""}.`,
         },
         () => {
           this.initialStatsFromLocalstorage();
+          this.refreshAlgLibrarySummary().catch((error) => {
+            console.warn("Alg Library summary refresh after backup restore failed", error);
+          });
+          if (this.state.activeView === "alg-library") {
+            this.refreshAlgLibraryEntries({ pieceType: this.state.algLibraryPieceType }).catch((error) => {
+              console.warn("Alg Library refresh after backup restore failed", error);
+            });
+          }
           this.syncSessionsWithCloud(this.state.activeSessionId).catch((error) => {
             console.warn("Cloud sync after backup restore failed", error);
           });
@@ -2228,20 +2261,21 @@ class App extends React.Component {
   };
 
   getSolveDetailsMemoWord = (comm) => {
+    if (!comm || comm.phase === "unknown") {
+      return "?";
+    }
+
     const lookup = this.getSolveDetailsCommLookup(comm);
     if (!lookup) {
-      return "";
+      return "?";
     }
 
     const entry = this.state.solveDetailsLibraryByCase[
       this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode)
     ] || null;
     const memoWord = entry && typeof entry.memo_word === "string" ? entry.memo_word.trim() : "";
-    if (memoWord) {
-      return memoWord;
-    }
 
-    return String(lookup.label || "").replace(/-/g, " ").trim();
+    return memoWord || "?";
   };
 
   getSolveDetailsMemoLines = (details) => {
@@ -2250,8 +2284,9 @@ class App extends React.Component {
     }
 
     const buildLine = (rows) => {
-      const words = rows.map(this.getSolveDetailsMemoWord).filter(Boolean);
-      return words.length ? words.join(", ") : "--";
+      const sourceRows = Array.isArray(rows) ? rows : [];
+      const words = sourceRows.map(this.getSolveDetailsMemoWord);
+      return sourceRows.length ? words.join(", ") : "--";
     };
 
     return {
@@ -2831,6 +2866,16 @@ class App extends React.Component {
       const tokens = comms.map(this.formatCommSummaryToken).filter(Boolean).join(", ");
       return `${tokens}${Number.isFinite(span) ? ` (${this.formatInlineDuration(span)})` : ""}`;
     };
+    const formatTimeValue = (value) => {
+      const numericValue = parseFloat(value);
+      return Number.isFinite(numericValue) ? this.convert_sec_to_format(numericValue) : "--";
+    };
+    const formatMoveCount = (value) => {
+      if (!Number.isFinite(value)) {
+        return "--";
+      }
+      return Number.isInteger(value) ? String(value) : Number(value.toFixed(1)).toString();
+    };
 
     let previousEndIndex = 0;
     const timedRows = commStats.map((comm) => {
@@ -2848,7 +2893,17 @@ class App extends React.Component {
       };
     });
     const reconstructionRows = this.assignReconstructionDisplayPhases(timedRows);
-    const solveTps = this.getSolveTpsValue(solve);
+    const solveMoveCount = this.getSolveMoveCountForTps(solve);
+    const execSeconds = parseFloat(solve.exe_time);
+    const solveTps =
+      Number.isFinite(solveMoveCount) &&
+      solveMoveCount > 0 &&
+      Number.isFinite(execSeconds) &&
+      execSeconds > 0
+        ? (solveMoveCount / execSeconds).toFixed(2)
+        : null;
+    const pauseRows = reconstructionRows.slice(1).filter((comm) => Number.isFinite(comm.recogDuration));
+    const pauseSeconds = pauseRows.reduce((total, comm) => total + Number(comm.recogDuration), 0);
 
     const lastEdge = edgeComms[edgeComms.length - 1];
     const firstCorner = cornerSummaryComms[0];
@@ -2869,11 +2924,12 @@ class App extends React.Component {
       title: this.formatSolveResultLabel(solve),
       solveNumber,
       date: this.formatDateLine(solve.date),
+      memoExecLabel: `Memo ${formatTimeValue(solve.memo_time)} | Exec ${formatTimeValue(solve.exe_time)}`,
       metrics: [
-        { label: "Memo", value: this.convert_sec_to_format(solve.memo_time) },
-        { label: "Exec", value: this.convert_sec_to_format(solve.exe_time) },
-        { label: "TPS", value: solveTps || "--" },
         { label: "Algs", value: String(commStats.length) },
+        { label: "Moves", value: formatMoveCount(solveMoveCount) },
+        { label: "TPS", value: solveTps || "--" },
+        { label: "Pauses", value: pauseRows.length ? this.formatCommTimingValue(pauseSeconds) : "--" },
       ],
       edgeSummary: formatSummary(edgeComms, edgeSpan),
       cornerSummary: formatSummary(cornerSummaryComms, cornerSpan),
@@ -6167,6 +6223,23 @@ class App extends React.Component {
               >
                 <div className="scramble_label">Scramble</div>
                 <div className="scramble_value">{this.state.scramble}</div>
+                <button
+                  type="button"
+                  className="scramble_refresh_button"
+                  aria-label="New scramble"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.handle_scramble();
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6v5h-5" />
+                    <path d="M4 18v-5h5" />
+                    <path d="M19 11a7 7 0 0 0-12-4l-3 3" />
+                    <path d="M5 13a7 7 0 0 0 12 4l3-3" />
+                  </svg>
+                </button>
                 {this.state.connectionNotice ? (
                   <div className="connection_notice connection_notice_floating" role="alert">
                     <div className="connection_notice_text">{this.state.connectionNotice}</div>
@@ -6495,22 +6568,25 @@ class App extends React.Component {
                     </div>
                   ) : null}
                   <div className="solve_details_header">
-                    <div>
+                    <div className="solve_details_header_left">
                       <div className="solve_modal_title">{selectedSolveDetailsData.title}</div>
-                      <div className="solve_details_date">{selectedSolveDetailsData.date}</div>
+                      <div className="solve_details_split_line">{selectedSolveDetailsData.memoExecLabel}</div>
                     </div>
-                    {selectedSolveDetailsData.link ? (
-                      <a
-                        className="cubedb_link_box"
-                        href={selectedSolveDetailsData.link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        CubeDB
-                      </a>
-                    ) : (
-                      <div className="cubedb_link_box cubedb_link_box_disabled">CubeDB</div>
-                    )}
+                    <div className="solve_details_header_right">
+                      <div className="solve_details_date">{selectedSolveDetailsData.date}</div>
+                      {selectedSolveDetailsData.link ? (
+                        <a
+                          className="cubedb_link_box"
+                          href={selectedSolveDetailsData.link}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          CubeDB
+                        </a>
+                      ) : (
+                        <div className="cubedb_link_box cubedb_link_box_disabled">CubeDB</div>
+                      )}
+                    </div>
                   </div>
                   <div className="solve_details_metrics">
                     {selectedSolveDetailsData.metrics.map((metric) => (
@@ -6651,19 +6727,7 @@ class App extends React.Component {
                     <div className="solve_details_scramble_text">
                       {selectedSolveDetailsData.scramble || "--"}
                     </div>
-                    <button
-                      type="button"
-                      className="solve_details_scramble_refresh"
-                      aria-label="Refresh solve details"
-                      onClick={this.refreshSelectedSolveDetails}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 6v5h-5" />
-                        <path d="M4 18v-5h5" />
-                        <path d="M19 11a7 7 0 0 0-12-4l-3 3" />
-                        <path d="M5 13a7 7 0 0 0 12 4l3-3" />
-                      </svg>
-                    </button>
+
                   </div>
                   {selectedSolveMemoData ? (
                     <div className="solve_details_memo_box">
