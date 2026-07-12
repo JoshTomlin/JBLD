@@ -690,6 +690,13 @@ function commCoversSamePieces(comm, expectedComm) {
   );
 }
 
+function changedStickersAreOrientationOnly(lastSolvedPieces, stickers) {
+  return stickers.every((sticker) => {
+    const change = lastSolvedPieces[sticker];
+    return change && isSamePiece(change[0], change[1]);
+  });
+}
+
 function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
   const changedStickers = Object.keys(lastSolvedPieces);
   if (!changedStickers.length) {
@@ -717,11 +724,10 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
     }
   }
 
-  if (cornerStickers.length === 4 || cornerStickers.length === 6) {
+  if (cornerStickers.length === 4 || cornerStickers.length === 6 || cornerStickers.length === 9) {
     const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(cornerStickers), reidCornerOrder);
-
-    if (uniquePieces.length === 2) {
-      const twistTargets = uniquePieces.map((piece) => ({
+    const buildTwistTargets = (pieces) =>
+      pieces.map((piece) => ({
         piece,
         label: toCanonicalStickerName(
           pickCornerTwistRepresentative(
@@ -731,6 +737,24 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
           )
         ),
       }));
+
+    if (
+      uniquePieces.length === 3 &&
+      !isSamePieceInList(buffers.cornerBuffer, uniquePieces) &&
+      changedStickersAreOrientationOnly(lastSolvedPieces, cornerStickers)
+    ) {
+      const labels = buildTwistTargets(uniquePieces)
+        .map(({ label }) => label)
+        .sort((a, b) => String(a).localeCompare(String(b)));
+
+      return {
+        comm: labels.concat("twist"),
+        pieceType: { edge: false, corner: true, parity: false },
+      };
+    }
+
+    if (uniquePieces.length === 2) {
+      const twistTargets = buildTwistTargets(uniquePieces);
       const visibleTargets =
         buffers.cornerBuffer && twistTargets.some(({ piece }) => isSamePiece(piece, buffers.cornerBuffer))
           ? twistTargets.filter(({ piece }) => !isSamePiece(piece, buffers.cornerBuffer))
@@ -1023,6 +1047,16 @@ function isSpecialCommParse(parsed) {
   return comm.includes("flip") || comm.includes("twist");
 }
 
+function isThreeCornerRotationParse(parsed) {
+  const comm = Array.isArray(parsed?.comm) ? parsed.comm : [];
+  const labels = comm.filter((token) => token !== "twist");
+  return Boolean(parsed?.pieceType?.corner) && comm.includes("twist") && labels.length >= 3;
+}
+
+function shouldLookAheadForCombinedCornerRotation(parsed) {
+  return Boolean(parsed?.pieceType?.corner) && !isSpecialCommParse(parsed);
+}
+
 function isParityCommParse(parsed) {
   return Boolean(parsed?.pieceType?.parity);
 }
@@ -1296,6 +1330,7 @@ export function buildLocalCommAnalysis(setting) {
 
   let cursor = 0;
   let currentReferenceTokens = initialReferenceTokens;
+  const combinedRotationLookaheadMoves = 48;
   while (cursor < coreSolveTokens.length) {
     const startIndex = count + cursor + 1;
     let acceptedSegment = null;
@@ -1321,8 +1356,25 @@ export function buildLocalCommAnalysis(setting) {
       }
 
       if (candidateSegment.accepted) {
-        acceptedSegment = candidateSegment;
-        acceptedEnd = end;
+        if (isThreeCornerRotationParse(candidateSegment.parsed)) {
+          acceptedSegment = candidateSegment;
+          acceptedEnd = end;
+          break;
+        }
+
+        if (!acceptedSegment) {
+          acceptedSegment = candidateSegment;
+          acceptedEnd = end;
+
+          if (shouldLookAheadForCombinedCornerRotation(candidateSegment.parsed)) {
+            continue;
+          }
+
+          break;
+        }
+      }
+
+      if (acceptedSegment && end - acceptedEnd >= combinedRotationLookaheadMoves) {
         break;
       }
     }

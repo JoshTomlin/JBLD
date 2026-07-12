@@ -2198,6 +2198,68 @@ class App extends React.Component {
     this.setState({ selectedSolveCommCard: null });
   };
 
+  refreshSelectedSolveDetails = () => {
+    const solve = this.state.selectedSolveDetails;
+    if (!solve) {
+      return;
+    }
+
+    this.openSolveDetails(solve);
+  };
+
+  openSolveDetailsCommEditor = (entry) => {
+    if (!entry) {
+      return;
+    }
+
+    this.setState(
+      {
+        showLastSolveDetails: false,
+        selectedSolveCommCard: null,
+        activeView: "alg-library",
+        algLibraryTab: "search",
+        algLibraryPieceType: entry.piece_type || "all",
+        algLibraryGroup: "all",
+        algLibrarySearch: entry.case_code || "",
+        algLibraryEditing: false,
+      },
+      () => this.openAlgLibraryEditorForEntry(entry)
+    );
+  };
+
+  getSolveDetailsMemoWord = (comm) => {
+    const lookup = this.getSolveDetailsCommLookup(comm);
+    if (!lookup) {
+      return "";
+    }
+
+    const entry = this.state.solveDetailsLibraryByCase[
+      this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode)
+    ] || null;
+    const memoWord = entry && typeof entry.memo_word === "string" ? entry.memo_word.trim() : "";
+    if (memoWord) {
+      return memoWord;
+    }
+
+    return String(lookup.label || "").replace(/-/g, " ").trim();
+  };
+
+  getSolveDetailsMemoLines = (details) => {
+    if (!details) {
+      return null;
+    }
+
+    const buildLine = (rows) => {
+      const words = rows.map(this.getSolveDetailsMemoWord).filter(Boolean);
+      return words.length ? words.join(", ") : "--";
+    };
+
+    return {
+      corners: buildLine(details.cornerRows || []),
+      edges: buildLine(details.edgeRows || []),
+    };
+  };
+
   closeSolveDetailsModal = () => {
     this.setState({
       showLastSolveDetails: false,
@@ -3884,7 +3946,8 @@ class App extends React.Component {
     }
   };
   extract_solve_from_cube_moves = (timer_finish) => {
-    let parse_setting_new = { ...this.state.parse_settings };
+    const storedParseSettings = { ...this.state.parse_settings };
+    let parse_setting_new = { ...storedParseSettings };
     let solve_time = 0;
     let moves = this.state.cube_moves;
     let moves_time = this.state.cube_moves_time;
@@ -3908,8 +3971,9 @@ class App extends React.Component {
       .replace(/  +/g, " ");
     const hasRecordedCubeMoves = Array.isArray(moves) && moves.length > 0;
     const isPracticeSolve = this.state.activeView === "practice";
+    const storedScrambleType = storedParseSettings["SCRAMBLE_TYPE"] || "3x3";
     parse_setting_new["PLANNED_SCRAMBLE"] = this.state.scramble || "";
-    parse_setting_new["SCRAMBLE_TYPE"] = isPracticeSolve ? this.state.practiceScrambleType : parse_setting_new["SCRAMBLE_TYPE"];
+    parse_setting_new["SCRAMBLE_TYPE"] = isPracticeSolve ? this.state.practiceScrambleType : storedScrambleType;
     parse_setting_new["SCRAMBLE"] = extractedScramble || (hasRecordedCubeMoves ? "" : this.state.scramble || "");
     parse_setting_new["SOLVE"] = solve
       .join(" ")
@@ -3927,7 +3991,7 @@ class App extends React.Component {
     parse_setting_new["SESSION_ID"] = !isPracticeSolve && this.isServerSessionId(this.state.activeSessionId)
       ? this.state.activeSessionId
       : null;
-    this.setState({ parse_settings: parse_setting_new });
+    this.setState({ parse_settings: isPracticeSolve ? storedParseSettings : parse_setting_new });
     return parse_setting_new;
   };
 
@@ -4642,6 +4706,9 @@ class App extends React.Component {
           status: selectedSolveCommStatus,
           timing: this.formatCommTimingPair(this.state.selectedSolveCommCard) || "--",
         }
+      : null;
+    const selectedSolveMemoData = selectedSolveDetailsData
+      ? this.getSolveDetailsMemoLines(selectedSolveDetailsData)
       : null;
     const lastSolvePanelData = this.getLastSolvePanelData(latestSolve);
     const lastPracticePanelData = this.getLastSolvePanelData(latestPracticeSolve);
@@ -6412,6 +6479,19 @@ class App extends React.Component {
                           <strong>{selectedSolveCommCardData.usedAlg}</strong>
                         </div>
                       </div>
+                      {selectedSolveCommEntry ? (
+                        <button
+                          type="button"
+                          className="solve_comm_overlay_edit"
+                          aria-label="Edit comm in alg library"
+                          onClick={() => this.openSolveDetailsCommEditor(selectedSolveCommEntry)}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                   <div className="solve_details_header">
@@ -6571,7 +6651,33 @@ class App extends React.Component {
                     <div className="solve_details_scramble_text">
                       {selectedSolveDetailsData.scramble || "--"}
                     </div>
+                    <button
+                      type="button"
+                      className="solve_details_scramble_refresh"
+                      aria-label="Refresh solve details"
+                      onClick={this.refreshSelectedSolveDetails}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6v5h-5" />
+                        <path d="M4 18v-5h5" />
+                        <path d="M19 11a7 7 0 0 0-12-4l-3 3" />
+                        <path d="M5 13a7 7 0 0 0 12 4l3-3" />
+                      </svg>
+                    </button>
                   </div>
+                  {selectedSolveMemoData ? (
+                    <div className="solve_details_memo_box">
+                      <div className="reconstruction_phase_title">Memo</div>
+                      <div className="solve_details_memo_line">
+                        <span>Corners:</span>
+                        <strong>{selectedSolveMemoData.corners}</strong>
+                      </div>
+                      <div className="solve_details_memo_line">
+                        <span>Edges:</span>
+                        <strong>{selectedSolveMemoData.edges}</strong>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="solve_details_footer">
                     <div className="solve_details_dnf_controls">
                       <select
@@ -7791,4 +7897,3 @@ class App extends React.Component {
   };
 }
 export default App;
-

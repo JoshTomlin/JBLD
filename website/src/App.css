@@ -2368,7 +2368,7 @@ textarea {
   left: 14px;
   right: 14px;
   z-index: 4;
-  padding: 14px 16px;
+  padding: 14px 16px 34px;
   border-radius: 16px;
   border: 1px solid rgba(59, 130, 246, 0.22);
   background: rgba(8, 16, 34, 0.98);
@@ -2398,6 +2398,28 @@ textarea {
   color: var(--text-faint);
   font-size: 0.68rem;
   line-height: 1;
+}
+
+.solve_comm_overlay_edit {
+  position: absolute;
+  right: 9px;
+  bottom: 8px;
+  width: 20px;
+  min-width: 0;
+  height: 20px;
+  min-height: 0;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  background: rgba(251, 191, 36, 0.08);
+  color: rgba(254, 240, 138, 0.72);
+  display: grid;
+  place-items: center;
+}
+
+.solve_comm_overlay_edit svg {
+  width: 11px;
+  height: 11px;
 }
 
 .solve_comm_overlay_alg_block {
@@ -2454,7 +2476,8 @@ textarea {
 }
 
 .solve_reconstruction_box,
-.solve_details_scramble_box {
+.solve_details_scramble_box,
+.solve_details_memo_box {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.035);
@@ -2470,6 +2493,13 @@ textarea {
 }
 
 .solve_details_scramble_box {
+  position: relative;
+  padding: 12px 38px 34px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.solve_details_memo_box {
   padding: 12px;
   display: grid;
   gap: 8px;
@@ -2479,6 +2509,48 @@ textarea {
   color: var(--text-dim);
   font-size: 0.88rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.solve_details_scramble_refresh {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 22px;
+  min-width: 0;
+  height: 22px;
+  min-height: 0;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-faint);
+  display: grid;
+  place-items: center;
+}
+
+.solve_details_scramble_refresh svg {
+  width: 12px;
+  height: 12px;
+}
+
+.solve_details_memo_line {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.solve_details_memo_line span {
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.solve_details_memo_line strong {
+  color: var(--text-soft);
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
