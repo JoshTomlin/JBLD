@@ -10,6 +10,7 @@ import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
 import { buildLocalCommAnalysis } from "./utils/localCommParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
+import { buildRecommendedSolve } from "./utils/solveRecommender";
 import { computeSessionAggregateStats, isDnfValue } from "./utils/solveAverages";
 import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
 import {
@@ -50,6 +51,7 @@ class App extends React.Component {
     this.backupImportInputRef = React.createRef();
     this.deferredInstallPrompt = null;
     this.localDatabaseWritePromise = Promise.resolve();
+    this.solveRecommendationRequestId = 0;
     this.state = {
       activeView: "solve",
       showMenu: false,
@@ -120,6 +122,10 @@ class App extends React.Component {
       solve_status: "Connect Cube",
       last_scramble: null,
       scramble: null,
+      solveScramble: null,
+      practiceScramble: null,
+      lastSolveScramble: null,
+      lastPracticeScramble: null,
       parse_solve_bool: false,
       cube_moves: [],
       cube_moves_time: [],
@@ -144,6 +150,11 @@ class App extends React.Component {
       solveDetailsLibraryByCase: {},
       solveDetailsCommStatusByKey: {},
       selectedSolveCommCard: null,
+      solveCommEditorDraft: null,
+      solveCommEditorSaving: false,
+      solveRecommendationLoading: false,
+      solveRecommendation: null,
+      solveRecommendationError: null,
       parse_settings:
         localStorage.getItem("setting") === null
           ? {
@@ -186,7 +197,8 @@ class App extends React.Component {
       })
       .finally(() => {
         this.initialStatsFromLocalstorage();
-        this.handle_scramble();
+        this.sanitizeStoredSolveScrambleType();
+        this.handle_scramble("solve");
         this.probeRemoteParserAvailability();
         this.syncSessionsWithCloud().catch((error) => {
           console.warn("Cloud sync bootstrapping failed, using local cache", error);
@@ -1143,12 +1155,18 @@ class App extends React.Component {
       solveDetailsDnfCategory: category,
       solveDetailsDnfStage: stage,
       selectedSolveCommCard: null,
+      solveCommEditorDraft: null,
+      solveCommEditorSaving: false,
       solveDetailsLibraryByCase: {},
       solveDetailsCommStatusByKey: {},
+      solveRecommendationLoading: Boolean(solve && solve.scramble),
+      solveRecommendation: null,
+      solveRecommendationError: null,
       parsed_solve_txt: (solve && solve.txt_solve) || "No parsed solve text available yet.",
     });
 
     this.loadSolveDetailsCommLibrary(solve);
+    this.scheduleSolveRecommendation(solve);
 
     if (!solve || !solve.id) {
       return;
@@ -1166,11 +1184,58 @@ class App extends React.Component {
           loadingSolveDetails: false,
         });
         this.loadSolveDetailsCommLibrary(detailedSolve);
+        this.scheduleSolveRecommendation(detailedSolve);
       })
       .catch((error) => {
         console.warn("Failed to load solve details from server", error);
         this.setState({ loadingSolveDetails: false });
       });
+  };
+
+  scheduleSolveRecommendation = (solve) => {
+    const requestId = this.solveRecommendationRequestId + 1;
+    this.solveRecommendationRequestId = requestId;
+
+    if (!solve || !solve.scramble) {
+      this.setState({
+        solveRecommendationLoading: false,
+        solveRecommendation: null,
+        solveRecommendationError: "No scramble saved for this solve.",
+      });
+      return;
+    }
+
+    const parseSettings = { ...this.state.parse_settings };
+    this.setState({
+      solveRecommendationLoading: true,
+      solveRecommendation: null,
+      solveRecommendationError: null,
+    });
+
+    const schedule = typeof window !== "undefined" && window.setTimeout ? window.setTimeout : setTimeout;
+    schedule(() => {
+      try {
+        const recommendation = buildRecommendedSolve(solve, parseSettings);
+        if (requestId !== this.solveRecommendationRequestId) {
+          return;
+        }
+        this.setState({
+          solveRecommendationLoading: false,
+          solveRecommendation: recommendation,
+          solveRecommendationError: null,
+        });
+      } catch (error) {
+        console.warn("Failed to build recommended solve", error);
+        if (requestId !== this.solveRecommendationRequestId) {
+          return;
+        }
+        this.setState({
+          solveRecommendationLoading: false,
+          solveRecommendation: null,
+          solveRecommendationError: error && error.message ? error.message : "Recommended solve could not be built.",
+        });
+      }
+    }, 0);
   };
 
   createSessionOnServer = async (name) => {
@@ -2224,11 +2289,19 @@ class App extends React.Component {
       return;
     }
 
-    this.setState({ selectedSolveCommCard: comm });
+    this.setState({
+      selectedSolveCommCard: comm,
+      solveCommEditorDraft: null,
+      solveCommEditorSaving: false,
+    });
   };
 
   closeSolveDetailsCommCard = () => {
-    this.setState({ selectedSolveCommCard: null });
+    this.setState({
+      selectedSolveCommCard: null,
+      solveCommEditorDraft: null,
+      solveCommEditorSaving: false,
+    });
   };
 
   refreshSelectedSolveDetails = () => {
@@ -2245,19 +2318,69 @@ class App extends React.Component {
       return;
     }
 
-    this.setState(
-      {
-        showLastSolveDetails: false,
-        selectedSolveCommCard: null,
-        activeView: "alg-library",
-        algLibraryTab: "search",
-        algLibraryPieceType: entry.piece_type || "all",
-        algLibraryGroup: "all",
-        algLibrarySearch: entry.case_code || "",
-        algLibraryEditing: false,
+    this.setState({
+      solveCommEditorSaving: false,
+      solveCommEditorDraft: {
+        description: entry.description || "",
+        alg: entry.alg || "",
+        memoWord: entry.memo_word || "",
+        category: entry.category || "",
+        notes: entry.notes || "",
       },
-      () => this.openAlgLibraryEditorForEntry(entry)
-    );
+    });
+  };
+
+  updateSolveCommEditorDraftField = (field, value) => {
+    this.setState((currentState) => ({
+      solveCommEditorDraft: {
+        ...(currentState.solveCommEditorDraft || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  saveSolveDetailsCommEditor = async () => {
+    const { selectedSolveCommCard, solveCommEditorDraft } = this.state;
+    const lookup = selectedSolveCommCard ? this.getSolveDetailsCommLookup(selectedSolveCommCard) : null;
+    if (!lookup || !solveCommEditorDraft) {
+      return;
+    }
+
+    const caseKey = this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode);
+    const entry = this.state.solveDetailsLibraryByCase[caseKey] || null;
+    if (!entry) {
+      return;
+    }
+
+    this.setState({ solveCommEditorSaving: true });
+
+    try {
+      const savedEntry = await updateAlgLibraryEntry(entry.id, solveCommEditorDraft);
+      await this.refreshAlgLibrarySummary();
+      const rowKey = this.getSolveDetailsCommRowKey(selectedSolveCommCard);
+      const usedAlg = this.normalizeAlgComparisonText(selectedSolveCommCard.alg || "", lookup.pieceType) || "";
+      const preferredAlg = this.normalizeAlgComparisonText(savedEntry.alg || "", savedEntry.piece_type) || "";
+      const nextStatus = usedAlg && preferredAlg && usedAlg === preferredAlg ? "match" : "mismatch";
+
+      this.setState((currentState) => ({
+        solveCommEditorSaving: false,
+        solveCommEditorDraft: null,
+        solveDetailsLibraryByCase: {
+          ...currentState.solveDetailsLibraryByCase,
+          [caseKey]: savedEntry,
+        },
+        solveDetailsCommStatusByKey: {
+          ...currentState.solveDetailsCommStatusByKey,
+          [rowKey]: nextStatus,
+        },
+        algLibraryEntries: currentState.algLibraryEntries.map((libraryEntry) =>
+          libraryEntry.id === savedEntry.id ? savedEntry : libraryEntry
+        ),
+      }));
+    } catch (error) {
+      console.warn("Failed to save solve-details comm edit", error);
+      this.setState({ solveCommEditorSaving: false });
+    }
   };
 
   getSolveDetailsMemoWord = (comm) => {
@@ -2302,6 +2425,8 @@ class App extends React.Component {
       loadingSolveDetailsCommLibrary: false,
       selectedSolveDetails: null,
       selectedSolveCommCard: null,
+      solveCommEditorDraft: null,
+      solveCommEditorSaving: false,
       solveDetailsLibraryByCase: {},
       solveDetailsCommStatusByKey: {},
       solveDetailsDnfCategory: "",
@@ -4027,10 +4152,11 @@ class App extends React.Component {
       .replace(/  +/g, " ");
     const hasRecordedCubeMoves = Array.isArray(moves) && moves.length > 0;
     const isPracticeSolve = this.state.activeView === "practice";
-    const storedScrambleType = storedParseSettings["SCRAMBLE_TYPE"] || "3x3";
-    parse_setting_new["PLANNED_SCRAMBLE"] = this.state.scramble || "";
+    const plannedScramble = this.getActiveScramble();
+    const storedScrambleType = this.getSolveScrambleTypeFromSettings(storedParseSettings);
+    parse_setting_new["PLANNED_SCRAMBLE"] = plannedScramble || "";
     parse_setting_new["SCRAMBLE_TYPE"] = isPracticeSolve ? this.state.practiceScrambleType : storedScrambleType;
-    parse_setting_new["SCRAMBLE"] = extractedScramble || (hasRecordedCubeMoves ? "" : this.state.scramble || "");
+    parse_setting_new["SCRAMBLE"] = extractedScramble || (hasRecordedCubeMoves ? "" : plannedScramble || "");
     parse_setting_new["SOLVE"] = solve
       .join(" ")
       .toString()
@@ -4312,21 +4438,56 @@ class App extends React.Component {
     );
   };
 
-  getActiveScrambleType = () => {
-    return this.state.activeView === "practice"
+  getSolveScrambleTypeFromSettings = (settings = this.state.parse_settings) => {
+    const scrambleType = settings && settings["SCRAMBLE_TYPE"] ? settings["SCRAMBLE_TYPE"] : "3x3";
+    return scrambleType === "edges" || scrambleType === "corners" ? "3x3" : scrambleType;
+  };
+
+  sanitizeStoredSolveScrambleType = () => {
+    const currentType = this.state.parse_settings && this.state.parse_settings["SCRAMBLE_TYPE"];
+    const solveScrambleType = this.getSolveScrambleTypeFromSettings(this.state.parse_settings);
+    if (currentType === solveScrambleType) {
+      return;
+    }
+
+    const parse_settings = {
+      ...this.state.parse_settings,
+      SCRAMBLE_TYPE: solveScrambleType,
+    };
+    try {
+      localStorage.setItem("setting", JSON.stringify(parse_settings));
+    } catch (error) {
+      console.warn("Failed to sanitize solve scramble type", error);
+    }
+    this.setState({ parse_settings });
+  };
+
+  getActiveScrambleType = (view = this.state.activeView) => {
+    return view === "practice"
       ? this.state.practiceScrambleType
-      : this.state.parse_settings["SCRAMBLE_TYPE"];
+      : this.getSolveScrambleTypeFromSettings(this.state.parse_settings);
+  };
+
+  getActiveScramble = (view = this.state.activeView) => {
+    return view === "practice" ? this.state.practiceScramble || "" : this.state.solveScramble || "";
   };
 
   handlePracticeScrambleTypeChange = (practiceScrambleType) => {
-    this.setState({ practiceScrambleType }, this.handle_scramble);
+    this.setState({ practiceScrambleType }, () => this.handle_scramble("practice"));
   };
 
-  handle_scramble = () => {
-    this.setState({ last_scramble: this.state.scramble });
-    this.setState({
-      scramble: cubeSolver.scramble(this.getActiveScrambleType()),
-    });
+  handle_scramble = (targetView = this.state.activeView) => {
+    const isPracticeScramble = targetView === "practice";
+    const scrambleKey = isPracticeScramble ? "practiceScramble" : "solveScramble";
+    const lastScrambleKey = isPracticeScramble ? "lastPracticeScramble" : "lastSolveScramble";
+    const nextScramble = cubeSolver.scramble(this.getActiveScrambleType(targetView));
+
+    this.setState((prevState) => ({
+      last_scramble: prevState[scrambleKey] || prevState.scramble,
+      [lastScrambleKey]: prevState[scrambleKey] || "",
+      [scrambleKey]: nextScramble,
+      scramble: targetView === prevState.activeView ? nextScramble : prevState.scramble,
+    }));
   };
   handle_moves_to_show = (cube_moves) => {
     this.handleDrillMoveStream(cube_moves);
@@ -4340,7 +4501,18 @@ class App extends React.Component {
     }
   };
   handle_last_scramble = () => {
-    this.setState({ scramble: this.state.last_scramble });
+    const isPracticeScramble = this.state.activeView === "practice";
+    const scrambleKey = isPracticeScramble ? "practiceScramble" : "solveScramble";
+    const lastScramble = isPracticeScramble ? this.state.lastPracticeScramble : this.state.lastSolveScramble;
+    if (!lastScramble) {
+      return;
+    }
+
+    this.setState({
+      last_scramble: lastScramble,
+      [scrambleKey]: lastScramble,
+      scramble: lastScramble,
+    });
   };
   handle_reset_stats = () => {
     if (window.confirm("Are you sure you want to reset stats?")) {
@@ -4388,6 +4560,12 @@ class App extends React.Component {
           practiceSolves: [],
           practiceScrambleType: "edges",
           practiceTab: "solve",
+          scramble: null,
+          solveScramble: null,
+          practiceScramble: null,
+          last_scramble: null,
+          lastSolveScramble: null,
+          lastPracticeScramble: null,
         sessions: [freshSession],
         activeSessionId: freshSession.id,
         solves_stats: [],
@@ -4421,11 +4599,12 @@ class App extends React.Component {
     return `${value}${suffix}`;
   };
   copyScramble = () => {
-    if (!this.state.scramble || !navigator.clipboard) {
+    const activeScramble = this.getActiveScramble();
+    if (!activeScramble || !navigator.clipboard) {
       return;
     }
 
-    navigator.clipboard.writeText(this.state.scramble).catch((error) => {
+    navigator.clipboard.writeText(activeScramble).catch((error) => {
       console.warn("Failed to copy scramble", error);
     });
   };
@@ -6011,7 +6190,7 @@ class App extends React.Component {
 
             <div className="timer_stage">
               <Timer
-                scramble={this.state.scramble}
+                scramble={this.getActiveScramble()}
                 solve_status={this.state.solve_status}
                 displayTimeMs={timerDisplayMs}
                 onStart={(timer_start) => this.handle_onStart_timer(timer_start)}
@@ -6085,7 +6264,7 @@ class App extends React.Component {
         <section className="solve_screen">
           <div className="timer_stage">
             <Timer
-              scramble={this.state.scramble}
+              scramble={this.getActiveScramble()}
               solve_status={this.state.solve_status}
               displayTimeMs={timerDisplayMs}
               onStart={(timer_start) => this.handle_onStart_timer(timer_start)}
@@ -6222,7 +6401,7 @@ class App extends React.Component {
                 }}
               >
                 <div className="scramble_label">Scramble</div>
-                <div className="scramble_value">{this.state.scramble}</div>
+                <div className="scramble_value">{this.getActiveScramble()}</div>
                 <button
                   type="button"
                   className="scramble_refresh_button"
@@ -6526,45 +6705,99 @@ class App extends React.Component {
                             : ""}
                         </span>
                       </div>
-                      <div className="alg_library_card_meta">
-                        <span>{selectedSolveCommCardData.category}</span>
-                        <span>{selectedSolveCommCardData.memoWord}</span>
-                      </div>
-                      <div className="alg_library_card_desc">
-                        <span>{selectedSolveCommCardData.description}</span>
-                        <span>
-                          {selectedSolveCommCardData.status === "mismatch"
-                            ? "Different from library"
-                            : selectedSolveCommCardData.status === "match"
-                              ? "Matches library"
-                              : selectedSolveCommCardData.status === "missing"
-                                ? "Missing from library"
-                                : selectedSolveCommCardData.timing}
-                        </span>
-                      </div>
-                      <div className="solve_comm_overlay_alg_block">
-                        <div className="solve_comm_overlay_alg_row">
-                          <span>Library</span>
-                          <strong>{selectedSolveCommCardData.preferredAlg}</strong>
-                        </div>
-                        <div className="solve_comm_overlay_alg_row">
-                          <span>Used</span>
-                          <strong>{selectedSolveCommCardData.usedAlg}</strong>
-                        </div>
-                      </div>
-                      {selectedSolveCommEntry ? (
-                        <button
-                          type="button"
-                          className="solve_comm_overlay_edit"
-                          aria-label="Edit comm in alg library"
-                          onClick={() => this.openSolveDetailsCommEditor(selectedSolveCommEntry)}
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                          </svg>
-                        </button>
-                      ) : null}
+                      {this.state.solveCommEditorDraft && selectedSolveCommEntry ? (
+                        <React.Fragment>
+                          <div className="solve_comm_editor_grid">
+                            <div className="solve_comm_editor_pair">
+                              <input
+                                type="text"
+                                className="settings_input alg_library_inline_input"
+                                placeholder="Category"
+                                value={this.state.solveCommEditorDraft.category || ""}
+                                onChange={(event) => this.updateSolveCommEditorDraftField("category", event.target.value)}
+                              />
+                              <input
+                                type="text"
+                                className="settings_input alg_library_inline_input"
+                                placeholder="Memo"
+                                value={this.state.solveCommEditorDraft.memoWord || ""}
+                                onChange={(event) => this.updateSolveCommEditorDraftField("memoWord", event.target.value)}
+                              />
+                            </div>
+                            <textarea
+                              className="settings_textarea alg_library_inline_textarea"
+                              placeholder="Description"
+                              value={this.state.solveCommEditorDraft.description || ""}
+                              onChange={(event) => this.updateSolveCommEditorDraftField("description", event.target.value)}
+                            />
+                            <textarea
+                              className="settings_textarea alg_library_inline_textarea"
+                              placeholder="Alg"
+                              value={this.state.solveCommEditorDraft.alg || ""}
+                              onChange={(event) => this.updateSolveCommEditorDraftField("alg", event.target.value)}
+                            />
+                            <textarea
+                              className="settings_textarea alg_library_inline_textarea solve_comm_editor_notes"
+                              placeholder="Notes"
+                              value={this.state.solveCommEditorDraft.notes || ""}
+                              onChange={(event) => this.updateSolveCommEditorDraftField("notes", event.target.value)}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="solve_comm_overlay_edit solve_comm_overlay_save"
+                            aria-label="Save comm changes"
+                            onClick={this.saveSolveDetailsCommEditor}
+                            disabled={this.state.solveCommEditorSaving}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m5 13 4 4L19 7" />
+                            </svg>
+                          </button>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          <div className="alg_library_card_meta">
+                            <span>{selectedSolveCommCardData.category}</span>
+                            <span>{selectedSolveCommCardData.memoWord}</span>
+                          </div>
+                          <div className="alg_library_card_desc">
+                            <span>{selectedSolveCommCardData.description}</span>
+                            <span>
+                              {selectedSolveCommCardData.status === "mismatch"
+                                ? "Different from library"
+                                : selectedSolveCommCardData.status === "match"
+                                  ? "Matches library"
+                                  : selectedSolveCommCardData.status === "missing"
+                                    ? "Missing from library"
+                                    : selectedSolveCommCardData.timing}
+                            </span>
+                          </div>
+                          <div className="solve_comm_overlay_alg_block">
+                            <div className="solve_comm_overlay_alg_row">
+                              <span>Library</span>
+                              <strong>{selectedSolveCommCardData.preferredAlg}</strong>
+                            </div>
+                            <div className="solve_comm_overlay_alg_row">
+                              <span>Used</span>
+                              <strong>{selectedSolveCommCardData.usedAlg}</strong>
+                            </div>
+                          </div>
+                          {selectedSolveCommEntry ? (
+                            <button
+                              type="button"
+                              className="solve_comm_overlay_edit"
+                              aria-label="Edit comm"
+                              onClick={() => this.openSolveDetailsCommEditor(selectedSolveCommEntry)}
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                              </svg>
+                            </button>
+                          ) : null}
+                        </React.Fragment>
+                      )}
                     </div>
                   ) : null}
                   <div className="solve_details_header">
@@ -6573,7 +6806,6 @@ class App extends React.Component {
                       <div className="solve_details_split_line">{selectedSolveDetailsData.memoExecLabel}</div>
                     </div>
                     <div className="solve_details_header_right">
-                      <div className="solve_details_date">{selectedSolveDetailsData.date}</div>
                       {selectedSolveDetailsData.link ? (
                         <a
                           className="cubedb_link_box"
@@ -6586,6 +6818,7 @@ class App extends React.Component {
                       ) : (
                         <div className="cubedb_link_box cubedb_link_box_disabled">CubeDB</div>
                       )}
+                      <div className="solve_details_date">{selectedSolveDetailsData.date}</div>
                     </div>
                   </div>
                   <div className="solve_details_metrics">
@@ -6740,6 +6973,52 @@ class App extends React.Component {
                         <span>Edges:</span>
                         <strong>{selectedSolveMemoData.edges}</strong>
                       </div>
+                    </div>
+                  ) : null}
+                  {this.state.solveRecommendationLoading || this.state.solveRecommendation || this.state.solveRecommendationError ? (
+                    <div className="solve_recommendation_box">
+                      <div className="reconstruction_phase_title">Recommended Solve</div>
+                      {this.state.solveRecommendationLoading ? (
+                        <div className="solve_recommendation_status">Building recommendation...</div>
+                      ) : this.state.solveRecommendationError ? (
+                        <div className="solve_recommendation_status solve_recommendation_error">
+                          {this.state.solveRecommendationError}
+                        </div>
+                      ) : this.state.solveRecommendation ? (
+                        (() => {
+                          const recommendation = this.state.solveRecommendation;
+                          const formatItems = (items) => Array.isArray(items) && items.length ? items.join(", ") : "--";
+                          return (
+                            <div className="solve_recommendation_grid">
+                              <div className="solve_recommendation_line">
+                                <span>Edges</span>
+                                <strong>{formatItems(recommendation.edgePairs)}</strong>
+                              </div>
+                              <div className="solve_recommendation_line">
+                                <span>Flips</span>
+                                <strong>{formatItems(recommendation.flips)}</strong>
+                              </div>
+                              <div className="solve_recommendation_line">
+                                <span>Corners</span>
+                                <strong>{formatItems(recommendation.cornerPairs)}</strong>
+                              </div>
+                              <div className="solve_recommendation_line">
+                                <span>Twists</span>
+                                <strong>{formatItems(recommendation.twists)}</strong>
+                              </div>
+                              <div className="solve_recommendation_line">
+                                <span>Parity</span>
+                                <strong>{recommendation.parity ? recommendation.parity.label : "--"}</strong>
+                              </div>
+                              {recommendation.notes.map((note, index) => (
+                                <div key={`recommendation-note-${index}`} className="solve_recommendation_note">
+                                  {note}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()
+                      ) : null}
                     </div>
                   ) : null}
                   <div className="solve_details_footer">
