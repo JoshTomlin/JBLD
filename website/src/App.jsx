@@ -2924,7 +2924,7 @@ class App extends React.Component {
       title: this.formatSolveResultLabel(solve),
       solveNumber,
       date: this.formatDateLine(solve.date),
-      memoExecLabel: `Memo ${formatTimeValue(solve.memo_time)} | Exec ${formatTimeValue(solve.exe_time)}`,
+      memoExecLabel: `${formatTimeValue(solve.memo_time)} | ${formatTimeValue(solve.exe_time)}`,
       metrics: [
         { label: "Algs", value: String(commStats.length) },
         { label: "Moves", value: formatMoveCount(solveMoveCount) },
