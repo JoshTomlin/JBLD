@@ -2446,31 +2446,33 @@ class App extends React.Component {
       return;
     }
 
+    const draft = {
+      description: entry.description || "",
+      alg: entry.alg || "",
+      memoWord: entry.memo_word || "",
+      category: entry.category || "",
+      notes: entry.notes || "",
+    };
+    this.solveCommEditorDraftBuffer = draft;
+
     this.setState({
       solveCommEditorSaving: false,
-      solveCommEditorDraft: {
-        description: entry.description || "",
-        alg: entry.alg || "",
-        memoWord: entry.memo_word || "",
-        category: entry.category || "",
-        notes: entry.notes || "",
-      },
+      solveCommEditorDraft: draft,
     });
   };
 
   updateSolveCommEditorDraftField = (field, value) => {
-    this.setState((currentState) => ({
-      solveCommEditorDraft: {
-        ...(currentState.solveCommEditorDraft || {}),
-        [field]: value,
-      },
-    }));
+    this.solveCommEditorDraftBuffer = {
+      ...(this.solveCommEditorDraftBuffer || this.state.solveCommEditorDraft || {}),
+      [field]: value,
+    };
   };
 
   saveSolveDetailsCommEditor = async () => {
     const { selectedSolveCommCard, solveCommEditorDraft } = this.state;
+    const draft = this.solveCommEditorDraftBuffer || solveCommEditorDraft;
     const lookup = selectedSolveCommCard ? this.getSolveDetailsCommLookup(selectedSolveCommCard) : null;
-    if (!lookup || !solveCommEditorDraft) {
+    if (!lookup || !draft) {
       return;
     }
 
@@ -2483,7 +2485,7 @@ class App extends React.Component {
     this.setState({ solveCommEditorSaving: true });
 
     try {
-      const savedEntry = await updateAlgLibraryEntry(entry.id, solveCommEditorDraft);
+      const savedEntry = await updateAlgLibraryEntry(entry.id, draft);
       await this.refreshAlgLibrarySummary();
       const rowKey = this.getSolveDetailsCommRowKey(selectedSolveCommCard);
       const usedAlg = this.normalizeAlgComparisonText(selectedSolveCommCard.alg || "", lookup.pieceType) || "";
@@ -7593,33 +7595,33 @@ class App extends React.Component {
                                 type="text"
                                 className="settings_input alg_library_inline_input"
                                 placeholder="Category"
-                                value={this.state.solveCommEditorDraft.category || ""}
+                                defaultValue={this.state.solveCommEditorDraft.category || ""}
                                 onChange={(event) => this.updateSolveCommEditorDraftField("category", event.target.value)}
                               />
                               <input
                                 type="text"
                                 className="settings_input alg_library_inline_input"
                                 placeholder="Memo"
-                                value={this.state.solveCommEditorDraft.memoWord || ""}
+                                defaultValue={this.state.solveCommEditorDraft.memoWord || ""}
                                 onChange={(event) => this.updateSolveCommEditorDraftField("memoWord", event.target.value)}
                               />
                             </div>
                             <textarea
                               className="settings_textarea alg_library_inline_textarea"
                               placeholder="Description"
-                              value={this.state.solveCommEditorDraft.description || ""}
+                              defaultValue={this.state.solveCommEditorDraft.description || ""}
                               onChange={(event) => this.updateSolveCommEditorDraftField("description", event.target.value)}
                             />
                             <textarea
                               className="settings_textarea alg_library_inline_textarea"
                               placeholder="Alg"
-                              value={this.state.solveCommEditorDraft.alg || ""}
+                              defaultValue={this.state.solveCommEditorDraft.alg || ""}
                               onChange={(event) => this.updateSolveCommEditorDraftField("alg", event.target.value)}
                             />
                             <textarea
                               className="settings_textarea alg_library_inline_textarea solve_comm_editor_notes"
                               placeholder="Notes"
-                              value={this.state.solveCommEditorDraft.notes || ""}
+                              defaultValue={this.state.solveCommEditorDraft.notes || ""}
                               onChange={(event) => this.updateSolveCommEditorDraftField("notes", event.target.value)}
                             />
                           </div>
