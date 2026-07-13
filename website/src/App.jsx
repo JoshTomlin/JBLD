@@ -122,6 +122,7 @@ class App extends React.Component {
       drillCompletedCount: 0,
       drillSkippedCount: 0,
       drillReviewEntries: [],
+      drillCurrentMoves: [],
       drillPromptStartedAt: null,
       drillAttemptStartedAt: null,
       drillCurrentRetryCount: 0,
@@ -1274,6 +1275,7 @@ class App extends React.Component {
     } else if (/^Forgot Memo$/i.test(existingReason)) {
       category = "Forgot Memo";
     }
+    this.solveCommEditorDraftBuffer = null;
     this.setState({
       showLastSolveDetails: true,
       historySessionMenuOpen: false,
@@ -2417,6 +2419,7 @@ class App extends React.Component {
       return;
     }
 
+    this.solveCommEditorDraftBuffer = null;
     this.setState({
       selectedSolveCommCard: comm,
       solveCommEditorDraft: null,
@@ -2425,6 +2428,7 @@ class App extends React.Component {
   };
 
   closeSolveDetailsCommCard = () => {
+    this.solveCommEditorDraftBuffer = null;
     this.setState({
       selectedSolveCommCard: null,
       solveCommEditorDraft: null,
@@ -2492,6 +2496,7 @@ class App extends React.Component {
       const preferredAlg = this.normalizeAlgComparisonText(savedEntry.alg || "", savedEntry.piece_type) || "";
       const nextStatus = usedAlg && preferredAlg && usedAlg === preferredAlg ? "match" : "mismatch";
 
+      this.solveCommEditorDraftBuffer = null;
       this.setState((currentState) => ({
         solveCommEditorSaving: false,
         solveCommEditorDraft: null,
@@ -2549,6 +2554,7 @@ class App extends React.Component {
   };
 
   closeSolveDetailsModal = () => {
+    this.solveCommEditorDraftBuffer = null;
     this.setState({
       showLastSolveDetails: false,
       loadingSolveDetails: false,
@@ -2750,12 +2756,14 @@ class App extends React.Component {
   pauseDrillSession = () => {
     if (this.state.drillMode === "alg-review") {
       this.saveAlgReviewProgress({ pausedAt: new Date().toISOString() });
+      this.resetAlgReviewAttemptCube();
     }
     this.setState({
       drillSessionActive: false,
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
       drillStatusMessage: "Paused",
+      drillCurrentMoves: [],
       algReviewPeekVisible: false,
     });
   };
@@ -2783,6 +2791,7 @@ class App extends React.Component {
       drillSkippedCount: Number(progress.skippedCount) || 0,
       drillReviewEntries: Array.isArray(progress.reviewEntries) ? progress.reviewEntries : [],
       algReviewAttemptRecords: Array.isArray(progress.attemptRecords) ? progress.attemptRecords : this.state.algReviewAttemptRecords,
+      drillCurrentMoves: [],
       algReviewPeekVisible: false,
       drillPromptStartedAt: Date.now(),
       drillAttemptStartedAt: null,
@@ -2791,7 +2800,7 @@ class App extends React.Component {
   };
 
   setDrillMode = (drillMode) => {
-    this.setState({ drillMode, algReviewPeekVisible: false, drillStatusMessage: "" }, () => {
+    this.setState({ drillMode, algReviewPeekVisible: false, drillStatusMessage: "", drillCurrentMoves: [] }, () => {
       if (drillMode === "alg-review" && !this.state.algReviewGroups.length) {
         this.loadAlgReviewOptions().catch((error) => {
           console.warn("Failed to load alg review options", error);
@@ -2911,11 +2920,12 @@ class App extends React.Component {
     return this.algReviewAttemptCube;
   };
 
-  getAlgReviewTargetAlgText = (entry) => {
+  getAlgReviewTargetAlgText = (entry, options = {}) => {
     if (!entry) {
       return "";
     }
 
+    const includeAlgFallback = options.includeAlgFallback !== false;
     const description = this.normalizeDisplayAlgText(entry.description || "");
     if (description) {
       if (hasCommNotation(description)) {
@@ -2925,7 +2935,7 @@ class App extends React.Component {
     }
 
     // Last-resort fallback for entries that do not have a comm/description saved yet.
-    return this.normalizeDisplayAlgText(entry.alg || "");
+    return includeAlgFallback ? this.normalizeDisplayAlgText(entry.alg || "") : "";
   };
 
   getAlgReviewTargetSignature = (entry) => {
@@ -3015,11 +3025,14 @@ class App extends React.Component {
       return;
     }
 
-    const currentIndex = this.state.drillExecutingEntry
+    const currentIndex = this.state.drillExecutingEntry && this.state.drillMode !== "alg-review"
       ? Math.max((this.state.drillCurrentIndex || 0) - 1, 0)
       : this.state.drillCurrentIndex || 0;
     const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
 
+    if (this.state.drillMode === "alg-review") {
+      this.resetAlgReviewAttemptCube();
+    }
     this.setState((currentState) => ({
       drillCurrentIndex: currentIndex,
       drillCurrentEntry: retryEntry,
@@ -3030,6 +3043,7 @@ class App extends React.Component {
       drillCurrentRetryCount: (currentState.drillCurrentRetryCount || 0) + 1,
       drillStatusMessage: `Retry ${this.buildDrillPromptText(retryEntry)}`,
       algReviewPeekVisible: false,
+      drillCurrentMoves: [],
       drillPromptStartedAt: Date.now(),
       drillAttemptStartedAt: null,
     }));
@@ -3381,7 +3395,10 @@ class App extends React.Component {
     this.setState(nextState);
   };
   startDrillSession = async () => {
-    this.setState({ drillLoading: true, algReviewPeekVisible: false });
+    if (this.state.drillMode === "alg-review") {
+      this.resetAlgReviewAttemptCube();
+    }
+    this.setState({ drillLoading: true, algReviewPeekVisible: false, drillCurrentMoves: [] });
 
     try {
       const filteredEntries = await this.getFilteredDrillEntries();
@@ -3468,6 +3485,9 @@ class App extends React.Component {
       if (isAlgReview && !nextEntry) {
         this.safeRemoveLocalStorageItem("algReviewProgress");
       }
+      if (isAlgReview) {
+        this.resetAlgReviewAttemptCube();
+      }
 
       return {
         drillCurrentIndex: nextIndex,
@@ -3479,6 +3499,7 @@ class App extends React.Component {
         drillCompletedCount: currentState.drillCompletedCount + (skipped ? 0 : 1),
         drillSkippedCount: currentState.drillSkippedCount + (skipped ? 1 : 0),
         drillReviewEntries: nextReviewEntries,
+        drillCurrentMoves: [],
         algReviewAttemptRecords: nextAttemptRecords,
         algReviewProgress: isAlgReview && !nextEntry ? null : currentState.algReviewProgress,
         drillSessionActive: Boolean(nextEntry),
@@ -3493,6 +3514,7 @@ class App extends React.Component {
   endDrillSession = () => {
     if (this.state.drillMode === "alg-review") {
       this.safeRemoveLocalStorageItem("algReviewProgress");
+      this.resetAlgReviewAttemptCube();
     }
 
     this.setState({
@@ -3504,6 +3526,7 @@ class App extends React.Component {
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
       drillStatusMessage: "",
+      drillCurrentMoves: [],
       drillPromptStartedAt: null,
       drillAttemptStartedAt: null,
       drillCurrentRetryCount: 0,
@@ -5636,8 +5659,7 @@ class App extends React.Component {
       const activeDrillPromptEntry = this.getActiveDrillPromptEntry();
       const activeDrillPrompt = this.buildDrillPromptText(activeDrillPromptEntry);
       const activeReviewEntry = this.state.drillExecutingEntry || activeDrillPromptEntry;
-      const activeReviewAlgText = activeReviewEntry ? this.formatAlgLibraryAlg(activeReviewEntry.alg || "", activeReviewEntry.piece_type) : "";
-      const activeReviewTargetText = activeReviewEntry ? this.getAlgReviewTargetAlgText(activeReviewEntry) : "";
+      const activeReviewContextText = activeReviewEntry ? activeReviewEntry.category || "Ready" : "";
       const currentDrillMoves = Array.isArray(this.state.drillCurrentMoves) ? this.state.drillCurrentMoves.join(" ") : "";
       const nextPrompt = this.buildDrillPromptText(this.state.drillNextEntry);
       const algReviewGroups = Array.isArray(this.state.algReviewGroups) ? this.state.algReviewGroups : [];
@@ -5670,7 +5692,7 @@ class App extends React.Component {
                       <span>{activeReviewEntry.case_code || "--"}</span>
                       <span>{activeReviewEntry.piece_type || "comm"}</span>
                     </div>
-                    <strong>{activeReviewAlgText || activeReviewTargetText || "No alg saved"}</strong>
+                    <strong>{activeReviewContextText}</strong>
                   </div>
                 ) : null}
                 {reviewMode && this.state.algReviewPeekVisible && activeReviewEntry ? (

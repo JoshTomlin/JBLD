@@ -3549,9 +3549,19 @@ textarea {
 }
 
 @media (max-width: 680px) {
-  .drill_review_setup,
-  .drill_prompt_actions_review {
+  .drill_review_setup {
     grid-template-columns: 1fr;
+  }
+
+  .drill_prompt_actions_review {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .drill_prompt_actions_review .drill_action_button {
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 0.72rem;
   }
 }
 .drill_active_alg_panel {

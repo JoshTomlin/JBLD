@@ -466,6 +466,89 @@ describe("solve details view data", () => {
 
     expect(app.formatScrambleForDetails("U2 L R' U2 R L'")).toBe("U2 L R' U2 R L'");
   });
+
+  it("keeps saved Alg Review algs out of the visible active-card fallback", () => {
+    const app = new App();
+    const entry = { description: "", alg: "R U R'", piece_type: "edge" };
+
+    expect(app.getAlgReviewTargetAlgText(entry, { includeAlgFallback: false })).toBe("");
+    expect(app.getAlgReviewTargetAlgText(entry)).toBe("R U R'");
+  });
+
+  it("keeps solve-details comm editor keystrokes in the draft buffer", () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    const entry = {
+      description: "Old description",
+      alg: "R U",
+      memo_word: "old memo",
+      category: "Old set",
+      notes: "Old notes",
+    };
+
+    app.openSolveDetailsCommEditor(entry);
+    app.updateSolveCommEditorDraftField("alg", "U R");
+
+    expect(app.state.solveCommEditorDraft.alg).toBe("R U");
+    expect(app.solveCommEditorDraftBuffer.alg).toBe("U R");
+
+    app.closeSolveDetailsCommCard();
+
+    expect(app.state.solveCommEditorDraft).toBeNull();
+    expect(app.solveCommEditorDraftBuffer).toBeNull();
+  });
+
+  it("clears Alg Review current moves when retrying or advancing", () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    app.resetAlgReviewAttemptCube = jest.fn();
+    const entry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "alpha", category: "Set" };
+    const nextEntry = { id: "edge-cd", case_code: "CD", piece_type: "edge", memo_word: "charlie", category: "Set" };
+    app.state = {
+      ...app.state,
+      drillMode: "alg-review",
+      drillQueue: [entry, nextEntry],
+      drillCurrentIndex: 1,
+      drillCurrentEntry: nextEntry,
+      drillNextEntry: null,
+      drillExecutingEntry: nextEntry,
+      drillCurrentMoves: ["R", "U"],
+      cube_moves: ["R", "U"],
+      algReviewAttemptRecords: [],
+    };
+
+    app.retryDrillEntry();
+
+    expect(app.state.drillCurrentIndex).toBe(1);
+    expect(app.state.drillCurrentEntry).toBe(nextEntry);
+    expect(app.state.drillCurrentMoves).toEqual([]);
+
+    app.state = {
+      ...app.state,
+      drillCurrentIndex: 0,
+      drillCurrentEntry: entry,
+      drillNextEntry: nextEntry,
+      drillExecutingEntry: null,
+      drillCurrentMoves: ["F"],
+      cube_moves: ["R", "U", "F"],
+    };
+
+    app.advanceDrillSession({ skipped: true });
+
+    expect(app.state.drillCurrentMoves).toEqual([]);
+  });
 });
 
 describe("large local storage resilience", () => {
