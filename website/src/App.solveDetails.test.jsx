@@ -20,6 +20,29 @@ jest.mock("gan-web-bluetooth", () => ({
 
 jest.mock("cubing/alg", () => ({
   Alg: jest.fn().mockImplementation((algText) => ({ algText })),
+  Move: class MockMove {
+    constructor(move) {
+      this.move = move;
+    }
+  },
+}));
+
+jest.mock("cubing/kpuzzle", () => ({
+  KPuzzle: class MockKPuzzle {
+    constructor() {
+      this.state = {
+        EDGES: { permutation: Array.from({ length: 12 }, (_, index) => index), orientation: Array(12).fill(0) },
+        CORNERS: { permutation: Array.from({ length: 8 }, (_, index) => index), orientation: Array(8).fill(0) },
+        CENTERS: { permutation: Array.from({ length: 6 }, (_, index) => index), orientation: Array(6).fill(0) },
+      };
+    }
+
+    applyMove() {}
+  },
+}));
+
+jest.mock("cubing/puzzles", () => ({
+  experimentalCube3x3x3KPuzzle: {},
 }));
 
 jest.mock("cubing/notation", () => ({
