@@ -3025,12 +3025,16 @@ class App extends React.Component {
       return;
     }
 
-    const currentIndex = this.state.drillExecutingEntry && this.state.drillMode !== "alg-review"
+    const isAlgReview = this.state.drillMode === "alg-review";
+    const currentIndex = this.state.drillExecutingEntry && !isAlgReview
       ? Math.max((this.state.drillCurrentIndex || 0) - 1, 0)
       : this.state.drillCurrentIndex || 0;
     const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
+    const retryPrompt = isAlgReview
+      ? this.buildAlgReviewPromptText(retryEntry)
+      : this.buildDrillPromptText(retryEntry);
 
-    if (this.state.drillMode === "alg-review") {
+    if (isAlgReview) {
       this.resetAlgReviewAttemptCube();
     }
     this.setState((currentState) => ({
@@ -3041,7 +3045,7 @@ class App extends React.Component {
       drillExecutionStartIndex: null,
       drillProcessedMoveCount: Array.isArray(currentState.cube_moves) ? currentState.cube_moves.length : 0,
       drillCurrentRetryCount: (currentState.drillCurrentRetryCount || 0) + 1,
-      drillStatusMessage: `Retry ${this.buildDrillPromptText(retryEntry)}`,
+      drillStatusMessage: `Retry ${retryPrompt}`,
       algReviewPeekVisible: false,
       drillCurrentMoves: [],
       drillPromptStartedAt: Date.now(),
@@ -3143,6 +3147,14 @@ class App extends React.Component {
     }
 
     return entry.memo_word || entry.case_code || "--";
+  };
+
+  buildAlgReviewPromptText = (entry) => {
+    if (!entry) {
+      return "--";
+    }
+
+    return entry.memo_word || "--";
   };
 
   getActiveDrillPromptEntry = () => {
@@ -3297,7 +3309,7 @@ class App extends React.Component {
         drillAttemptStartedAt: attemptStartedAt,
         drillCurrentMoves: currentMoves,
         algReviewPeekVisible: false,
-        drillStatusMessage: `Executing ${this.buildDrillPromptText(executingEntry)}`,
+        drillStatusMessage: `Executing ${this.buildAlgReviewPromptText(executingEntry)}`,
       };
 
       if (matched) {
@@ -3326,7 +3338,7 @@ class App extends React.Component {
           drillCurrentMoves: [],
           drillCompletedCount: this.state.drillCompletedCount + 1,
           algReviewAttemptRecords: nextAttemptRecords,
-          drillStatusMessage: nextEntry ? `Finished ${this.buildDrillPromptText(executingEntry)}` : "Done",
+          drillStatusMessage: nextEntry ? `Finished ${this.buildAlgReviewPromptText(executingEntry)}` : "Done",
           drillSessionActive: Boolean(nextEntry),
           drillPromptStartedAt: Date.now(),
         });
@@ -5657,9 +5669,10 @@ class App extends React.Component {
       const selectedDrillTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
       const reviewMode = this.state.drillMode === "alg-review";
       const activeDrillPromptEntry = this.getActiveDrillPromptEntry();
-      const activeDrillPrompt = this.buildDrillPromptText(activeDrillPromptEntry);
+      const activeDrillPrompt = reviewMode
+        ? this.buildAlgReviewPromptText(activeDrillPromptEntry)
+        : this.buildDrillPromptText(activeDrillPromptEntry);
       const activeReviewEntry = this.state.drillExecutingEntry || activeDrillPromptEntry;
-      const activeReviewContextText = activeReviewEntry ? activeReviewEntry.category || "Ready" : "";
       const currentDrillMoves = Array.isArray(this.state.drillCurrentMoves) ? this.state.drillCurrentMoves.join(" ") : "";
       const nextPrompt = this.buildDrillPromptText(this.state.drillNextEntry);
       const algReviewGroups = Array.isArray(this.state.algReviewGroups) ? this.state.algReviewGroups : [];
@@ -5669,7 +5682,7 @@ class App extends React.Component {
       const activeEditorEntry = this.state.algReviewEditorEntry;
       const editorDraft = this.state.algReviewEditorDraft;
       mainView = (
-        <section className={`drill_screen view_panel ${this.state.drillSessionActive ? "drill_screen_active" : ""}`}>
+        <section className={`drill_screen view_panel ${this.state.drillSessionActive ? "drill_screen_active" : ""} ${reviewMode ? "drill_screen_review_mode" : ""}`}>
           {this.state.drillSessionActive ? (
             <React.Fragment>
               <button type="button" className="drill_close_button" onClick={this.endDrillSession} aria-label="End drill">
@@ -5686,15 +5699,6 @@ class App extends React.Component {
                       ? "Finish"
                       : "Done"}
                 </div>
-                {reviewMode && activeReviewEntry ? (
-                  <div className="drill_active_alg_panel">
-                    <div>
-                      <span>{activeReviewEntry.case_code || "--"}</span>
-                      <span>{activeReviewEntry.piece_type || "comm"}</span>
-                    </div>
-                    <strong>{activeReviewContextText}</strong>
-                  </div>
-                ) : null}
                 {reviewMode && this.state.algReviewPeekVisible && activeReviewEntry ? (
                   <div className="drill_peek_panel">
                     <div>{activeReviewEntry.case_code || "--"}</div>

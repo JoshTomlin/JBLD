@@ -475,6 +475,14 @@ describe("solve details view data", () => {
     expect(app.getAlgReviewTargetAlgText(entry)).toBe("R U R'");
   });
 
+
+  it("uses only the memo word as the Alg Review prompt", () => {
+    const app = new App();
+
+    expect(app.buildAlgReviewPromptText({ memo_word: "river", case_code: "AB", alg: "R U R'" })).toBe("river");
+    expect(app.buildAlgReviewPromptText({ case_code: "AB", alg: "R U R'" })).toBe("--");
+  });
+
   it("keeps solve-details comm editor keystrokes in the draft buffer", () => {
     const app = new App();
     app.setState = (update, callback) => {

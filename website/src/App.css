@@ -3619,3 +3619,76 @@ textarea {
   min-height: 1.35em;
   overflow-wrap: anywhere;
 }
+
+.drill_screen_review_mode.drill_screen_active {
+  align-content: start;
+  padding-top: max(56px, env(safe-area-inset-top));
+  padding-bottom: calc(176px + env(safe-area-inset-bottom, 0px));
+}
+
+.drill_screen_review_mode .drill_prompt_card_active {
+  position: relative;
+  min-height: clamp(320px, 55dvh, 420px);
+  padding-bottom: 148px;
+}
+
+.drill_screen_review_mode .drill_peek_panel {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  min-height: 112px;
+  margin: 0;
+  align-content: center;
+  text-align: left;
+}
+
+.drill_screen_review_mode .drill_prompt_actions_review {
+  position: fixed;
+  z-index: 84;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  width: min(520px, calc(100% - 36px));
+  transform: translateX(-50%);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.drill_screen_review_mode .drill_current_moves_bar {
+  position: fixed;
+  z-index: 84;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  width: min(520px, calc(100% - 36px));
+  transform: translateX(-50%);
+}
+
+@media (max-width: 420px) {
+  .drill_screen_review_mode.drill_screen_active {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .drill_screen_review_mode .drill_prompt_card_active {
+    min-height: clamp(306px, 52dvh, 390px);
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 142px;
+  }
+
+  .drill_screen_review_mode .drill_peek_panel {
+    left: 16px;
+    right: 16px;
+    bottom: 18px;
+  }
+
+  .drill_screen_review_mode .drill_prompt_actions_review,
+  .drill_screen_review_mode .drill_current_moves_bar {
+    width: calc(100% - 24px);
+  }
+
+  .drill_screen_review_mode .drill_prompt_actions_review .drill_action_button {
+    padding: 0 5px;
+    font-size: 0.68rem;
+  }
+}
