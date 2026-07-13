@@ -8,6 +8,13 @@ jest.mock("./utils/localSolveParser", () => ({
 
 jest.mock("./utils/localCommParser", () => ({
   buildLocalCommAnalysis: jest.fn(() => ({ commStats: [] })),
+  normalizeForOrientation: jest.fn((_scramble, solve) => {
+    const tokens = String(solve || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    return { commSolveTokens: tokens, solveTokens: tokens, useSmartCubeSlicePairs: false, rotationPrefix: "" };
+  }),
 }));
 
 jest.mock("./utils/solveRecommender", () => ({
@@ -50,10 +57,18 @@ jest.mock("cubing/notation", () => ({
 }));
 
 import App from "./App";
+import { normalizeForOrientation } from "./utils/localCommParser";
 
 describe("solve details view data", () => {
   beforeEach(() => {
     window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+    normalizeForOrientation.mockImplementation((_scramble, solve) => {
+      const tokens = String(solve || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      return { commSolveTokens: tokens, solveTokens: tokens, useSmartCubeSlicePairs: false, rotationPrefix: "" };
+    });
   });
 
   it("normalizes legacy alg arrays before reconstruction rows render", () => {
@@ -556,6 +571,69 @@ describe("solve details view data", () => {
     app.advanceDrillSession({ skipped: true });
 
     expect(app.state.drillCurrentMoves).toEqual([]);
+  });
+  it("orients Alg Review target and attempt moves with the selected cube orientation", () => {
+    normalizeForOrientation.mockImplementation((_scramble, solve, orientation) => {
+      const tokens = String(solve || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      const orientationMap = { R: "L", U: "D", "R'": "L'", "U'": "D'" };
+      const orientedTokens = orientation === "yellow-green" ? tokens.map((move) => orientationMap[move] || move) : tokens;
+      return { commSolveTokens: orientedTokens, solveTokens: orientedTokens, useSmartCubeSlicePairs: false, rotationPrefix: "z2" };
+    });
+
+    const app = new App();
+    app.state = {
+      ...app.state,
+      parse_settings: { ...app.state.parse_settings, CUBE_OREINTATION: "yellow-green" },
+    };
+    const appliedMoves = [];
+    app.applyAlgReviewMove = jest.fn((cube, move) => {
+      appliedMoves.push(move);
+      cube.state.EDGES.permutation[0] = appliedMoves.length;
+    });
+
+    app.getAlgReviewTargetSignature({ id: "edge-ab", description: "R U", piece_type: "edge" });
+
+    expect(appliedMoves).toEqual(["L", "D"]);
+    expect(normalizeForOrientation).toHaveBeenCalledWith("", "R U", "yellow-green");
+
+    appliedMoves.length = 0;
+    app.applyAlgReviewAttemptMoves(["R", "U"]);
+
+    expect(appliedMoves).toEqual(["L", "D"]);
+  });
+
+  it("checks Alg Review completion after each hidden move, not only after the batch", () => {
+    const app = new App();
+    app.getAlgReviewTargetSignature = jest.fn(() => "goal");
+    app.algReviewAttemptCube = { state: { signature: "start" } };
+    app.getAlgReviewStateSignature = jest.fn((state) => state.signature);
+    app.applyAlgReviewMove = jest.fn((cube, move) => {
+      cube.state.signature = move === "hit" ? "goal" : "past";
+    });
+
+    expect(app.algReviewAttemptMatchesEntry({ id: "edge-ab" }, ["hit", "extra"])).toBe(true);
+    expect(app.applyAlgReviewMove).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses annotated Alg Review display moves without changing recognition tokens", () => {
+    normalizeForOrientation.mockImplementation((_scramble, solve) => {
+      if (solve === "L' R r") {
+        return { commSolveTokens: ["L'", "R", "r"], solveTokens: ["M", "r"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
+      }
+      const tokens = String(solve || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      return { commSolveTokens: tokens, solveTokens: tokens, useSmartCubeSlicePairs: false, rotationPrefix: "" };
+    });
+
+    const app = new App();
+
+    expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"])).toEqual(["L'", "R", "Rw"]);
+    expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"], { display: true })).toEqual(["M", "Rw"]);
   });
 });
 

@@ -10,7 +10,7 @@ import "bootstrap/dist/css/bootstrap.css";
 import Timer from "./component/Timer";
 import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
-import { buildLocalCommAnalysis } from "./utils/localCommParser";
+import { buildLocalCommAnalysis, normalizeForOrientation } from "./utils/localCommParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
 import { buildRecommendedSolve } from "./utils/solveRecommender";
 import { computeSessionAggregateStats, isDnfValue } from "./utils/solveAverages";
@@ -2861,13 +2861,13 @@ class App extends React.Component {
 
   splitAlgReviewMoves = (algText = "") =>
     this.normalizeDisplayAlgText(algText)
-      .replace(/[‘’]/g, "'")
+      .replace(/[ï¿½ï¿½]/g, "'")
       .split(/\s+/)
       .map((move) => move.trim())
       .filter(Boolean);
 
   normalizeAlgReviewMoveToken = (move) => {
-    const token = String(move || "").trim().replace(/[‘’]/g, "'");
+    const token = String(move || "").trim().replace(/[ï¿½ï¿½]/g, "'");
     if (!token) {
       return "";
     }
@@ -2891,6 +2891,28 @@ class App extends React.Component {
     return `${base}${suffix}`;
   };
 
+  getAlgReviewOrientation = () =>
+    (this.state.parse_settings && this.state.parse_settings.CUBE_OREINTATION) || "yellow-green";
+
+  getAlgReviewOrientedMoves = (moves = [], options = {}) => {
+    const moveTokens = Array.isArray(moves)
+      ? moves.map((move) => String(move || "").trim()).filter(Boolean)
+      : this.splitAlgReviewMoves(moves);
+    if (!moveTokens.length) {
+      return [];
+    }
+
+    try {
+      const normalized = normalizeForOrientation("", moveTokens.join(" "), this.getAlgReviewOrientation());
+      const key = options.display ? "solveTokens" : "commSolveTokens";
+      return (normalized[key] || normalized.solveTokens || normalized.commSolveTokens || moveTokens)
+        .map((move) => this.normalizeAlgReviewMoveToken(move))
+        .filter(Boolean);
+    } catch (error) {
+      console.warn("Failed to orient Alg Review moves", error);
+      return moveTokens.map((move) => this.normalizeAlgReviewMoveToken(move)).filter(Boolean);
+    }
+  };
   applyAlgReviewMove = (cube, move) => {
     const normalizedMove = this.normalizeAlgReviewMoveToken(move);
     if (!cube || !normalizedMove) {
@@ -2944,14 +2966,15 @@ class App extends React.Component {
       return null;
     }
 
-    const cacheKey = `${this.getAlgReviewEntryKey(entry)}:${targetAlg}`;
+    const orientation = this.getAlgReviewOrientation();
+    const cacheKey = `${this.getAlgReviewEntryKey(entry)}:${orientation}:${targetAlg}`;
     if (this.algReviewTargetSignatureCache.has(cacheKey)) {
       return this.algReviewTargetSignatureCache.get(cacheKey);
     }
 
     try {
       const cube = new KPuzzle(ALG_REVIEW_CUBE_DEFINITION);
-      this.splitAlgReviewMoves(targetAlg).forEach((move) => this.applyAlgReviewMove(cube, move));
+      this.getAlgReviewOrientedMoves(targetAlg).forEach((move) => this.applyAlgReviewMove(cube, move));
       const signature = this.getAlgReviewStateSignature(cube.state);
       this.algReviewTargetSignatureCache.set(cacheKey, signature);
       return signature;
@@ -2962,18 +2985,28 @@ class App extends React.Component {
     }
   };
 
-  applyAlgReviewAttemptMoves = (moves = []) => {
+  applyAlgReviewAttemptMoves = (moves = [], targetSignature = null) => {
     if (!this.algReviewAttemptCube) {
       this.resetAlgReviewAttemptCube();
     }
 
     try {
-      moves.forEach((move) => this.applyAlgReviewMove(this.algReviewAttemptCube, move));
-      return this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
+      let attemptSignature = this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
+      const orientedMoves = this.getAlgReviewOrientedMoves(moves);
+      for (const move of orientedMoves) {
+        this.applyAlgReviewMove(this.algReviewAttemptCube, move);
+        attemptSignature = this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
+        if (targetSignature && attemptSignature === targetSignature) {
+          return { signature: attemptSignature, matched: true };
+        }
+      }
+      return targetSignature
+        ? { signature: attemptSignature, matched: false }
+        : attemptSignature;
     } catch (error) {
       console.warn("Failed to apply Alg Review attempt moves", error);
       this.resetAlgReviewAttemptCube();
-      return null;
+      return targetSignature ? { signature: null, matched: false } : null;
     }
   };
 
@@ -2983,8 +3016,8 @@ class App extends React.Component {
       return false;
     }
 
-    const attemptSignature = this.applyAlgReviewAttemptMoves(moves);
-    return Boolean(attemptSignature && attemptSignature === targetSignature);
+    const attemptResult = this.applyAlgReviewAttemptMoves(moves, targetSignature);
+    return Boolean(attemptResult && attemptResult.matched);
   };
   buildDrillAttemptRecord = (entry, options = {}) => {
     const now = Date.now();
@@ -3296,7 +3329,7 @@ class App extends React.Component {
 
       const currentMoves = [
         ...(Array.isArray(this.state.drillCurrentMoves) ? this.state.drillCurrentMoves : []),
-        ...newMoves,
+        ...this.getAlgReviewOrientedMoves(newMoves, { display: true }),
       ];
       const matched = this.algReviewAttemptMatchesEntry(executingEntry, newMoves);
       const promptStartedAt = this.state.drillPromptStartedAt || attemptStartedAt || Date.now();
