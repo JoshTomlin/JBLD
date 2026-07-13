@@ -6,8 +6,24 @@ jest.mock("./utils/localSolveParser", () => ({
   buildLocalSolveResult: jest.fn(),
 }));
 
+jest.mock("./utils/localCommParser", () => ({
+  buildLocalCommAnalysis: jest.fn(() => ({ commStats: [] })),
+}));
+
+jest.mock("./utils/solveRecommender", () => ({
+  buildRecommendedSolve: jest.fn(),
+}));
+
 jest.mock("gan-web-bluetooth", () => ({
   connectGanCube: jest.fn(),
+}));
+
+jest.mock("cubing/alg", () => ({
+  Alg: jest.fn().mockImplementation((algText) => ({ algText })),
+}));
+
+jest.mock("cubing/notation", () => ({
+  countMoves: jest.fn(() => 0),
 }));
 
 import App from "./App";
@@ -40,7 +56,7 @@ describe("solve details view data", () => {
     const details = app.getSolveDetailsViewData(solve, [solve]);
 
     expect(details.cornerRows).toHaveLength(1);
-    expect(app.compactRepeatedTurns(details.cornerRows[0].alg)).toBe("R2 U U'");
+    expect(app.compactRepeatedTurns(details.cornerRows[0].alg)).toBe("R2");
   });
 
   it("converts smart-cube opposite face pairs into slice moves for display", () => {
@@ -58,9 +74,9 @@ describe("solve details view data", () => {
   it("formats recent library algs with doubles and edge-only slice conversion", () => {
     const app = new App();
 
-    expect(app.formatAlgLibraryAlg("R R U U'", "corner")).toBe("R2 U U'");
+    expect(app.formatAlgLibraryAlg("R R U U'", "corner")).toBe("R2");
     expect(app.formatAlgLibraryAlg("U2 L R' U2 R L'", "edge")).toBe("U2 M' B2 M");
-    expect(app.formatAlgLibraryAlg("L R' R R", "corner")).toBe("L R' R2");
+    expect(app.formatAlgLibraryAlg("L R' R R", "corner")).toBe("L R");
   });
 
   it("appends implicit parser rotations to displayed reconstruction algs", () => {
@@ -426,5 +442,38 @@ describe("solve details view data", () => {
     const app = new App();
 
     expect(app.formatScrambleForDetails("U2 L R' U2 R L'")).toBe("U2 L R' U2 R L'");
+  });
+});
+
+describe("large local storage resilience", () => {
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+  });
+
+  it("keeps full sessions in memory when localStorage quota is exceeded", () => {
+    const app = new App();
+    app.persistLocalDatabaseSnapshot = jest.fn(() => Promise.resolve());
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const quotaError = new Error("QuotaExceededError");
+    quotaError.name = "QuotaExceededError";
+    const setItemSpy = jest.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => {
+      if (["sessions", "solves", "sessionsCompacted"].includes(key)) {
+        throw quotaError;
+      }
+      return value;
+    });
+    const solves = Array.from({ length: 300 }, (_, index) => ({
+      id: `solve-${index}`,
+      date: index,
+      time_solve: 10 + index,
+    }));
+    const sessions = [{ id: "session-1", name: "Big Session", createdAt: 1, updatedAt: 2, solves }];
+
+    expect(() => app.persistSessionStorage(sessions, "session-1")).not.toThrow();
+    expect(app.sessionStorageCache.sessions[0].solves).toHaveLength(300);
+    expect(app.sessionStorageCache.activeSessionId).toBe("session-1");
+
+    setItemSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 });

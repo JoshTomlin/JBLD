@@ -41,6 +41,9 @@ import LZString from "lz-string";
 import "react-base-table/styles.css";
 
 const BUNDLED_ALG_LIBRARY_VERSION = "2026-06-19-v5";
+const FULL_SESSION_LOCAL_STORAGE_SOLVE_LIMIT = 250;
+const FULL_SESSION_LOCAL_STORAGE_CHAR_LIMIT = 2500000;
+const PRACTICE_LOCAL_STORAGE_SOLVE_LIMIT = 300;
 
 class App extends React.Component {
   constructor() {
@@ -51,6 +54,7 @@ class App extends React.Component {
     this.backupImportInputRef = React.createRef();
     this.deferredInstallPrompt = null;
     this.localDatabaseWritePromise = Promise.resolve();
+    this.sessionStorageCache = null;
     this.solveRecommendationRequestId = 0;
     this.state = {
       activeView: "solve",
@@ -96,6 +100,7 @@ class App extends React.Component {
       algLibraryRecentMatches: [],
       algLibraryImporting: false,
       algLibraryNotice: null,
+      drillMode: "memo-flow",
       drillPieceTypes: ["corner"],
       drillDisplayMode: "next",
       drillLoading: false,
@@ -111,6 +116,19 @@ class App extends React.Component {
       drillCompletedCount: 0,
       drillSkippedCount: 0,
       drillReviewEntries: [],
+      drillPromptStartedAt: null,
+      drillAttemptStartedAt: null,
+      drillCurrentRetryCount: 0,
+      algReviewPieceType: "edge",
+      algReviewGroup: "all",
+      algReviewGroups: [],
+      algReviewEntries: [],
+      algReviewPeekVisible: false,
+      algReviewAttemptRecords: this.parseJsonStorage("algReviewAttemptRecords", []),
+      algReviewProgress: this.parseJsonStorage("algReviewProgress", null),
+      algReviewEditorEntry: null,
+      algReviewEditorDraft: null,
+      algReviewEditorSaving: false,
       practiceSolves: this.parseJsonStorage("practiceSolves", []),
       practiceScrambleType: "edges",
       practiceTab: "solve",
@@ -454,6 +472,56 @@ class App extends React.Component {
     }
   };
 
+  countSessionSolves = (sessions = []) => {
+    return (Array.isArray(sessions) ? sessions : []).reduce((total, session) => {
+      const solves = session && Array.isArray(session.solves) ? session.solves : [];
+      return total + solves.length;
+    }, 0);
+  };
+
+  buildCompactSessionStorage = (sessions = []) => {
+    return (Array.isArray(sessions) ? sessions : []).map((session, index) => {
+      const solves = session && Array.isArray(session.solves) ? session.solves : [];
+      const latestSolve = solves.length ? solves[solves.length - 1] : null;
+      return {
+        ...session,
+        id: session && session.id ? session.id : `session-restored-${index}`,
+        name: session && session.name ? session.name : `Session ${index + 1}`,
+        solves: [],
+        solveCount: solves.length,
+        latestSolveDate: latestSolve
+          ? latestSolve.date || latestSolve.recorded_at || latestSolve.updatedAt || null
+          : null,
+      };
+    });
+  };
+
+  safeSetStorageString = (key, value, context = key) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.warn(`Failed to write ${context} to localStorage`, error);
+      return false;
+    }
+  };
+
+  safeSetJsonStorage = (key, value, context = key) => {
+    try {
+      return this.safeSetStorageString(key, JSON.stringify(value), context);
+    } catch (error) {
+      console.warn(`Failed to serialize ${context} for localStorage`, error);
+      return false;
+    }
+  };
+
+  safeRemoveLocalStorageItem = (key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.warn(`Failed to remove localStorage key "${key}"`, error);
+    }
+  };
   buildSessionRecord = (name, solves = []) => {
     const timestamp = Date.now();
 
@@ -856,21 +924,75 @@ class App extends React.Component {
   persistSessionStorage = (sessions, activeSessionId, options = {}) => {
     const { skipDatabaseMirror = false } = options;
     const activeSession = this.getActiveSessionFromList(sessions, activeSessionId);
+    const resolvedActiveSessionId = activeSession ? activeSession.id : activeSessionId;
     const solves = activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : [];
 
-    localStorage.setItem("sessions", JSON.stringify(sessions));
-    localStorage.setItem("activeSessionId", JSON.stringify(activeSession ? activeSession.id : null));
-    localStorage.setItem("solves", JSON.stringify(solves));
+    this.sessionStorageCache = {
+      sessions: Array.isArray(sessions) ? sessions : [],
+      activeSessionId: resolvedActiveSessionId || null,
+    };
 
     if (!skipDatabaseMirror) {
-      this.persistLocalDatabaseSnapshot(sessions, activeSession ? activeSession.id : activeSessionId);
+      this.persistLocalDatabaseSnapshot(sessions, resolvedActiveSessionId);
     }
-  };
 
+    const totalSolveCount = this.countSessionSolves(sessions);
+    let compactLocalStorage = totalSolveCount > FULL_SESSION_LOCAL_STORAGE_SOLVE_LIMIT;
+    let sessionsJson = "";
+    let solvesJson = "";
+
+    if (!compactLocalStorage) {
+      try {
+        sessionsJson = JSON.stringify(sessions);
+        solvesJson = JSON.stringify(solves);
+        compactLocalStorage =
+          sessionsJson.length + solvesJson.length > FULL_SESSION_LOCAL_STORAGE_CHAR_LIMIT;
+      } catch (error) {
+        console.warn("Failed to serialize sessions for localStorage", error);
+        compactLocalStorage = true;
+      }
+    }
+
+    if (!compactLocalStorage) {
+      const sessionsSaved = this.safeSetStorageString("sessions", sessionsJson, "sessions");
+      const activeSessionSaved = this.safeSetJsonStorage(
+        "activeSessionId",
+        resolvedActiveSessionId || null,
+        "active session id"
+      );
+      const solvesSaved = this.safeSetStorageString("solves", solvesJson, "active session solves");
+
+      if (sessionsSaved && activeSessionSaved && solvesSaved) {
+        this.safeRemoveLocalStorageItem("sessionsCompacted");
+        return;
+      }
+
+      compactLocalStorage = true;
+    }
+
+    this.safeRemoveLocalStorageItem("sessions");
+    this.safeRemoveLocalStorageItem("solves");
+    this.safeSetJsonStorage("sessions", this.buildCompactSessionStorage(sessions), "compact sessions");
+    this.safeSetJsonStorage("activeSessionId", resolvedActiveSessionId || null, "active session id");
+    this.safeSetJsonStorage("solves", [], "legacy active session solves");
+    this.safeSetJsonStorage(
+      "sessionsCompacted",
+      {
+        at: new Date().toISOString(),
+        totalSolveCount,
+      },
+      "session compaction marker"
+    );
+  };
   ensureSessionStorage = (options = {}) => {
     const { skipDatabaseMirror = false } = options;
-    let sessions = this.parseJsonStorage("sessions", []);
-    let activeSessionId = this.parseJsonStorage("activeSessionId", null);
+    const cachedStorage = this.sessionStorageCache;
+    const hasCachedSessions =
+      cachedStorage && Array.isArray(cachedStorage.sessions) && cachedStorage.sessions.length > 0;
+    let sessions = hasCachedSessions ? cachedStorage.sessions : this.parseJsonStorage("sessions", []);
+    let activeSessionId = hasCachedSessions
+      ? cachedStorage.activeSessionId
+      : this.parseJsonStorage("activeSessionId", null);
 
     if (!Array.isArray(sessions)) {
       sessions = [];
@@ -2559,6 +2681,300 @@ class App extends React.Component {
     );
   };
 
+  getDrillPieceTypeOptions = () => [
+    { value: "edge", label: "Edges" },
+    { value: "corner", label: "Corners" },
+    { value: "flip", label: "Flips" },
+    { value: "twist", label: "Twists" },
+    { value: "parity", label: "Parity" },
+  ];
+
+  getAlgReviewGroupLabel = (value) => {
+    if (!value || value === "all") {
+      return "All";
+    }
+    return value;
+  };
+
+  getAlgReviewEntryKey = (entry) => {
+    if (!entry) {
+      return "unknown";
+    }
+    return entry.id || `${entry.piece_type || "case"}:${entry.case_code || ""}`;
+  };
+
+  formatDrillSeconds = (seconds) => {
+    const value = Number(seconds);
+    return Number.isFinite(value) ? value.toFixed(1) : "--";
+  };
+
+  persistAlgReviewAttemptRecords = (records = []) => {
+    const nextRecords = Array.isArray(records) ? records.slice(-1000) : [];
+    this.safeSetJsonStorage("algReviewAttemptRecords", nextRecords, "alg review attempts");
+    return nextRecords;
+  };
+
+  clearAlgReviewProgress = () => {
+    this.safeRemoveLocalStorageItem("algReviewProgress");
+    this.setState({ algReviewProgress: null });
+  };
+
+  saveAlgReviewProgress = (extra = {}) => {
+    const progress = {
+      savedAt: new Date().toISOString(),
+      pieceType: this.state.algReviewPieceType,
+      group: this.state.algReviewGroup,
+      queue: this.state.drillQueue,
+      currentIndex: this.state.drillCurrentIndex,
+      currentEntry: this.state.drillCurrentEntry,
+      nextEntry: this.state.drillNextEntry,
+      completedCount: this.state.drillCompletedCount,
+      skippedCount: this.state.drillSkippedCount,
+      reviewEntries: this.state.drillReviewEntries,
+      attemptRecords: this.state.algReviewAttemptRecords,
+      ...extra,
+    };
+    this.safeSetJsonStorage("algReviewProgress", progress, "alg review progress");
+    this.setState({ algReviewProgress: progress });
+    return progress;
+  };
+
+  pauseDrillSession = () => {
+    if (this.state.drillMode === "alg-review") {
+      this.saveAlgReviewProgress({ pausedAt: new Date().toISOString() });
+    }
+    this.setState({
+      drillSessionActive: false,
+      drillExecutingEntry: null,
+      drillExecutionStartIndex: null,
+      drillStatusMessage: "Paused",
+      algReviewPeekVisible: false,
+    });
+  };
+
+  resumeAlgReviewProgress = () => {
+    const progress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
+    if (!progress || !Array.isArray(progress.queue)) {
+      return;
+    }
+
+    this.setState({
+      drillMode: "alg-review",
+      algReviewPieceType: progress.pieceType || "edge",
+      algReviewGroup: progress.group || "all",
+      drillSessionActive: true,
+      drillQueue: progress.queue,
+      drillCurrentIndex: Number.isFinite(Number(progress.currentIndex)) ? Number(progress.currentIndex) : 0,
+      drillCurrentEntry: progress.currentEntry || null,
+      drillNextEntry: progress.nextEntry || null,
+      drillExecutingEntry: null,
+      drillExecutionStartIndex: null,
+      drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
+      drillStatusMessage: "Resumed",
+      drillCompletedCount: Number(progress.completedCount) || 0,
+      drillSkippedCount: Number(progress.skippedCount) || 0,
+      drillReviewEntries: Array.isArray(progress.reviewEntries) ? progress.reviewEntries : [],
+      algReviewAttemptRecords: Array.isArray(progress.attemptRecords) ? progress.attemptRecords : this.state.algReviewAttemptRecords,
+      algReviewPeekVisible: false,
+      drillPromptStartedAt: Date.now(),
+      drillAttemptStartedAt: null,
+      drillCurrentRetryCount: 0,
+    });
+  };
+
+  setDrillMode = (drillMode) => {
+    this.setState({ drillMode, algReviewPeekVisible: false, drillStatusMessage: "" }, () => {
+      if (drillMode === "alg-review" && !this.state.algReviewGroups.length) {
+        this.loadAlgReviewOptions().catch((error) => {
+          console.warn("Failed to load alg review options", error);
+        });
+      }
+    });
+  };
+
+  setAlgReviewPieceType = (pieceType) => {
+    this.setState(
+      {
+        algReviewPieceType: pieceType,
+        algReviewGroup: "all",
+        algReviewGroups: [],
+        algReviewEntries: [],
+      },
+      () => {
+        this.loadAlgReviewOptions(pieceType).catch((error) => {
+          console.warn("Failed to load alg review groups", error);
+        });
+      }
+    );
+  };
+
+  loadAlgReviewOptions = async (pieceType = this.state.algReviewPieceType) => {
+    await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+    const result = await getAlgLibraryEntries({ pieceType, search: "", limit: 5000 });
+    const entries = Array.isArray(result && result.entries) ? result.entries : [];
+    const groups = Array.from(
+      new Set(entries.map((entry) => entry.category || "Unsorted").filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right));
+
+    this.setState({ algReviewEntries: entries, algReviewGroups: groups });
+    return { entries, groups };
+  };
+
+  getFilteredDrillEntries = async () => {
+    await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+
+    if (this.state.drillMode === "alg-review") {
+      let entries = Array.isArray(this.state.algReviewEntries) ? this.state.algReviewEntries : [];
+      if (!entries.length || entries.some((entry) => entry.piece_type !== this.state.algReviewPieceType)) {
+        const loaded = await this.loadAlgReviewOptions(this.state.algReviewPieceType);
+        entries = loaded.entries;
+      }
+
+      return entries.filter((entry) => {
+        const group = entry.category || "Unsorted";
+        return this.state.algReviewGroup === "all" || group === this.state.algReviewGroup;
+      });
+    }
+
+    const selectedTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
+    const result = await getAlgLibraryEntries({ limit: 2000 });
+    const allEntries = Array.isArray(result && result.entries) ? result.entries : [];
+    return allEntries.filter((entry) => selectedTypes.includes(entry.piece_type));
+  };
+
+  buildDrillAttemptRecord = (entry, options = {}) => {
+    const now = Date.now();
+    const startedAt = Number(options.startedAt) || this.state.drillAttemptStartedAt || now;
+    const promptStartedAt = Number(options.promptStartedAt) || this.state.drillPromptStartedAt || startedAt;
+    const recogTime = Math.max((startedAt - promptStartedAt) / 1000, 0);
+    const execTime = Math.max((now - startedAt) / 1000, 0);
+    return {
+      id: `alg-review-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      entryId: this.getAlgReviewEntryKey(entry),
+      pieceType: entry && entry.piece_type ? entry.piece_type : "",
+      caseCode: entry && entry.case_code ? entry.case_code : "",
+      memoWord: entry && entry.memo_word ? entry.memo_word : "",
+      category: entry && entry.category ? entry.category : "Unsorted",
+      matched: options.matched !== false,
+      skipped: Boolean(options.skipped),
+      retries: Number(options.retries) || 0,
+      recogTime: options.skipped ? null : recogTime,
+      execTime: options.skipped ? null : execTime,
+      completedAt: new Date(now).toISOString(),
+    };
+  };
+
+  addAlgReviewAttemptRecord = (record) => {
+    if (!record) {
+      return this.state.algReviewAttemptRecords;
+    }
+    const records = this.persistAlgReviewAttemptRecords([
+      ...(Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : []),
+      record,
+    ]);
+    return records;
+  };
+
+  retryDrillEntry = () => {
+    const retryEntry = this.state.drillExecutingEntry || this.state.drillCurrentEntry;
+    if (!retryEntry) {
+      return;
+    }
+
+    const currentIndex = this.state.drillExecutingEntry
+      ? Math.max((this.state.drillCurrentIndex || 0) - 1, 0)
+      : this.state.drillCurrentIndex || 0;
+    const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
+
+    this.setState((currentState) => ({
+      drillCurrentIndex: currentIndex,
+      drillCurrentEntry: retryEntry,
+      drillNextEntry: queue[currentIndex + 1] || null,
+      drillExecutingEntry: null,
+      drillExecutionStartIndex: null,
+      drillProcessedMoveCount: Array.isArray(currentState.cube_moves) ? currentState.cube_moves.length : 0,
+      drillCurrentRetryCount: (currentState.drillCurrentRetryCount || 0) + 1,
+      drillStatusMessage: `Retry ${this.buildDrillPromptText(retryEntry)}`,
+      algReviewPeekVisible: false,
+      drillPromptStartedAt: Date.now(),
+      drillAttemptStartedAt: null,
+    }));
+  };
+
+  toggleAlgReviewPeek = () => {
+    this.setState((currentState) => ({ algReviewPeekVisible: !currentState.algReviewPeekVisible }));
+  };
+
+  openAlgReviewEditor = (entry) => {
+    if (!entry) {
+      return;
+    }
+
+    this.setState({
+      algReviewEditorEntry: entry,
+      algReviewEditorDraft: {
+        description: entry.description || "",
+        alg: entry.alg || "",
+        memoWord: entry.memo_word || "",
+        category: entry.category || "",
+        notes: entry.notes || "",
+      },
+    });
+  };
+
+  closeAlgReviewEditor = () => {
+    this.setState({ algReviewEditorEntry: null, algReviewEditorDraft: null, algReviewEditorSaving: false });
+  };
+
+  updateAlgReviewEditorDraftField = (field, value) => {
+    this.setState((currentState) => ({
+      algReviewEditorDraft: {
+        ...(currentState.algReviewEditorDraft || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  replaceAlgReviewEntry = (savedEntry) => {
+    if (!savedEntry) {
+      return;
+    }
+
+    const patchEntry = (entry) =>
+      entry && this.getAlgReviewEntryKey(entry) === this.getAlgReviewEntryKey(savedEntry)
+        ? { ...entry, ...savedEntry }
+        : entry;
+
+    this.setState((currentState) => ({
+      algReviewEntries: currentState.algReviewEntries.map(patchEntry),
+      drillQueue: currentState.drillQueue.map(patchEntry),
+      drillCurrentEntry: patchEntry(currentState.drillCurrentEntry),
+      drillNextEntry: patchEntry(currentState.drillNextEntry),
+      drillExecutingEntry: patchEntry(currentState.drillExecutingEntry),
+    }));
+  };
+
+  saveAlgReviewEditor = async () => {
+    const { algReviewEditorEntry, algReviewEditorDraft } = this.state;
+    if (!algReviewEditorEntry || !algReviewEditorDraft) {
+      return;
+    }
+
+    this.setState({ algReviewEditorSaving: true });
+    try {
+      const savedEntry = await updateAlgLibraryEntry(algReviewEditorEntry.id, algReviewEditorDraft);
+      await this.refreshAlgLibrarySummary();
+      this.replaceAlgReviewEntry(savedEntry);
+      this.setState({
+        algReviewEditorEntry: null,
+        algReviewEditorDraft: null,
+        algReviewEditorSaving: false,
+      });
+    } catch (error) {
+      console.warn("Failed to save alg review edit", error);
+      this.setState({ algReviewEditorSaving: false });
+    }
+  };
   toggleDrillPieceType = (pieceType) => {
     this.setState((currentState) => {
       const currentTypes = Array.isArray(currentState.drillPieceTypes) ? currentState.drillPieceTypes : [];
@@ -2702,7 +3118,10 @@ class App extends React.Component {
     let currentIndex = this.state.drillCurrentIndex;
     let currentEntry = this.state.drillCurrentEntry;
     let nextEntry = this.state.drillNextEntry;
+    let attemptStartedAt = this.state.drillAttemptStartedAt;
+    const promptStartedAt = this.state.drillPromptStartedAt || Date.now();
     const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
+    const isAlgReview = this.state.drillMode === "alg-review";
     const nextState = {
       drillProcessedMoveCount: cubeMoves.length,
     };
@@ -2710,6 +3129,7 @@ class App extends React.Component {
     if (!executingEntry && currentEntry) {
       executingEntry = currentEntry;
       executionStartIndex = previousMoveCount + 1;
+      attemptStartedAt = Date.now();
       currentIndex += 1;
       currentEntry = queue[currentIndex] || null;
       nextEntry = queue[currentIndex + 1] || null;
@@ -2720,6 +3140,9 @@ class App extends React.Component {
         drillCurrentIndex: currentIndex,
         drillCurrentEntry: currentEntry,
         drillNextEntry: nextEntry,
+        drillAttemptStartedAt: attemptStartedAt,
+        drillPromptStartedAt: attemptStartedAt,
+        algReviewPeekVisible: false,
         drillStatusMessage: `Executing ${this.buildDrillPromptText(executingEntry)}`,
       });
     }
@@ -2730,41 +3153,60 @@ class App extends React.Component {
 
     if (completedComm && executingEntry) {
       const matched = this.drillCommMatchesEntry(completedComm, executingEntry);
+      let nextAttemptRecords = this.state.algReviewAttemptRecords;
+
+      if (isAlgReview) {
+        const record = this.buildDrillAttemptRecord(executingEntry, {
+          matched,
+          retries: this.state.drillCurrentRetryCount || 0,
+          promptStartedAt,
+          startedAt: attemptStartedAt || Date.now(),
+        });
+        nextAttemptRecords = this.persistAlgReviewAttemptRecords([
+          ...(Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : []),
+          record,
+        ]);
+      }
+
       Object.assign(nextState, {
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
+        drillAttemptStartedAt: null,
+        drillCurrentRetryCount: 0,
         drillCompletedCount: this.state.drillCompletedCount + 1,
         drillReviewEntries: matched
           ? this.state.drillReviewEntries
           : this.addDrillReviewEntry(this.state.drillReviewEntries, executingEntry),
+        algReviewAttemptRecords: nextAttemptRecords,
         drillStatusMessage: matched
           ? `Finished ${this.buildDrillPromptText(executingEntry)}`
           : `Review ${this.buildDrillPromptText(executingEntry)}`,
         drillSessionActive: Boolean(currentEntry || nextEntry),
       });
+
+      if (isAlgReview && !Boolean(currentEntry || nextEntry)) {
+        this.safeRemoveLocalStorageItem("algReviewProgress");
+        nextState.algReviewProgress = null;
+      }
     }
 
     this.setState(nextState);
   };
-
   startDrillSession = async () => {
-    const selectedTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
-    if (!selectedTypes.length) {
-      return;
-    }
-
-    this.setState({ drillLoading: true });
+    this.setState({ drillLoading: true, algReviewPeekVisible: false });
 
     try {
-      await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
-      const result = await getAlgLibraryEntries({ limit: 2000 });
-      const allEntries = Array.isArray(result && result.entries) ? result.entries : [];
-      const filteredEntries = allEntries.filter((entry) => selectedTypes.includes(entry.piece_type));
+      const filteredEntries = await this.getFilteredDrillEntries();
       const queue = this.buildDrillQueue(filteredEntries);
+      const now = Date.now();
+
+      if (this.state.drillMode === "alg-review") {
+        this.safeRemoveLocalStorageItem("algReviewProgress");
+      }
 
       this.setState({
         drillLoading: false,
-        drillSessionActive: true,
+        drillSessionActive: Boolean(queue.length),
         drillQueue: queue,
         drillCurrentIndex: 0,
         drillCurrentEntry: queue[0] || null,
@@ -2772,16 +3214,21 @@ class App extends React.Component {
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
         drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
-        drillStatusMessage: queue.length ? "Ready" : "No algs found for these sets",
+        drillStatusMessage: queue.length ? "Ready" : "No algs found for this set",
         drillCompletedCount: 0,
         drillSkippedCount: 0,
         drillReviewEntries: [],
+        drillPromptStartedAt: now,
+        drillAttemptStartedAt: null,
+        drillCurrentRetryCount: 0,
+        algReviewAttemptRecords: this.state.drillMode === "alg-review" ? [] : this.state.algReviewAttemptRecords,
+        algReviewProgress: this.state.drillMode === "alg-review" ? null : this.state.algReviewProgress,
       });
     } catch (error) {
       console.warn("Failed to start drill session", error);
       this.setState({
         drillLoading: false,
-        drillSessionActive: true,
+        drillSessionActive: false,
         drillQueue: [],
         drillCurrentIndex: 0,
         drillCurrentEntry: null,
@@ -2793,10 +3240,12 @@ class App extends React.Component {
         drillCompletedCount: 0,
         drillSkippedCount: 0,
         drillReviewEntries: [],
+        drillPromptStartedAt: null,
+        drillAttemptStartedAt: null,
+        drillCurrentRetryCount: 0,
       });
     }
   };
-
   advanceDrillSession = (options = {}) => {
     const { skipped = false, missed = false } = options;
     const currentEntry = this.state.drillExecutingEntry || this.state.drillCurrentEntry;
@@ -2806,11 +3255,31 @@ class App extends React.Component {
       : this.state.drillCurrentIndex + 1;
     const nextEntry = queue[nextIndex] || null;
     const followingEntry = queue[nextIndex + 1] || null;
+    const isAlgReview = this.state.drillMode === "alg-review";
 
     this.setState((currentState) => {
-      const nextReviewEntries = missed && currentEntry
+      const nextReviewEntries = (missed || skipped) && currentEntry
         ? this.addDrillReviewEntry(currentState.drillReviewEntries, currentEntry)
         : currentState.drillReviewEntries;
+      let nextAttemptRecords = currentState.algReviewAttemptRecords;
+
+      if (isAlgReview && currentEntry) {
+        const record = this.buildDrillAttemptRecord(currentEntry, {
+          skipped,
+          matched: !missed && !skipped,
+          retries: currentState.drillCurrentRetryCount || 0,
+          promptStartedAt: currentState.drillPromptStartedAt,
+          startedAt: currentState.drillAttemptStartedAt || Date.now(),
+        });
+        nextAttemptRecords = this.persistAlgReviewAttemptRecords([
+          ...(Array.isArray(currentState.algReviewAttemptRecords) ? currentState.algReviewAttemptRecords : []),
+          record,
+        ]);
+      }
+
+      if (isAlgReview && !nextEntry) {
+        this.safeRemoveLocalStorageItem("algReviewProgress");
+      }
 
       return {
         drillCurrentIndex: nextIndex,
@@ -2818,16 +3287,26 @@ class App extends React.Component {
         drillNextEntry: followingEntry,
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
+        drillProcessedMoveCount: Array.isArray(currentState.cube_moves) ? currentState.cube_moves.length : 0,
         drillCompletedCount: currentState.drillCompletedCount + (skipped ? 0 : 1),
         drillSkippedCount: currentState.drillSkippedCount + (skipped ? 1 : 0),
         drillReviewEntries: nextReviewEntries,
+        algReviewAttemptRecords: nextAttemptRecords,
+        algReviewProgress: isAlgReview && !nextEntry ? null : currentState.algReviewProgress,
         drillSessionActive: Boolean(nextEntry),
         drillStatusMessage: skipped ? "Skipped" : missed ? "Marked for review" : currentState.drillStatusMessage,
+        drillPromptStartedAt: Date.now(),
+        drillAttemptStartedAt: null,
+        drillCurrentRetryCount: 0,
+        algReviewPeekVisible: false,
       };
     });
   };
-
   endDrillSession = () => {
+    if (this.state.drillMode === "alg-review") {
+      this.safeRemoveLocalStorageItem("algReviewProgress");
+    }
+
     this.setState({
       drillSessionActive: false,
       drillQueue: [],
@@ -2837,9 +3316,13 @@ class App extends React.Component {
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
       drillStatusMessage: "",
+      drillPromptStartedAt: null,
+      drillAttemptStartedAt: null,
+      drillCurrentRetryCount: 0,
+      algReviewPeekVisible: false,
+      algReviewProgress: null,
     });
   };
-
   formatDateLine = (dateValue) => {
     const date = new Date(dateValue);
     if (Number.isNaN(date.getTime())) {
@@ -4049,7 +4532,13 @@ class App extends React.Component {
 
   persistPracticeSolves = (practiceSolves) => {
     const nextSolves = Array.isArray(practiceSolves) ? practiceSolves : [];
-    localStorage.setItem("practiceSolves", JSON.stringify(nextSolves));
+    const storageSolves = nextSolves.slice(-PRACTICE_LOCAL_STORAGE_SOLVE_LIMIT);
+    const saved = this.safeSetJsonStorage("practiceSolves", storageSolves, "practice solves");
+
+    if (!saved && storageSolves.length > 50) {
+      this.safeSetJsonStorage("practiceSolves", storageSolves.slice(-50), "recent practice solves");
+    }
+
     this.setState({ practiceSolves: nextSolves });
   };
 
@@ -4953,17 +5442,19 @@ class App extends React.Component {
     let mainView;
 
     if (this.state.activeView === "drill") {
-      const drillOptions = [
-        { value: "corner", label: "Corners" },
-        { value: "edge", label: "Edges" },
-        { value: "parity", label: "Parity" },
-        { value: "flip", label: "Flips" },
-        { value: "twist", label: "Twists" },
-      ];
+      const drillOptions = this.getDrillPieceTypeOptions();
       const selectedDrillTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
+      const reviewMode = this.state.drillMode === "alg-review";
       const activeDrillPromptEntry = this.getActiveDrillPromptEntry();
       const activeDrillPrompt = this.buildDrillPromptText(activeDrillPromptEntry);
+      const activeReviewEntry = this.state.drillExecutingEntry || activeDrillPromptEntry;
       const nextPrompt = this.buildDrillPromptText(this.state.drillNextEntry);
+      const algReviewGroups = Array.isArray(this.state.algReviewGroups) ? this.state.algReviewGroups : [];
+      const algReviewRecords = Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : [];
+      const algReviewRetries = algReviewRecords.reduce((total, record) => total + (Number(record.retries) || 0), 0);
+      const algReviewProgress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
+      const activeEditorEntry = this.state.algReviewEditorEntry;
+      const editorDraft = this.state.algReviewEditorDraft;
       mainView = (
         <section className={`drill_screen view_panel ${this.state.drillSessionActive ? "drill_screen_active" : ""}`}>
           {this.state.drillSessionActive ? (
@@ -4973,7 +5464,7 @@ class App extends React.Component {
               </button>
               <article className="drill_prompt_card drill_prompt_card_active">
                 <div className="drill_prompt_eyebrow">
-                  {this.getActiveDrillPromptLabel()}
+                  {reviewMode ? "Alg Review" : this.getActiveDrillPromptLabel()}
                 </div>
                 <div className="drill_prompt_word">
                   {activeDrillPromptEntry
@@ -4982,38 +5473,78 @@ class App extends React.Component {
                       ? "Finish"
                       : "Done"}
                 </div>
+                {reviewMode && this.state.algReviewPeekVisible && activeReviewEntry ? (
+                  <div className="drill_peek_panel">
+                    <div>{activeReviewEntry.case_code || "--"}</div>
+                    <span>{activeReviewEntry.description || "No comm notation saved"}</span>
+                    <span>{activeReviewEntry.alg || "No alg saved"}</span>
+                  </div>
+                ) : null}
                 <div className="drill_prompt_hint">
                   {this.state.drillStatusMessage || "Turn to start"}
                   {this.state.drillNextEntry ? ` | Up next: ${nextPrompt}` : ""}
                 </div>
-                <div className="drill_prompt_actions drill_prompt_actions_active">
-                  <button
-                    type="button"
-                    className="drill_action_button drill_action_button_secondary"
-                    onClick={() => this.advanceDrillSession({ skipped: true })}
-                  >
-                    Skip
-                  </button>
-                  <button
-                    type="button"
-                    className="drill_action_button drill_action_button_secondary"
-                    onClick={() => this.advanceDrillSession({ missed: true })}
-                  >
-                    Missed
-                  </button>
+                <div className={`drill_prompt_actions ${reviewMode ? "drill_prompt_actions_review" : "drill_prompt_actions_active"}`}>
+                  {reviewMode ? (
+                    <React.Fragment>
+                      <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.retryDrillEntry}>
+                        Retry
+                      </button>
+                      <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.toggleAlgReviewPeek}>
+                        Peek
+                      </button>
+                      <button
+                        type="button"
+                        className="drill_action_button drill_action_button_secondary"
+                        onClick={() => this.openAlgReviewEditor(activeReviewEntry)}
+                        disabled={!activeReviewEntry}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="drill_action_button drill_action_button_secondary"
+                        onClick={() => this.advanceDrillSession({ skipped: true })}
+                      >
+                        Skip
+                      </button>
+                      <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.pauseDrillSession}>
+                        Pause
+                      </button>
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment>
+                      <button
+                        type="button"
+                        className="drill_action_button drill_action_button_secondary"
+                        onClick={() => this.advanceDrillSession({ skipped: true })}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        className="drill_action_button drill_action_button_secondary"
+                        onClick={() => this.advanceDrillSession({ missed: true })}
+                      >
+                        Missed
+                      </button>
+                    </React.Fragment>
+                  )}
                 </div>
               </article>
               <div className="drill_fullscreen_stats">
                 <span>{this.state.drillCompletedCount} done</span>
                 <span>{this.state.drillSkippedCount} skipped</span>
-                <span>{this.state.drillReviewEntries.length} review</span>
+                <span>{reviewMode ? `${algReviewRetries} retries` : `${this.state.drillReviewEntries.length} review`}</span>
               </div>
               <div className="drill_review_strip">
                 {this.state.drillReviewEntries.length
                   ? this.state.drillReviewEntries
                       .map((entry) => `${entry.case_code}${entry.misses > 1 ? ` x${entry.misses}` : ""}`)
                       .join(", ")
-                  : "Missed algs will collect here"}
+                  : reviewMode
+                    ? "Retries and missed algs will collect here"
+                    : "Missed algs will collect here"}
               </div>
             </React.Fragment>
           ) : (
@@ -5021,72 +5552,217 @@ class App extends React.Component {
           <div className="section_header">
             <div>
               <div className="placeholder_title">Drill</div>
-              <div className="placeholder_text">Pick the sets you want, then cycle memo prompts while logging skips and misses for review.</div>
+              <div className="placeholder_text">
+                {reviewMode
+                  ? "Pick a set, then practise the algs from memo prompts with retries, peeks, edits, and saved progress."
+                  : "Pick the sets you want, then cycle memo prompts while logging skips and misses for review."}
+              </div>
             </div>
             <div className="section_meta">
-              {this.state.drillSessionActive
-                ? `${this.state.drillCompletedCount} done | ${this.state.drillSkippedCount} skipped`
+              {reviewMode
+                ? `${this.getAlgReviewGroupLabel(this.state.algReviewGroup)} ${this.state.algReviewPieceType}`
                 : `${selectedDrillTypes.length} set${selectedDrillTypes.length === 1 ? "" : "s"} selected`}
             </div>
           </div>
-          <div className="drill_filter_group">
-            <span className="drill_filter_label">Include Sets</span>
-            <div className="drill_filter_chips">
-              {drillOptions.map((option) => {
-                const active = selectedDrillTypes.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`drill_chip ${active ? "drill_chip_active" : ""}`}
-                    onClick={() => this.toggleDrillPieceType(option.value)}
+          <div className="drill_tabs drill_mode_tabs">
+            <button
+              type="button"
+              className={`drill_tab ${!reviewMode ? "drill_tab_active" : ""}`}
+              onClick={() => this.setDrillMode("memo-flow")}
+            >
+              Memo Flow
+            </button>
+            <button
+              type="button"
+              className={`drill_tab ${reviewMode ? "drill_tab_active" : ""}`}
+              onClick={() => this.setDrillMode("alg-review")}
+            >
+              Alg Review
+            </button>
+          </div>
+          {reviewMode ? (
+            <React.Fragment>
+              <div className="drill_review_setup">
+                <label className="drill_select_label">
+                  Type
+                  <select
+                    className="drill_select"
+                    value={this.state.algReviewPieceType}
+                    onChange={(event) => this.setAlgReviewPieceType(event.target.value)}
                   >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="drill_filter_group">
-            <span className="drill_filter_label">Prompt Mode</span>
-            <div className="drill_mode_toggle">
-              <button
-                type="button"
-                className={`drill_chip ${this.state.drillDisplayMode === "current" ? "drill_chip_active" : ""}`}
-                onClick={() => this.setState({ drillDisplayMode: "current" })}
-              >
-                Current
-              </button>
-              <button
-                type="button"
-                className={`drill_chip ${this.state.drillDisplayMode === "next" ? "drill_chip_active" : ""}`}
-                onClick={() => this.setState({ drillDisplayMode: "next" })}
-              >
-                Think Ahead
-              </button>
-            </div>
-          </div>
-            <div className="drill_card_list">
-              <article className="drill_card">
-                <div>
-                  <div className="drill_card_title">Memo Flow Drill</div>
-                  <div className="drill_card_text">
-                    Starts with a memo word, then lets you advance to the next prompt the moment you begin the alg. Skips and misses are tracked separately.
+                    {drillOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="drill_select_label">
+                  Subset
+                  <select
+                    className="drill_select"
+                    value={this.state.algReviewGroup}
+                    onFocus={() => this.loadAlgReviewOptions().catch((error) => console.warn("Failed to load alg review groups", error))}
+                    onChange={(event) => this.setState({ algReviewGroup: event.target.value })}
+                  >
+                    <option value="all">All</option>
+                    {algReviewGroups.map((group) => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="drill_action_button drill_action_button_secondary"
+                  onClick={() => this.loadAlgReviewOptions()}
+                  disabled={this.state.drillLoading}
+                >
+                  Load Sets
+                </button>
+              </div>
+              <div className="drill_card_list">
+                <article className="drill_card drill_review_card">
+                  <div>
+                    <div className="drill_card_title">Alg Review</div>
+                    <div className="drill_card_text">
+                      Random memo prompts from {this.getAlgReviewGroupLabel(this.state.algReviewGroup)}. Retry keeps the same prompt without asking you to solve the cube first.
+                    </div>
+                    <div className="drill_review_mini_stats">
+                      <span>{algReviewRecords.length} attempts saved</span>
+                      <span>{algReviewRetries} retries</span>
+                    </div>
                   </div>
+                  <div className="drill_card_side">
+                    <div className="drill_badge">{this.state.algReviewPieceType}</div>
+                    <button type="button" className="drill_action_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
+                      {this.state.drillLoading ? "Loading..." : "Start Review"}
+                    </button>
+                    {algReviewProgress ? (
+                      <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.resumeAlgReviewProgress}>
+                        Resume
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              </div>
+              <div className="drill_review_strip drill_review_recent">
+                {algReviewRecords.length
+                  ? algReviewRecords
+                      .slice(-4)
+                      .reverse()
+                      .map((record) => `${record.caseCode || "--"}: ${this.formatDrillSeconds(record.recogTime)} / ${this.formatDrillSeconds(record.execTime)}${record.retries ? `, r${record.retries}` : ""}`)
+                      .join(" | ")
+                  : "Review timings will appear here"}
+              </div>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <div className="drill_filter_group">
+                <span className="drill_filter_label">Include Sets</span>
+                <div className="drill_filter_chips">
+                  {drillOptions.map((option) => {
+                    const active = selectedDrillTypes.includes(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`drill_chip ${active ? "drill_chip_active" : ""}`}
+                        onClick={() => this.toggleDrillPieceType(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="drill_card_side">
-                  <div className="drill_badge">{selectedDrillTypes.join(", ") || "None"}</div>
-                  <button type="button" className="drill_action_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
-                    {this.state.drillLoading ? "Loading..." : "Start Drill"}
+              </div>
+              <div className="drill_filter_group">
+                <span className="drill_filter_label">Prompt Mode</span>
+                <div className="drill_mode_toggle">
+                  <button
+                    type="button"
+                    className={`drill_chip ${this.state.drillDisplayMode === "current" ? "drill_chip_active" : ""}`}
+                    onClick={() => this.setState({ drillDisplayMode: "current" })}
+                  >
+                    Current
+                  </button>
+                  <button
+                    type="button"
+                    className={`drill_chip ${this.state.drillDisplayMode === "next" ? "drill_chip_active" : ""}`}
+                    onClick={() => this.setState({ drillDisplayMode: "next" })}
+                  >
+                    Think Ahead
                   </button>
                 </div>
-              </article>
-            </div>
+              </div>
+              <div className="drill_card_list">
+                <article className="drill_card">
+                  <div>
+                    <div className="drill_card_title">Memo Flow Drill</div>
+                    <div className="drill_card_text">
+                      Starts with a memo word, then lets you advance to the next prompt the moment you begin the alg. Skips and misses are tracked separately.
+                    </div>
+                  </div>
+                  <div className="drill_card_side">
+                    <div className="drill_badge">{selectedDrillTypes.join(", ") || "None"}</div>
+                    <button type="button" className="drill_action_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
+                      {this.state.drillLoading ? "Loading..." : "Start Drill"}
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </React.Fragment>
+          )}
           </React.Fragment>
           )}
+          {editorDraft && activeEditorEntry ? (
+            <div className="alg_review_editor_overlay">
+              <div className="alg_review_editor_card">
+                <div className="drill_card_title">Edit {activeEditorEntry.case_code}</div>
+                <div className="solve_comm_editor_pair">
+                  <input
+                    type="text"
+                    className="settings_input alg_library_inline_input"
+                    placeholder="Category"
+                    value={editorDraft.category || ""}
+                    onChange={(event) => this.updateAlgReviewEditorDraftField("category", event.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="settings_input alg_library_inline_input"
+                    placeholder="Memo"
+                    value={editorDraft.memoWord || ""}
+                    onChange={(event) => this.updateAlgReviewEditorDraftField("memoWord", event.target.value)}
+                  />
+                </div>
+                <textarea
+                  className="settings_textarea alg_library_inline_textarea"
+                  placeholder="Description"
+                  value={editorDraft.description || ""}
+                  onChange={(event) => this.updateAlgReviewEditorDraftField("description", event.target.value)}
+                />
+                <textarea
+                  className="settings_textarea alg_library_inline_textarea"
+                  placeholder="Alg"
+                  value={editorDraft.alg || ""}
+                  onChange={(event) => this.updateAlgReviewEditorDraftField("alg", event.target.value)}
+                />
+                <textarea
+                  className="settings_textarea alg_library_inline_textarea"
+                  placeholder="Notes"
+                  value={editorDraft.notes || ""}
+                  onChange={(event) => this.updateAlgReviewEditorDraftField("notes", event.target.value)}
+                />
+                <div className="alg_review_editor_actions">
+                  <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.closeAlgReviewEditor}>
+                    Cancel
+                  </button>
+                  <button type="button" className="drill_action_button" onClick={this.saveAlgReviewEditor} disabled={this.state.algReviewEditorSaving}>
+                    {this.state.algReviewEditorSaving ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
-      );
-    } else if (this.state.activeView === "study") {
+      );    } else if (this.state.activeView === "study") {
       mainView = (
         <section className="study_screen view_panel">
           <div className="section_header">
