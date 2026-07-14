@@ -2932,7 +2932,7 @@ class App extends React.Component {
 
     try {
       const normalized = normalizeForOrientation("", moveTokens.join(" "), this.getAlgReviewOrientation());
-      const useSmartCubeSlicePairs = options.display || options.useSmartCubeSlicePairs;
+      const useSmartCubeSlicePairs = this.shouldUseAlgReviewSlicePairs(options);
       const key = useSmartCubeSlicePairs ? "solveTokens" : "commSolveTokens";
       return (normalized[key] || normalized.solveTokens || normalized.commSolveTokens || moveTokens)
         .map((move) => this.normalizeAlgReviewMoveToken(move))
@@ -2943,8 +2943,30 @@ class App extends React.Component {
     }
   };
 
-  formatAlgReviewCurrentMoves = (moves = []) => {
-    const orientedMoves = this.getAlgReviewOrientedMoves(moves, { display: true });
+  getAlgReviewTargetMoves = (moves = []) => {
+    const moveTokens = Array.isArray(moves)
+      ? moves.map((move) => String(move || "").trim()).filter(Boolean)
+      : this.splitAlgReviewMoves(moves);
+    return moveTokens.map((move) => this.normalizeAlgReviewMoveToken(move)).filter(Boolean);
+  };
+
+  getAlgReviewPieceType = (options = {}) => {
+    const entry = options.entry || null;
+    return String(options.pieceType || (entry && entry.piece_type) || "").toLowerCase();
+  };
+
+  shouldUseAlgReviewSlicePairs = (options = {}) => {
+    if (this.getAlgReviewPieceType(options) === "corner") {
+      return false;
+    }
+    if (Object.prototype.hasOwnProperty.call(options, "useSmartCubeSlicePairs")) {
+      return Boolean(options.useSmartCubeSlicePairs);
+    }
+    return Boolean(options.display);
+  };
+
+  formatAlgReviewCurrentMoves = (moves = [], options = {}) => {
+    const orientedMoves = this.getAlgReviewOrientedMoves(moves, { ...options, display: true });
     const compactedMoves = this.compactRepeatedTurns(orientedMoves.join(" "), { convertSlices: "preserve" });
     return this.splitAlgReviewMoves(compactedMoves);
   };
@@ -3020,8 +3042,7 @@ class App extends React.Component {
       return [];
     }
 
-    const orientation = this.getAlgReviewOrientation();
-    const cacheKey = `${this.getAlgReviewEntryKey(entry)}:${orientation}:${targetCandidates.join("||")}`;
+    const cacheKey = `${this.getAlgReviewEntryKey(entry)}:${targetCandidates.join("||")}`;
     if (this.algReviewTargetSignatureCache.has(cacheKey)) {
       return this.algReviewTargetSignatureCache.get(cacheKey);
     }
@@ -3031,7 +3052,7 @@ class App extends React.Component {
     for (const targetAlg of targetCandidates) {
       try {
         const cube = new KPuzzle(ALG_REVIEW_CUBE_DEFINITION);
-        this.getAlgReviewOrientedMoves(targetAlg).forEach((move) => this.applyAlgReviewMove(cube, move));
+        this.getAlgReviewTargetMoves(targetAlg).forEach((move) => this.applyAlgReviewMove(cube, move));
         const signature = this.getAlgReviewStateSignature(cube.state);
         if (signature && !targetSignatures.includes(signature)) {
           targetSignatures.push(signature);
@@ -3053,7 +3074,7 @@ class App extends React.Component {
     return signatures[0] || null;
   };
 
-  applyAlgReviewAttemptMoves = (moves = [], targetSignature = null) => {
+  applyAlgReviewAttemptMoves = (moves = [], targetSignature = null, options = {}) => {
     this.resetAlgReviewAttemptCube({ clearMoves: false });
 
     try {
@@ -3065,7 +3086,10 @@ class App extends React.Component {
           : targetSignature
             ? new Set([targetSignature])
             : null;
-      const orientedMoves = this.getAlgReviewOrientedMoves(moves, { useSmartCubeSlicePairs: true });
+      const orientedMoves = this.getAlgReviewOrientedMoves(moves, {
+        ...options,
+        useSmartCubeSlicePairs: true,
+      });
       for (const move of orientedMoves) {
         this.applyAlgReviewMove(this.algReviewAttemptCube, move);
         attemptSignature = this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
@@ -3089,7 +3113,7 @@ class App extends React.Component {
       return false;
     }
 
-    const attemptResult = this.applyAlgReviewAttemptMoves(moves, targetSignatures);
+    const attemptResult = this.applyAlgReviewAttemptMoves(moves, targetSignatures, { entry });
     return Boolean(attemptResult && attemptResult.matched);
   };
 
@@ -3405,7 +3429,7 @@ class App extends React.Component {
 
       const rawAttemptMoves = [...(Array.isArray(this.algReviewAttemptMoves) ? this.algReviewAttemptMoves : []), ...newMoves];
       this.algReviewAttemptMoves = rawAttemptMoves;
-      const currentMoves = this.formatAlgReviewCurrentMoves(rawAttemptMoves);
+      const currentMoves = this.formatAlgReviewCurrentMoves(rawAttemptMoves, { entry: executingEntry });
       const matched = this.algReviewAttemptMatchesEntry(executingEntry, rawAttemptMoves);
       const promptStartedAt = this.state.drillPromptStartedAt || attemptStartedAt || Date.now();
       const nextState = {

@@ -572,13 +572,22 @@ describe("solve details view data", () => {
 
     expect(app.state.drillCurrentMoves).toEqual([]);
   });
-  it("orients Alg Review target and attempt moves with the selected cube orientation", () => {
+  it("keeps Alg Review targets canonical while orienting live attempts", () => {
     normalizeForOrientation.mockImplementation((_scramble, solve, orientation) => {
       const tokens = String(solve || "")
         .trim()
         .split(/\s+/)
         .filter(Boolean);
-      const orientationMap = { R: "L", U: "D", "R'": "L'", "U'": "D'" };
+      const orientationMap = {
+        R: "L",
+        L: "R",
+        U: "D",
+        D: "U",
+        "R'": "L'",
+        "L'": "R'",
+        "U'": "D'",
+        "D'": "U'",
+      };
       const orientedTokens = orientation === "yellow-green" ? tokens.map((move) => orientationMap[move] || move) : tokens;
       return { commSolveTokens: orientedTokens, solveTokens: orientedTokens, useSmartCubeSlicePairs: false, rotationPrefix: "z2" };
     });
@@ -596,13 +605,14 @@ describe("solve details view data", () => {
 
     app.getAlgReviewTargetSignature({ id: "edge-ab", description: "R U", piece_type: "edge" });
 
-    expect(appliedMoves).toEqual(["L", "D"]);
-    expect(normalizeForOrientation).toHaveBeenCalledWith("", "R U", "yellow-green");
+    expect(appliedMoves).toEqual(["R", "U"]);
+    expect(normalizeForOrientation).not.toHaveBeenCalled();
 
     appliedMoves.length = 0;
-    app.applyAlgReviewAttemptMoves(["R", "U"]);
+    app.applyAlgReviewAttemptMoves(["L", "D"]);
 
-    expect(appliedMoves).toEqual(["L", "D"]);
+    expect(appliedMoves).toEqual(["R", "U"]);
+    expect(normalizeForOrientation).toHaveBeenCalledWith("", "L D", "yellow-green");
   });
 
   it("checks Alg Review completion after each hidden move, not only after the batch", () => {
@@ -620,6 +630,9 @@ describe("solve details view data", () => {
 
   it("uses smart-cube slice annotations for Alg Review attempts and display moves", () => {
     normalizeForOrientation.mockImplementation((_scramble, solve) => {
+      if (solve === "L' R") {
+        return { commSolveTokens: ["L'", "R"], solveTokens: ["M"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
+      }
       if (solve === "L' R r") {
         return { commSolveTokens: ["L'", "R", "r"], solveTokens: ["M", "r"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
       }
@@ -641,10 +654,17 @@ describe("solve details view data", () => {
     expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"], { display: true })).toEqual(["M", "Rw"]);
     expect(app.formatAlgReviewCurrentMoves(["L'", "R", "r"])).toEqual(["M", "Rw"]);
     expect(app.formatAlgReviewCurrentMoves(["R", "R", "U", "U'"])).toEqual(["R2"]);
+    expect(app.getAlgReviewOrientedMoves(["L'", "R"], { display: true, pieceType: "corner" })).toEqual(["L'", "R"]);
+    expect(app.formatAlgReviewCurrentMoves(["L'", "R"], { pieceType: "corner" })).toEqual(["L'", "R"]);
 
     app.applyAlgReviewAttemptMoves(["L'", "R", "r"]);
 
     expect(appliedMoves).toEqual(["M", "Rw"]);
+
+    appliedMoves.length = 0;
+    app.applyAlgReviewAttemptMoves(["L'", "R"], null, { pieceType: "corner" });
+
+    expect(appliedMoves).toEqual(["L'", "R"]);
   });
 
   it("recognizes smart-cube slice pairs across Alg Review move-stream updates", () => {
