@@ -62,6 +62,7 @@ class App extends React.Component {
     this.algReviewTargetSignatureCache = new Map();
     this.algReviewAttemptCube = null;
     this.algReviewAttemptMoves = [];
+    this.drillProcessedMoveCount = 0;
     this.solveRecommendationRequestId = 0;
     this.state = {
       activeView: "solve",
@@ -1752,9 +1753,11 @@ class App extends React.Component {
   };
 
   compactRepeatedTurns = (algText, { convertSlices = true } = {}) => {
-    const displayText = convertSlices
-      ? this.convertSmartCubeSlicesForDisplay(algText)
-      : this.expandSliceMovesForDisplay(algText);
+    const displayText = convertSlices === "preserve"
+      ? this.normalizeDisplayAlgText(algText)
+      : convertSlices
+        ? this.convertSmartCubeSlicesForDisplay(algText)
+        : this.expandSliceMovesForDisplay(algText);
     if (!displayText) {
       return "";
     }
@@ -2759,10 +2762,12 @@ class App extends React.Component {
       this.saveAlgReviewProgress({ pausedAt: new Date().toISOString() });
       this.resetAlgReviewAttemptCube();
     }
+    const processedMoveCount = this.setDrillProcessedMoveCursor();
     this.setState({
       drillSessionActive: false,
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
+      drillProcessedMoveCount: processedMoveCount,
       drillStatusMessage: "Paused",
       drillCurrentMoves: [],
       algReviewPeekVisible: false,
@@ -2775,6 +2780,7 @@ class App extends React.Component {
       return;
     }
 
+    const processedMoveCount = this.setDrillProcessedMoveCursor();
     this.setState({
       drillMode: "alg-review",
       algReviewPieceType: progress.pieceType || "edge",
@@ -2786,7 +2792,7 @@ class App extends React.Component {
       drillNextEntry: progress.nextEntry || null,
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
-      drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
+      drillProcessedMoveCount: processedMoveCount,
       drillStatusMessage: "Resumed",
       drillCompletedCount: Number(progress.completedCount) || 0,
       drillSkippedCount: Number(progress.skippedCount) || 0,
@@ -2895,6 +2901,27 @@ class App extends React.Component {
   getAlgReviewOrientation = () =>
     (this.state.parse_settings && this.state.parse_settings.CUBE_OREINTATION) || "yellow-green";
 
+  getCubeMoveCount = (cubeMoves = this.state.cube_moves) =>
+    Array.isArray(cubeMoves) ? cubeMoves.length : 0;
+
+  setDrillProcessedMoveCursor = (cubeMovesOrCount = this.state.cube_moves) => {
+    const moveCount = Array.isArray(cubeMovesOrCount)
+      ? cubeMovesOrCount.length
+      : Number(cubeMovesOrCount);
+    const normalizedCount = Number.isFinite(moveCount) && moveCount > 0 ? moveCount : 0;
+    this.drillProcessedMoveCount = normalizedCount;
+    return normalizedCount;
+  };
+
+  getDrillProcessedMoveCursor = (cubeMoves = []) => {
+    const stateCount = Number(this.state.drillProcessedMoveCount) || 0;
+    const cursorCount = Number.isFinite(this.drillProcessedMoveCount)
+      ? this.drillProcessedMoveCount
+      : stateCount;
+    const moveCount = this.getCubeMoveCount(cubeMoves);
+    return cursorCount > moveCount ? 0 : cursorCount;
+  };
+
   getAlgReviewOrientedMoves = (moves = [], options = {}) => {
     const moveTokens = Array.isArray(moves)
       ? moves.map((move) => String(move || "").trim()).filter(Boolean)
@@ -2914,6 +2941,12 @@ class App extends React.Component {
       console.warn("Failed to orient Alg Review moves", error);
       return moveTokens.map((move) => this.normalizeAlgReviewMoveToken(move)).filter(Boolean);
     }
+  };
+
+  formatAlgReviewCurrentMoves = (moves = []) => {
+    const orientedMoves = this.getAlgReviewOrientedMoves(moves, { display: true });
+    const compactedMoves = this.compactRepeatedTurns(orientedMoves.join(" "), { convertSlices: "preserve" });
+    return this.splitAlgReviewMoves(compactedMoves);
   };
 
   applyAlgReviewMove = (cube, move) => {
@@ -2981,10 +3014,10 @@ class App extends React.Component {
     return candidates[0] || "";
   };
 
-  getAlgReviewTargetSignature = (entry) => {
+  getAlgReviewTargetSignatures = (entry) => {
     const targetCandidates = this.getAlgReviewTargetAlgCandidates(entry);
     if (!entry || !targetCandidates.length) {
-      return null;
+      return [];
     }
 
     const orientation = this.getAlgReviewOrientation();
@@ -2994,21 +3027,30 @@ class App extends React.Component {
     }
 
     let lastError = null;
+    const targetSignatures = [];
     for (const targetAlg of targetCandidates) {
       try {
         const cube = new KPuzzle(ALG_REVIEW_CUBE_DEFINITION);
         this.getAlgReviewOrientedMoves(targetAlg).forEach((move) => this.applyAlgReviewMove(cube, move));
         const signature = this.getAlgReviewStateSignature(cube.state);
-        this.algReviewTargetSignatureCache.set(cacheKey, signature);
-        return signature;
+        if (signature && !targetSignatures.includes(signature)) {
+          targetSignatures.push(signature);
+        }
       } catch (error) {
         lastError = error;
       }
     }
 
-    console.warn("Failed to build Alg Review target state", lastError, entry);
-    this.algReviewTargetSignatureCache.set(cacheKey, null);
-    return null;
+    if (!targetSignatures.length) {
+      console.warn("Failed to build Alg Review target state", lastError, entry);
+    }
+    this.algReviewTargetSignatureCache.set(cacheKey, targetSignatures);
+    return targetSignatures;
+  };
+
+  getAlgReviewTargetSignature = (entry) => {
+    const signatures = this.getAlgReviewTargetSignatures(entry);
+    return signatures[0] || null;
   };
 
   applyAlgReviewAttemptMoves = (moves = [], targetSignature = null) => {
@@ -3016,15 +3058,22 @@ class App extends React.Component {
 
     try {
       let attemptSignature = this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
+      const targetSignatures = Array.isArray(targetSignature)
+        ? new Set(targetSignature)
+        : targetSignature instanceof Set
+          ? targetSignature
+          : targetSignature
+            ? new Set([targetSignature])
+            : null;
       const orientedMoves = this.getAlgReviewOrientedMoves(moves, { useSmartCubeSlicePairs: true });
       for (const move of orientedMoves) {
         this.applyAlgReviewMove(this.algReviewAttemptCube, move);
         attemptSignature = this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
-        if (targetSignature && attemptSignature === targetSignature) {
+        if (targetSignatures && targetSignatures.has(attemptSignature)) {
           return { signature: attemptSignature, matched: true };
         }
       }
-      return targetSignature
+      return targetSignatures
         ? { signature: attemptSignature, matched: false }
         : attemptSignature;
     } catch (error) {
@@ -3035,12 +3084,12 @@ class App extends React.Component {
   };
 
   algReviewAttemptMatchesEntry = (entry, moves = []) => {
-    const targetSignature = this.getAlgReviewTargetSignature(entry);
-    if (!targetSignature) {
+    const targetSignatures = this.getAlgReviewTargetSignatures(entry);
+    if (!targetSignatures.length) {
       return false;
     }
 
-    const attemptResult = this.applyAlgReviewAttemptMoves(moves, targetSignature);
+    const attemptResult = this.applyAlgReviewAttemptMoves(moves, targetSignatures);
     return Boolean(attemptResult && attemptResult.matched);
   };
 
@@ -3095,13 +3144,14 @@ class App extends React.Component {
     if (isAlgReview) {
       this.resetAlgReviewAttemptCube();
     }
+    const processedMoveCount = this.setDrillProcessedMoveCursor();
     this.setState((currentState) => ({
       drillCurrentIndex: currentIndex,
       drillCurrentEntry: retryEntry,
       drillNextEntry: queue[currentIndex + 1] || null,
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
-      drillProcessedMoveCount: Array.isArray(currentState.cube_moves) ? currentState.cube_moves.length : 0,
+      drillProcessedMoveCount: processedMoveCount,
       drillCurrentRetryCount: (currentState.drillCurrentRetryCount || 0) + 1,
       drillStatusMessage: `Retry ${retryPrompt}`,
       algReviewPeekVisible: false,
@@ -3330,10 +3380,11 @@ class App extends React.Component {
       return;
     }
 
-    const previousMoveCount = this.state.drillProcessedMoveCount || 0;
+    const previousMoveCount = this.getDrillProcessedMoveCursor(cubeMoves);
     if (cubeMoves.length <= previousMoveCount) {
       return;
     }
+    const processedMoveCount = this.setDrillProcessedMoveCursor(cubeMoves.length);
 
     const isAlgReview = this.state.drillMode === "alg-review";
     const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
@@ -3342,7 +3393,7 @@ class App extends React.Component {
     if (isAlgReview) {
       let executingEntry = this.state.drillExecutingEntry || this.state.drillCurrentEntry;
       if (!executingEntry) {
-        this.setState({ drillProcessedMoveCount: cubeMoves.length });
+        this.setState({ drillProcessedMoveCount: processedMoveCount });
         return;
       }
 
@@ -3354,11 +3405,11 @@ class App extends React.Component {
 
       const rawAttemptMoves = [...(Array.isArray(this.algReviewAttemptMoves) ? this.algReviewAttemptMoves : []), ...newMoves];
       this.algReviewAttemptMoves = rawAttemptMoves;
-      const currentMoves = this.getAlgReviewOrientedMoves(rawAttemptMoves, { display: true });
+      const currentMoves = this.formatAlgReviewCurrentMoves(rawAttemptMoves);
       const matched = this.algReviewAttemptMatchesEntry(executingEntry, rawAttemptMoves);
       const promptStartedAt = this.state.drillPromptStartedAt || attemptStartedAt || Date.now();
       const nextState = {
-        drillProcessedMoveCount: cubeMoves.length,
+        drillProcessedMoveCount: processedMoveCount,
         drillExecutingEntry: executingEntry,
         drillExecutionStartIndex: Number.isFinite(this.state.drillExecutionStartIndex)
           ? this.state.drillExecutionStartIndex
@@ -3417,7 +3468,7 @@ class App extends React.Component {
     let currentEntry = this.state.drillCurrentEntry;
     let nextEntry = this.state.drillNextEntry;
     const nextState = {
-      drillProcessedMoveCount: cubeMoves.length,
+      drillProcessedMoveCount: processedMoveCount,
     };
 
     if (!executingEntry && currentEntry) {
@@ -3478,6 +3529,7 @@ class App extends React.Component {
         this.safeRemoveLocalStorageItem("algReviewProgress");
       }
 
+      const processedMoveCount = this.setDrillProcessedMoveCursor();
       this.setState({
         drillLoading: false,
         drillSessionActive: Boolean(queue.length),
@@ -3487,7 +3539,7 @@ class App extends React.Component {
         drillNextEntry: queue[1] || null,
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
-        drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
+        drillProcessedMoveCount: processedMoveCount,
         drillStatusMessage: queue.length ? "Ready" : "No algs found for this set",
         drillCompletedCount: 0,
         drillSkippedCount: 0,
@@ -3500,6 +3552,7 @@ class App extends React.Component {
       });
     } catch (error) {
       console.warn("Failed to start drill session", error);
+      const processedMoveCount = this.setDrillProcessedMoveCursor();
       this.setState({
         drillLoading: false,
         drillSessionActive: false,
@@ -3509,7 +3562,7 @@ class App extends React.Component {
         drillNextEntry: null,
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
-        drillProcessedMoveCount: Array.isArray(this.state.cube_moves) ? this.state.cube_moves.length : 0,
+        drillProcessedMoveCount: processedMoveCount,
         drillStatusMessage: "Could not load drill algs",
         drillCompletedCount: 0,
         drillSkippedCount: 0,
@@ -3530,6 +3583,7 @@ class App extends React.Component {
       : this.state.drillCurrentIndex + 1;
     const nextEntry = queue[nextIndex] || null;
     const followingEntry = queue[nextIndex + 1] || null;
+    const processedMoveCount = this.setDrillProcessedMoveCursor();
 
     this.setState((currentState) => {
       const nextReviewEntries = (missed || skipped) && currentEntry
@@ -3564,7 +3618,7 @@ class App extends React.Component {
         drillNextEntry: followingEntry,
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
-        drillProcessedMoveCount: Array.isArray(currentState.cube_moves) ? currentState.cube_moves.length : 0,
+        drillProcessedMoveCount: processedMoveCount,
         drillCompletedCount: currentState.drillCompletedCount + (skipped ? 0 : 1),
         drillSkippedCount: currentState.drillSkippedCount + (skipped ? 1 : 0),
         drillReviewEntries: nextReviewEntries,
@@ -3586,6 +3640,7 @@ class App extends React.Component {
       this.resetAlgReviewAttemptCube();
     }
 
+    const processedMoveCount = this.setDrillProcessedMoveCursor();
     this.setState({
       drillSessionActive: false,
       drillQueue: [],
@@ -3594,6 +3649,7 @@ class App extends React.Component {
       drillNextEntry: null,
       drillExecutingEntry: null,
       drillExecutionStartIndex: null,
+      drillProcessedMoveCount: processedMoveCount,
       drillStatusMessage: "",
       drillCurrentMoves: [],
       drillPromptStartedAt: null,
