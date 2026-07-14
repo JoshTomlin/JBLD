@@ -744,6 +744,7 @@ describe("solve details view data", () => {
       drillSkippedCount: 0,
       drillReviewEntries: [],
       algReviewAttemptRecords: [],
+      algReviewPeekVisible: true,
       cube_moves: [],
     };
 
@@ -752,6 +753,7 @@ describe("solve details view data", () => {
     expect(app.state.drillCurrentEntry).toBe(entry);
     expect(app.state.drillExecutingEntry).toBe(entry);
     expect(app.state.drillCurrentMoves).toEqual(["L'"]);
+    expect(app.state.algReviewPeekVisible).toBe(true);
 
     app.handleDrillMoveStream(["L'", "R"]);
 
@@ -761,6 +763,8 @@ describe("solve details view data", () => {
     expect(app.state.drillExecutingEntry).toBeNull();
     expect(app.state.drillCompletedCount).toBe(1);
     expect(app.state.drillCurrentMoves).toEqual([]);
+    expect(app.state.drillLastCommEntry).toBe(entry);
+    expect(app.state.algReviewPeekVisible).toBe(false);
   });
 
   it("does not replay old Alg Review moves when React state has not caught up", () => {
@@ -792,6 +796,7 @@ describe("solve details view data", () => {
       drillNextEntry: null,
       drillExecutingEntry: null,
       drillProcessedMoveCount: 0,
+      algReviewPeekVisible: true,
       cube_moves: [],
     };
 
@@ -801,6 +806,7 @@ describe("solve details view data", () => {
     expect(app.algReviewAttemptMatchesEntry).toHaveBeenLastCalledWith(entry, ["R", "U"]);
     expect(app.algReviewAttemptMoves).toEqual(["R", "U"]);
     expect(app.state.drillCurrentMoves).toEqual(["R", "U"]);
+    expect(app.state.algReviewPeekVisible).toBe(true);
   });
 
   it("falls back to the saved alg when Alg Review description is not executable notation", () => {
@@ -859,6 +865,7 @@ describe("solve details view data", () => {
     expect(app.state.drillExecutingEntry).toBeNull();
     expect(app.state.drillSkippedCount).toBe(1);
     expect(app.state.drillCurrentMoves).toEqual([]);
+    expect(app.state.drillLastCommEntry).toBe(entry);
   });
 });
 

@@ -151,6 +151,7 @@ class App extends React.Component {
       drillSkippedCount: 0,
       drillReviewEntries: [],
       drillCurrentMoves: [],
+      drillLastCommEntry: null,
       drillPromptStartedAt: null,
       drillAttemptStartedAt: null,
       drillCurrentRetryCount: 0,
@@ -2775,6 +2776,7 @@ class App extends React.Component {
       completedCount: this.state.drillCompletedCount,
       skippedCount: this.state.drillSkippedCount,
       reviewEntries: this.state.drillReviewEntries,
+      lastCommEntry: this.state.drillLastCommEntry,
       attemptRecords: this.state.algReviewAttemptRecords,
       ...extra,
     };
@@ -2825,6 +2827,7 @@ class App extends React.Component {
       drillReviewEntries: Array.isArray(progress.reviewEntries) ? progress.reviewEntries : [],
       algReviewAttemptRecords: Array.isArray(progress.attemptRecords) ? progress.attemptRecords : this.state.algReviewAttemptRecords,
       drillCurrentMoves: [],
+      drillLastCommEntry: progress.lastCommEntry || null,
       algReviewPeekVisible: false,
       drillPromptStartedAt: Date.now(),
       drillAttemptStartedAt: null,
@@ -3528,7 +3531,6 @@ class App extends React.Component {
           : previousMoveCount + 1,
         drillAttemptStartedAt: attemptStartedAt,
         drillCurrentMoves: currentMoves,
-        algReviewPeekVisible: false,
         drillStatusMessage: `Executing ${this.buildAlgReviewPromptText(executingEntry)}`,
       };
 
@@ -3556,11 +3558,13 @@ class App extends React.Component {
           drillAttemptStartedAt: null,
           drillCurrentRetryCount: 0,
           drillCurrentMoves: [],
+          drillLastCommEntry: executingEntry,
           drillCompletedCount: this.state.drillCompletedCount + 1,
           algReviewAttemptRecords: nextAttemptRecords,
           drillStatusMessage: nextEntry ? `Finished ${this.buildAlgReviewPromptText(executingEntry)}` : "Done",
           drillSessionActive: Boolean(nextEntry),
           drillPromptStartedAt: Date.now(),
+          algReviewPeekVisible: false,
         });
         this.resetAlgReviewAttemptCube();
 
@@ -3630,7 +3634,7 @@ class App extends React.Component {
     if (this.state.drillMode === "alg-review") {
       this.resetAlgReviewAttemptCube();
     }
-    this.setState({ drillLoading: true, algReviewPeekVisible: false, drillCurrentMoves: [] });
+    this.setState({ drillLoading: true, algReviewPeekVisible: false, drillCurrentMoves: [], drillLastCommEntry: null });
 
     try {
       const filteredEntries = await this.getFilteredDrillEntries();
@@ -3659,6 +3663,7 @@ class App extends React.Component {
         drillPromptStartedAt: now,
         drillAttemptStartedAt: null,
         drillCurrentRetryCount: 0,
+        drillLastCommEntry: null,
         algReviewAttemptRecords: this.state.drillMode === "alg-review" ? [] : this.state.algReviewAttemptRecords,
         algReviewProgress: this.state.drillMode === "alg-review" ? null : this.state.algReviewProgress,
       });
@@ -3682,6 +3687,7 @@ class App extends React.Component {
         drillPromptStartedAt: null,
         drillAttemptStartedAt: null,
         drillCurrentRetryCount: 0,
+        drillLastCommEntry: null,
       });
     }
   };
@@ -3735,6 +3741,7 @@ class App extends React.Component {
         drillSkippedCount: currentState.drillSkippedCount + (skipped ? 1 : 0),
         drillReviewEntries: nextReviewEntries,
         drillCurrentMoves: [],
+        drillLastCommEntry: isAlgReview && currentEntry ? currentEntry : currentState.drillLastCommEntry,
         algReviewAttemptRecords: nextAttemptRecords,
         algReviewProgress: isAlgReview && !nextEntry ? null : currentState.algReviewProgress,
         drillSessionActive: Boolean(nextEntry),
@@ -3764,6 +3771,7 @@ class App extends React.Component {
       drillProcessedMoveCount: processedMoveCount,
       drillStatusMessage: "",
       drillCurrentMoves: [],
+      drillLastCommEntry: null,
       drillPromptStartedAt: null,
       drillAttemptStartedAt: null,
       drillCurrentRetryCount: 0,
@@ -5904,6 +5912,7 @@ class App extends React.Component {
       const algReviewRecords = Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : [];
       const algReviewRetries = algReviewRecords.reduce((total, record) => total + (Number(record.retries) || 0), 0);
       const algReviewProgress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
+      const lastReviewEntry = reviewMode ? this.state.drillLastCommEntry : null;
       const activeEditorEntry = this.state.algReviewEditorEntry;
       const editorDraft = this.state.algReviewEditorDraft;
       mainView = (
@@ -5988,15 +5997,45 @@ class App extends React.Component {
                 <span>{this.state.drillSkippedCount} skipped</span>
                 <span>{reviewMode ? `${algReviewRetries} retries` : `${this.state.drillReviewEntries.length} review`}</span>
               </div>
-              <div className="drill_review_strip">
-                {this.state.drillReviewEntries.length
-                  ? this.state.drillReviewEntries
-                      .map((entry) => `${entry.case_code}${entry.misses > 1 ? ` x${entry.misses}` : ""}`)
-                      .join(", ")
-                  : reviewMode
-                    ? "Retries and missed algs will collect here"
+              {reviewMode ? (
+                <div className={`drill_last_comm_panel ${lastReviewEntry ? "" : "drill_last_comm_panel_empty"}`}>
+                  {lastReviewEntry ? (
+                    <React.Fragment>
+                      <div className="drill_last_comm_grid">
+                        <span>Name</span>
+                        <strong>{lastReviewEntry.case_code || "--"}</strong>
+                        <span>Memo</span>
+                        <strong>{lastReviewEntry.memo_word || "--"}</strong>
+                        <span>Comm</span>
+                        <strong>{lastReviewEntry.description || "No comm notation saved"}</strong>
+                        <span>Alg</span>
+                        <strong>{lastReviewEntry.alg || "No alg saved"}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        className="drill_last_comm_edit"
+                        aria-label="Edit last comm"
+                        onClick={() => this.openAlgReviewEditor(lastReviewEntry)}
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </button>
+                    </React.Fragment>
+                  ) : (
+                    <span>Last comm details will appear here</span>
+                  )}
+                </div>
+              ) : (
+                <div className="drill_review_strip">
+                  {this.state.drillReviewEntries.length
+                    ? this.state.drillReviewEntries
+                        .map((entry) => `${entry.case_code}${entry.misses > 1 ? ` x${entry.misses}` : ""}`)
+                        .join(", ")
                     : "Missed algs will collect here"}
-              </div>
+                </div>
+              )}
               {reviewMode ? (
                 <div className="drill_current_moves_bar">
                   <span>Current moves</span>
