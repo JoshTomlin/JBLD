@@ -8,7 +8,7 @@ const SHEET_ORDER = [
   { pieceType: "parity", sheetName: "Parity" },
 ];
 
-const HEADER_ROW = ["Case", "Description", "Alg", "Memo Word", "Category", "Notes"];
+const HEADER_ROW = ["Case", "Description", "Alg", "Memo Word", "Category", "Notes", "Last Seen"];
 
 function getXlsxModule() {
   if (!cachedXlsxModule) {
@@ -46,6 +46,7 @@ export function exportAlgLibraryWorkbook(entries = []) {
       normalizeCell(entry.memo_word),
       normalizeCell(entry.category),
       normalizeCell(entry.notes),
+      normalizeCell(entry.last_seen_at),
     ]);
     const sheet = XLSX.utils.aoa_to_sheet([HEADER_ROW, ...rows]);
     XLSX.utils.book_append_sheet(workbook, sheet, sheetName);

@@ -31,6 +31,7 @@ import {
   getLocalAppMetaValue,
   getLocalDatabaseSummary,
   loadDatasetFromDatabase,
+  markAlgLibraryEntriesSeen,
   persistDatasetToDatabase,
   queryLocalDatabase,
   replaceBundledAlgLibraryEntries,
@@ -2363,6 +2364,96 @@ class App extends React.Component {
     return null;
   };
 
+  buildAlgLibraryCaseRefsFromComms = (commStats = []) => {
+    const seen = new Set();
+    const refs = [];
+    (Array.isArray(commStats) ? commStats : []).forEach((comm) => {
+      const lookup = this.getSolveDetailsCommLookup(comm);
+      if (!lookup) {
+        return;
+      }
+
+      const key = this.buildSolveDetailsCaseKey(lookup.pieceType, lookup.caseCode);
+      if (!seen.has(key)) {
+        seen.add(key);
+        refs.push({ pieceType: lookup.pieceType, caseCode: lookup.caseCode });
+      }
+    });
+    return refs;
+  };
+
+  buildAlgLibraryCaseRefsFromEntries = (entries = []) => {
+    const seen = new Set();
+    const refs = [];
+    (Array.isArray(entries) ? entries : []).forEach((entry) => {
+      const pieceType = entry && (entry.piece_type || entry.pieceType);
+      const caseCode = entry && (entry.case_code || entry.caseCode);
+      if (!pieceType || !caseCode) {
+        return;
+      }
+
+      const key = this.buildSolveDetailsCaseKey(pieceType, caseCode);
+      if (!seen.has(key)) {
+        seen.add(key);
+        refs.push({ pieceType, caseCode });
+      }
+    });
+    return refs;
+  };
+
+  mergeSeenAlgLibraryEntriesIntoState = (updatedEntries = []) => {
+    if (!Array.isArray(updatedEntries) || !updatedEntries.length) {
+      return;
+    }
+
+    const updatedByKey = new Map(
+      updatedEntries.map((entry) => [
+        this.buildSolveDetailsCaseKey(entry.piece_type, entry.case_code),
+        entry,
+      ])
+    );
+    const mergeEntries = (entries = []) =>
+      Array.isArray(entries)
+        ? entries.map((entry) => {
+            const updatedEntry = updatedByKey.get(this.buildSolveDetailsCaseKey(entry.piece_type, entry.case_code));
+            return updatedEntry ? { ...entry, last_seen_at: updatedEntry.last_seen_at } : entry;
+          })
+        : entries;
+
+    this.setState((currentState) => ({
+      algLibraryAllEntries: mergeEntries(currentState.algLibraryAllEntries),
+      algLibraryEntries: mergeEntries(currentState.algLibraryEntries),
+      solveDetailsLibraryByCase: Object.keys(currentState.solveDetailsLibraryByCase || {}).reduce((acc, key) => {
+        const entry = currentState.solveDetailsLibraryByCase[key];
+        const updatedEntry = updatedByKey.get(key);
+        acc[key] = updatedEntry ? { ...entry, last_seen_at: updatedEntry.last_seen_at } : entry;
+        return acc;
+      }, {}),
+    }));
+  };
+
+  markAlgLibraryCasesSeen = (caseRefs = [], seenAt = Date.now()) => {
+    if (!Array.isArray(caseRefs) || !caseRefs.length) {
+      return Promise.resolve([]);
+    }
+
+    return markAlgLibraryEntriesSeen(caseRefs, seenAt)
+      .then((updatedEntries) => {
+        this.mergeSeenAlgLibraryEntriesIntoState(updatedEntries);
+        return updatedEntries;
+      })
+      .catch((error) => {
+        console.warn("Failed to update alg last-seen time", error);
+        return [];
+      });
+  };
+
+  markAlgLibraryCommsSeen = (commStats = [], seenAt = Date.now()) =>
+    this.markAlgLibraryCasesSeen(this.buildAlgLibraryCaseRefsFromComms(commStats), seenAt);
+
+  markAlgLibraryEntriesSeen = (entries = [], seenAt = Date.now()) =>
+    this.markAlgLibraryCasesSeen(this.buildAlgLibraryCaseRefsFromEntries(entries), seenAt);
+
   getSolveDetailsCommRowKey = (comm) =>
     [
       comm && comm.comm_index,
@@ -3400,10 +3491,33 @@ class App extends React.Component {
     return this.state.drillExecutingEntry ? "Next comm" : "Memo";
   };
 
-  buildDrillQueue = (entries = []) => {
+  getAlgReviewLastSeenTime = (entry) => {
+    const value = entry && (entry.last_seen_at || entry.lastSeenAt || entry.lastSeen);
+    const parsed = new Date(value || "2026-01-01T00:00:00.000Z").getTime();
+    return Number.isFinite(parsed) ? parsed : new Date("2026-01-01T00:00:00.000Z").getTime();
+  };
+
+  getAlgReviewLastSeenWeight = (entry, now = Date.now()) => {
+    const ageMs = Math.max(0, Number(now) - this.getAlgReviewLastSeenTime(entry));
+    const ageDays = ageMs / (24 * 60 * 60 * 1000);
+    return Math.pow(ageDays + 1, 2);
+  };
+
+  buildDrillQueue = (entries = [], options = {}) => {
     const queue = entries
       .filter((entry) => entry && (entry.memo_word || entry.case_code) && entry.alg)
       .map((entry) => ({ ...entry }));
+
+    if (options.weightByLastSeen) {
+      const now = Date.now();
+      return queue
+        .map((entry) => ({
+          entry,
+          key: Math.pow(Math.random(), 1 / this.getAlgReviewLastSeenWeight(entry, now)),
+        }))
+        .sort((a, b) => b.key - a.key)
+        .map(({ entry }) => entry);
+    }
 
     for (let index = queue.length - 1; index > 0; index -= 1) {
       const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -3548,6 +3662,7 @@ class App extends React.Component {
           ...(Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : []),
           record,
         ]);
+        this.markAlgLibraryEntriesSeen([executingEntry], Date.now());
 
         Object.assign(nextState, {
           drillCurrentIndex: nextIndex,
@@ -3612,6 +3727,7 @@ class App extends React.Component {
 
     if (completedComm && executingEntry) {
       const matched = this.drillCommMatchesEntry(completedComm, executingEntry);
+      this.markAlgLibraryCommsSeen([completedComm], Date.now());
       Object.assign(nextState, {
         drillExecutingEntry: null,
         drillExecutionStartIndex: null,
@@ -3638,7 +3754,9 @@ class App extends React.Component {
 
     try {
       const filteredEntries = await this.getFilteredDrillEntries();
-      const queue = this.buildDrillQueue(filteredEntries);
+      const queue = this.buildDrillQueue(filteredEntries, {
+        weightByLastSeen: this.state.drillMode === "alg-review",
+      });
       const now = Date.now();
 
       if (this.state.drillMode === "alg-review") {
@@ -4974,6 +5092,7 @@ class App extends React.Component {
     const solveStats = this.buildSolveRecord(data, setting, parseError);
 
     this.updateActiveSessionSolves((currentSolves) => [...currentSolves, solveStats]);
+    this.markAlgLibraryCommsSeen(solveStats.comm_stats, solveStats.date);
     if (this.hasCloudSync()) {
       this.syncSessionsWithCloud(this.state.activeSessionId).catch((error) => {
         console.warn("Cloud sync after solve save failed", error);
@@ -5008,6 +5127,7 @@ class App extends React.Component {
     const currentSolves = Array.isArray(this.state.practiceSolves) ? this.state.practiceSolves : [];
     const nextSolves = [...currentSolves, solveStats];
     this.persistPracticeSolves(nextSolves);
+    this.markAlgLibraryCommsSeen(solveStats.comm_stats, solveStats.date);
     return solveStats;
   };
 
@@ -5050,6 +5170,7 @@ class App extends React.Component {
         }
 
         this.persistSessionStorage(nextSessions, normalizedSession.id);
+        this.markAlgLibraryCommsSeen(normalizedSolve.comm_stats, normalizedSolve.date);
         this.setState(
           {
             sessions: nextSessions,
@@ -6366,6 +6487,9 @@ class App extends React.Component {
                         <div className="study_library_entry_alg">Category: {this.formatAlgLibraryCategory(entry.category)}</div>
                       ) : null}
                       {entry.notes ? <div className="study_library_entry_alg">Notes: {entry.notes}</div> : null}
+                      {entry.last_seen_at ? (
+                        <div className="study_library_entry_alg">Last seen: {formatHistoryDate(entry.last_seen_at)}</div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -6477,6 +6601,9 @@ class App extends React.Component {
                         {(entry.memo_word || "--")}{entry.category ? ` | ${this.formatAlgLibraryCategory(entry.category)}` : ""}
                       </div>
                       <div className="study_library_entry_alg">{entry.description || "--"}</div>
+                      {entry.last_seen_at ? (
+                        <div className="study_library_entry_alg">Last seen: {formatHistoryDate(entry.last_seen_at)}</div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -6616,6 +6743,10 @@ class App extends React.Component {
                           <span>
                             {entry.memo_word || ""}
                           </span>
+                        </div>
+                        <div className="alg_library_card_meta">
+                          <span>Last seen</span>
+                          <span>{entry.last_seen_at ? formatHistoryDate(entry.last_seen_at) : "--"}</span>
                         </div>
                         <div className="alg_library_card_desc">
                           <span>{entry.description || "No description saved yet"}</span>

@@ -1,7 +1,8 @@
 const DATABASE_PATH = "idb://jbld-local-db";
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const LOCAL_APP_META_KEY = "jbld-local-app-meta";
 const LOCAL_ALG_LIBRARY_KEY = "jbld-local-alg-library";
+const DEFAULT_ALG_LAST_SEEN_AT = "2026-01-01T00:00:00.000Z";
 
 let dbPromise = null;
 let migrationPromise = null;
@@ -167,6 +168,10 @@ function writeLocalJson(key, value) {
 
 function normalizeAlgLibraryEntry(entry = {}) {
   const pieceType = entry.piece_type || entry.pieceType || "unknown";
+  const lastSeenAt = toIsoDate(
+    entry.last_seen_at || entry.lastSeenAt || entry.lastSeen,
+    DEFAULT_ALG_LAST_SEEN_AT
+  );
   return {
     id: String(entry.id || ""),
     piece_type: pieceType === "corner_memo" ? "corner" : pieceType === "edge_memo" ? "edge" : pieceType,
@@ -179,6 +184,7 @@ function normalizeAlgLibraryEntry(entry = {}) {
     memo_word: entry.memo_word || entry.memoWord || entry.memo || null,
     category: entry.category || null,
     notes: entry.notes || null,
+    last_seen_at: lastSeenAt,
     updated_at: entry.updated_at || new Date().toISOString(),
   };
 }
@@ -214,6 +220,7 @@ function mergeAlgLibraryEntries(entries = []) {
     const normalizedEntry = normalizeAlgLibraryEntry(entry);
     const caseKey = buildAlgLibraryCaseKey(normalizedEntry);
     const existingEntry = mergedEntries.get(caseKey);
+    const existingLastSeenAt = existingEntry ? normalizeAlgLibraryEntry(existingEntry).last_seen_at : null;
     mergedEntries.set(caseKey, {
       ...existingEntry,
       ...normalizedEntry,
@@ -226,6 +233,10 @@ function mergeAlgLibraryEntries(entries = []) {
         (existingEntry && existingEntry.memo_word) ||
         detachedMemoByKey.get(caseKey) ||
         null,
+      last_seen_at:
+        existingLastSeenAt && existingLastSeenAt > normalizedEntry.last_seen_at
+          ? existingLastSeenAt
+          : normalizedEntry.last_seen_at,
     });
   });
 
@@ -313,6 +324,10 @@ function splitMoves(algText = "") {
 }
 
 function toIsoDate(value, fallback = new Date().toISOString()) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+
   if (typeof value === "number" && Number.isFinite(value)) {
     return new Date(value).toISOString();
   }
@@ -630,6 +645,7 @@ async function runMigrations(db) {
       memo_word TEXT,
       category TEXT,
       notes TEXT,
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT '2026-01-01T00:00:00.000Z',
       created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
     );
@@ -661,6 +677,12 @@ async function runMigrations(db) {
       ADD COLUMN IF NOT EXISTS category TEXT;
     ALTER TABLE IF EXISTS alg_library_entries
       ADD COLUMN IF NOT EXISTS notes TEXT;
+    ALTER TABLE IF EXISTS alg_library_entries
+      ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+
+    UPDATE alg_library_entries
+    SET last_seen_at = '2026-01-01T00:00:00.000Z'
+    WHERE last_seen_at IS NULL;
 
     UPDATE alg_library_entries
     SET
@@ -910,10 +932,10 @@ export async function importAlgLibraryEntries(entries = []) {
       await db.query(
         `INSERT INTO alg_library_entries (
           id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg,
-          description, alg, memo_word, category, notes, updated_at
+          description, alg, memo_word, category, notes, last_seen_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, timezone('utc', now())
+          $8, $9, $10, $11, $12, $13, timezone('utc', now())
         )
         ON CONFLICT (id) DO UPDATE SET
           piece_type = EXCLUDED.piece_type,
@@ -927,6 +949,11 @@ export async function importAlgLibraryEntries(entries = []) {
           memo_word = EXCLUDED.memo_word,
           category = EXCLUDED.category,
           notes = EXCLUDED.notes,
+          last_seen_at = CASE
+            WHEN alg_library_entries.last_seen_at IS NULL
+              OR EXCLUDED.last_seen_at > alg_library_entries.last_seen_at THEN EXCLUDED.last_seen_at
+            ELSE alg_library_entries.last_seen_at
+          END,
           updated_at = timezone('utc', now())`,
         [
           String(entry.id),
@@ -941,6 +968,7 @@ export async function importAlgLibraryEntries(entries = []) {
           entry.memo_word || null,
           entry.category || null,
           entry.notes || null,
+          entry.last_seen_at || DEFAULT_ALG_LAST_SEEN_AT,
         ]
       );
     }
@@ -958,7 +986,17 @@ export async function importAlgLibraryEntries(entries = []) {
     normalizedEntries.forEach((entry) => {
       const normalizedEntry = normalizeAlgLibraryEntry(entry);
       if (normalizedEntry.id) {
-        entriesById.set(normalizedEntry.id, normalizedEntry);
+        const existingEntry = entriesById.get(normalizedEntry.id);
+        const existingLastSeenAt = existingEntry
+          ? normalizeAlgLibraryEntry(existingEntry).last_seen_at
+          : null;
+        entriesById.set(normalizedEntry.id, {
+          ...normalizedEntry,
+          last_seen_at:
+            existingLastSeenAt && existingLastSeenAt > normalizedEntry.last_seen_at
+              ? existingLastSeenAt
+              : normalizedEntry.last_seen_at,
+        });
       }
     });
     writeFallbackAlgLibraryEntries([...entriesById.values()]);
@@ -970,15 +1008,31 @@ export async function replaceBundledAlgLibraryEntries(entries = []) {
   try {
     const db = await getDatabase();
     await db.exec("BEGIN");
+    const existingResult = await db.query(
+      `SELECT piece_type, case_code, last_seen_at
+       FROM alg_library_entries
+       WHERE sheet_name LIKE $1`,
+      ["bundled-%"]
+    );
+    const existingLastSeenByCase = new Map(
+      (existingResult.rows || []).map((entry) => [
+        `${entry.piece_type}:${entry.case_code}`,
+        entry.last_seen_at || DEFAULT_ALG_LAST_SEEN_AT,
+      ])
+    );
     await db.query(`DELETE FROM alg_library_entries WHERE sheet_name LIKE $1`, ["bundled-%"]);
     for (const entry of normalizedEntries) {
+      const preservedLastSeenAt =
+        existingLastSeenByCase.get(`${entry.piece_type}:${entry.case_code}`) ||
+        entry.last_seen_at ||
+        DEFAULT_ALG_LAST_SEEN_AT;
       await db.query(
         `INSERT INTO alg_library_entries (
           id, piece_type, sheet_name, row_index, case_code, comm_notation, expanded_alg,
-          description, alg, memo_word, category, notes, updated_at
+          description, alg, memo_word, category, notes, last_seen_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, timezone('utc', now())
+          $8, $9, $10, $11, $12, $13, timezone('utc', now())
         )`,
         [
           String(entry.id),
@@ -993,6 +1047,7 @@ export async function replaceBundledAlgLibraryEntries(entries = []) {
           entry.memo_word || null,
           entry.category || null,
           entry.notes || null,
+          preservedLastSeenAt,
         ]
       );
     }
@@ -1008,7 +1063,24 @@ export async function replaceBundledAlgLibraryEntries(entries = []) {
     const nonBundledEntries = readFallbackAlgLibraryEntries().filter(
       (entry) => !String(entry.sheet_name || "").startsWith("bundled-")
     );
-    const bundledEntries = normalizedEntries.map((entry) => normalizeAlgLibraryEntry(entry));
+    const existingBundledEntries = readFallbackAlgLibraryEntries().filter((entry) =>
+      String(entry.sheet_name || "").startsWith("bundled-")
+    );
+    const existingLastSeenByCase = new Map(
+      existingBundledEntries.map((entry) => [
+        `${entry.piece_type}:${entry.case_code}`,
+        entry.last_seen_at || DEFAULT_ALG_LAST_SEEN_AT,
+      ])
+    );
+    const bundledEntries = normalizedEntries.map((entry) =>
+      normalizeAlgLibraryEntry({
+        ...entry,
+        last_seen_at:
+          existingLastSeenByCase.get(`${entry.piece_type}:${entry.case_code}`) ||
+          entry.last_seen_at ||
+          DEFAULT_ALG_LAST_SEEN_AT,
+      })
+    );
     writeFallbackAlgLibraryEntries([...nonBundledEntries, ...bundledEntries]);
   }
 }
@@ -1068,7 +1140,7 @@ export async function getAlgLibraryEntries(options = {}) {
         params.slice(0, 2)
       ),
       db.query(
-        `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, updated_at
+        `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, last_seen_at, updated_at
          FROM alg_library_entries
          WHERE ($1 = 'all' OR piece_type = $1)
            AND (
@@ -1132,7 +1204,7 @@ export async function updateAlgLibraryEntry(id, updates = {}) {
            notes = NULLIF($6, ''),
            updated_at = timezone('utc', now())
        WHERE id = $1
-       RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, updated_at`,
+       RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, last_seen_at, updated_at`,
       [normalizedId, fields.description, fields.alg, fields.memo_word || "", fields.category, fields.notes]
     );
 
@@ -1187,7 +1259,7 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
     });
 
     const result = await db.query(
-      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, updated_at
+      `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, last_seen_at, updated_at
        FROM alg_library_entries
        WHERE ${conditions.join(" OR ")}`,
       params
@@ -1202,6 +1274,70 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
   }
 }
 
+export async function markAlgLibraryEntriesSeen(caseRefs = [], seenAt = Date.now()) {
+  const normalizedRefs = Array.isArray(caseRefs)
+    ? caseRefs
+        .filter((entry) => entry && entry.caseCode && entry.pieceType)
+        .map((entry) => ({
+          pieceType: String(entry.pieceType),
+          caseCode: String(entry.caseCode),
+        }))
+    : [];
+  const uniqueRefs = [];
+  const seenKeys = new Set();
+  normalizedRefs.forEach((entry) => {
+    const key = `${entry.pieceType}:${entry.caseCode}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      uniqueRefs.push(entry);
+    }
+  });
+
+  if (!uniqueRefs.length) {
+    return [];
+  }
+
+  const seenAtIso = toIsoDate(seenAt, new Date().toISOString());
+  try {
+    const db = await getDatabase();
+    const conditions = [];
+    const params = [seenAtIso];
+    uniqueRefs.forEach((entry, index) => {
+      const base = index * 2 + 2;
+      conditions.push(`(piece_type = $${base} AND case_code = $${base + 1})`);
+      params.push(entry.pieceType, entry.caseCode);
+    });
+
+    const result = await db.query(
+      `UPDATE alg_library_entries
+       SET last_seen_at = $1
+       WHERE ${conditions.join(" OR ")}
+       RETURNING id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, last_seen_at, updated_at`,
+      params
+    );
+
+    return result.rows || [];
+  } catch (_error) {
+    const keys = new Set(uniqueRefs.map((entry) => `${entry.pieceType}:${entry.caseCode}`));
+    const entries = readFallbackAlgLibraryEntries();
+    const updatedEntries = [];
+    const nextEntries = entries.map((entry) => {
+      if (!keys.has(`${entry.piece_type}:${entry.case_code}`)) {
+        return entry;
+      }
+
+      const nextEntry = normalizeAlgLibraryEntry({
+        ...entry,
+        last_seen_at: seenAtIso,
+      });
+      updatedEntries.push(nextEntry);
+      return nextEntry;
+    });
+    writeFallbackAlgLibraryEntries(nextEntries);
+    return updatedEntries;
+  }
+}
+
 export async function getAlgLibrarySummary(limit = 6) {
   try {
     const db = await getDatabase();
@@ -1213,7 +1349,7 @@ export async function getAlgLibrarySummary(limit = 6) {
          ORDER BY piece_type ASC`
       ),
       db.query(
-        `SELECT id, piece_type, case_code, description, alg, memo_word, category, notes, updated_at
+        `SELECT id, piece_type, case_code, description, alg, memo_word, category, notes, last_seen_at, updated_at
          FROM alg_library_entries
          ORDER BY updated_at DESC
          LIMIT $1`,

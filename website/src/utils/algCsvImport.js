@@ -13,6 +13,7 @@ const HEADER_ALG_FIELDS = ["alg", "algorithm", "expanded_alg", "expanded alg", "
 const HEADER_MEMO_FIELDS = ["memo", "memo_word", "memo word", "word"];
 const HEADER_CATEGORY_FIELDS = ["category", "group", "set"];
 const HEADER_NOTES_FIELDS = ["notes", "note", "comment", "comments"];
+const HEADER_LAST_SEEN_FIELDS = ["last_seen", "last_seen_at", "last seen", "last seen at", "seen"];
 
 function normalizeCell(value) {
   return value === null || value === undefined ? "" : String(value).replace(/^\uFEFF/, "").trim();
@@ -96,6 +97,16 @@ function normalizeExpandedAlg(alg = "", fallbackNotation = "") {
   }
 
   return expandLibraryNotation(fallbackNotation);
+}
+
+function normalizeDateCell(value) {
+  const normalizedValue = normalizeCell(value);
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const parsed = new Date(normalizedValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function parseCsvText(csvText = "") {
@@ -197,6 +208,7 @@ function buildEntry({
   memoWord,
   category,
   notes,
+  lastSeenAt,
 }) {
   const normalizedDescription = normalizeCell(description);
   const normalizedAlg = normalizeExpandedAlg(alg, normalizedDescription);
@@ -214,6 +226,7 @@ function buildEntry({
     memoWord: normalizeCell(memoWord) || null,
     category: normalizeCell(category) || null,
     notes: normalizeCell(notes) || null,
+    lastSeenAt: normalizeDateCell(lastSeenAt),
   };
 }
 
@@ -248,6 +261,7 @@ export function extractAlgLibraryEntriesFromCsv(csvText = "", pieceType = "unkno
   const memoColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_MEMO_FIELDS) : -1;
   const categoryColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_CATEGORY_FIELDS) : -1;
   const notesColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_NOTES_FIELDS) : -1;
+  const lastSeenColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_LAST_SEEN_FIELDS) : -1;
 
   return rows
     .slice(headerOffset)
@@ -261,6 +275,7 @@ export function extractAlgLibraryEntriesFromCsv(csvText = "", pieceType = "unkno
       const memoWord = memoColumnIndex >= 0 ? normalizeCell(row[memoColumnIndex]) : "";
       const category = categoryColumnIndex >= 0 ? normalizeCell(row[categoryColumnIndex]) : "";
       const notes = notesColumnIndex >= 0 ? normalizeCell(row[notesColumnIndex]) : "";
+      const lastSeenAt = lastSeenColumnIndex >= 0 ? row[lastSeenColumnIndex] : "";
 
       if (!caseCode || !description) {
         return null;
@@ -277,6 +292,7 @@ export function extractAlgLibraryEntriesFromCsv(csvText = "", pieceType = "unkno
           memoWord,
           category,
           notes,
+          lastSeenAt,
         });
       } catch (error) {
         const sourceLabel = sourceName || `${pieceType} csv`;

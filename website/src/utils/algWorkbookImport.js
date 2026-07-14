@@ -14,6 +14,7 @@ const HEADER_ALG_FIELDS = ["alg", "algorithm", "expanded_alg", "expanded alg", "
 const HEADER_MEMO_FIELDS = ["memo", "memo_word", "memo word", "word"];
 const HEADER_CATEGORY_FIELDS = ["category", "group", "set"];
 const HEADER_NOTES_FIELDS = ["notes", "note", "comment", "comments"];
+const HEADER_LAST_SEEN_FIELDS = ["last_seen", "last_seen_at", "last seen", "last seen at", "seen"];
 
 function getXlsxModule() {
   if (!cachedXlsxModule) {
@@ -136,7 +137,17 @@ function normalizeExpandedAlg(alg = "", fallbackNotation = "") {
   return expandWorkbookNotation(fallbackNotation);
 }
 
-function buildEntry({ sheetName, rowIndex, caseCode, description, alg, memoWord, category, notes }) {
+function normalizeDateCell(value) {
+  const normalizedValue = normalizeCell(value);
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const parsed = new Date(normalizedValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function buildEntry({ sheetName, rowIndex, caseCode, description, alg, memoWord, category, notes, lastSeenAt }) {
   const pieceType = inferPieceType(sheetName);
   const normalizedDescription = normalizeCell(description);
   const expandedAlg = normalizeExpandedAlg(alg, normalizedDescription);
@@ -154,6 +165,7 @@ function buildEntry({ sheetName, rowIndex, caseCode, description, alg, memoWord,
     memoWord: normalizeCell(memoWord) || null,
     category: normalizeCell(category) || null,
     notes: normalizeCell(notes) || null,
+    lastSeenAt: normalizeDateCell(lastSeenAt),
   };
 }
 
@@ -198,6 +210,7 @@ export function extractAlgLibraryEntriesFromWorkbook(workbook) {
     const memoColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_MEMO_FIELDS) : -1;
     const categoryColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_CATEGORY_FIELDS) : -1;
     const notesColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_NOTES_FIELDS) : -1;
+    const lastSeenColumnIndex = headerOffset ? resolveOptionalColumnIndex(headerRow, HEADER_LAST_SEEN_FIELDS) : -1;
 
     rows.slice(headerOffset).forEach((row, index) => {
       const caseCode = normalizeCell(row[caseColumnIndex]);
@@ -209,6 +222,7 @@ export function extractAlgLibraryEntriesFromWorkbook(workbook) {
       const memoWord = memoColumnIndex >= 0 ? normalizeCell(row[memoColumnIndex]) : "";
       const category = categoryColumnIndex >= 0 ? normalizeCell(row[categoryColumnIndex]) : "";
       const notes = notesColumnIndex >= 0 ? normalizeCell(row[notesColumnIndex]) : "";
+      const lastSeenAt = lastSeenColumnIndex >= 0 ? row[lastSeenColumnIndex] : "";
 
       if (!caseCode || !description) {
         return;
@@ -224,6 +238,7 @@ export function extractAlgLibraryEntriesFromWorkbook(workbook) {
           memoWord,
           category,
           notes,
+          lastSeenAt,
         })
       );
     });

@@ -85,8 +85,8 @@ describe("algCsvImport", () => {
 
   it("maps memo words and metadata onto the same entry when the csv has dedicated columns", () => {
     const csvText = [
-      "Pair,Description,Alg,Memo,Category,Notes",
-      'AB,"[R\' B\' R : [R D R\' , U\']]","R\' B\' R2 D R\' U\' R D\' R\' U R\' B R",Abe,Main set,Fast',
+      "Pair,Description,Alg,Memo,Category,Notes,Last Seen",
+      'AB,"[R\' B\' R : [R D R\' , U\']]","R\' B\' R2 D R\' U\' R D\' R\' U R\' B R",Abe,Main set,Fast,2026-07-14T09:30:00.000Z',
     ].join("\n");
 
     const entries = extractAlgLibraryEntriesFromCsv(csvText, "corner", "corners.csv");
@@ -101,6 +101,7 @@ describe("algCsvImport", () => {
           memoWord: "Abe",
           category: "Main set",
           notes: "Fast",
+          lastSeenAt: "2026-07-14T09:30:00.000Z",
         }),
       ])
     );

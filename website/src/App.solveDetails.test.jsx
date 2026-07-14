@@ -498,6 +498,82 @@ describe("solve details view data", () => {
     expect(app.buildAlgReviewPromptText({ case_code: "AB", alg: "R U R'" })).toBe("--");
   });
 
+  it("weights Alg Review queues toward older last-seen entries", () => {
+    const app = new App();
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2026-07-14T00:00:00.000Z").getTime());
+    const randomSpy = jest.spyOn(Math, "random").mockReturnValue(0.5);
+    const recent = {
+      id: "recent",
+      case_code: "AB",
+      piece_type: "edge",
+      memo_word: "recent",
+      alg: "R",
+      last_seen_at: "2026-07-14T00:00:00.000Z",
+    };
+    const old = {
+      id: "old",
+      case_code: "CD",
+      piece_type: "edge",
+      memo_word: "old",
+      alg: "R",
+      last_seen_at: "2026-01-01T00:00:00.000Z",
+    };
+
+    const queue = app.buildDrillQueue([recent, old], { weightByLastSeen: true });
+
+    expect(queue.map((entry) => entry.id)).toEqual(["old", "recent"]);
+
+    randomSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("keeps randomness in Alg Review queues when entries have the same last-seen age", () => {
+    const app = new App();
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2026-07-14T00:00:00.000Z").getTime());
+    const randomSpy = jest.spyOn(Math, "random")
+      .mockReturnValueOnce(0.2)
+      .mockReturnValueOnce(0.8);
+    const first = {
+      id: "first",
+      case_code: "AB",
+      piece_type: "edge",
+      memo_word: "first",
+      alg: "R",
+      last_seen_at: "2026-01-01T00:00:00.000Z",
+    };
+    const second = {
+      id: "second",
+      case_code: "CD",
+      piece_type: "edge",
+      memo_word: "second",
+      alg: "R",
+      last_seen_at: "2026-01-01T00:00:00.000Z",
+    };
+
+    const queue = app.buildDrillQueue([first, second], { weightByLastSeen: true });
+
+    expect(queue.map((entry) => entry.id)).toEqual(["second", "first"]);
+
+    randomSpy.mockRestore();
+    nowSpy.mockRestore();
+  });
+
+  it("marks normal and practise solve comms as seen when they are saved", () => {
+    const comm = { phase: "edge", parse_text: "AB" };
+    const app = new App();
+    app.buildSolveRecord = jest.fn(() => ({ comm_stats: [comm], date: 1234 }));
+    app.updateActiveSessionSolves = jest.fn();
+    app.persistPracticeSolves = jest.fn();
+    app.markAlgLibraryCommsSeen = jest.fn();
+    app.hasCloudSync = jest.fn(() => false);
+
+    app.addSolveToLocalStorage({}, {});
+    app.addPracticeSolveToLocalStorage({}, {});
+
+    expect(app.markAlgLibraryCommsSeen).toHaveBeenCalledWith([comm], 1234);
+    expect(app.markAlgLibraryCommsSeen).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps solve-details comm editor keystrokes in the draft buffer", () => {
     const app = new App();
     app.setState = (update, callback) => {
@@ -728,6 +804,7 @@ describe("solve details view data", () => {
       cube.state.signature = move === "M" ? "goal" : move;
     });
     app.persistAlgReviewAttemptRecords = jest.fn((records) => records);
+    app.markAlgLibraryEntriesSeen = jest.fn(() => Promise.resolve([]));
     const entry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "alpha", category: "Set" };
     const nextEntry = { id: "edge-cd", case_code: "CD", piece_type: "edge", memo_word: "charlie", category: "Set" };
     app.state = {
@@ -765,6 +842,7 @@ describe("solve details view data", () => {
     expect(app.state.drillCurrentMoves).toEqual([]);
     expect(app.state.drillLastCommEntry).toBe(entry);
     expect(app.state.algReviewPeekVisible).toBe(false);
+    expect(app.markAlgLibraryEntriesSeen).toHaveBeenCalledWith([entry], expect.any(Number));
   });
 
   it("does not replay old Alg Review moves when React state has not caught up", () => {

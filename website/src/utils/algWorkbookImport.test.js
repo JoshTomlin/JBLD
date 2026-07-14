@@ -86,7 +86,7 @@ describe("algWorkbookImport", () => {
     const spy = jest.spyOn(require("xlsx/dist/xlsx.full.min.js").utils, "sheet_to_json");
 
     spy.mockImplementationOnce(() => [
-      ["Pair", "Description", "Alg", "Memo", "Category", "Notes"],
+      ["Pair", "Description", "Alg", "Memo", "Category", "Notes", "Last Seen"],
       [
         "AB",
         "[R' B' R : [R D R' , U']]",
@@ -94,6 +94,7 @@ describe("algWorkbookImport", () => {
         "Abe",
         "Main set",
         "Fast",
+        "2026-07-14T09:30:00.000Z",
       ],
     ]);
 
@@ -109,6 +110,7 @@ describe("algWorkbookImport", () => {
           memoWord: "Abe",
           category: "Main set",
           notes: "Fast",
+          lastSeenAt: "2026-07-14T09:30:00.000Z",
         }),
       ])
     );
