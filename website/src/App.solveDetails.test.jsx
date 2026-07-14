@@ -628,6 +628,21 @@ describe("solve details view data", () => {
     expect(app.applyAlgReviewMove).toHaveBeenCalledTimes(1);
   });
 
+  it("matches Alg Review completion up to cube orientation", () => {
+    const app = new App();
+    app.getAlgReviewTargetSignatures = jest.fn(() => ["goal"]);
+    app.getAlgReviewStateSignature = jest.fn((state) => state.signature);
+    app.getAlgReviewStateSignaturesModuloRotation = jest.fn((state) =>
+      state.signature === "rotated-goal" ? ["rotated-goal", "goal"] : [state.signature]
+    );
+    app.applyAlgReviewMove = jest.fn((cube, move) => {
+      cube.state.signature = move === "wide-as-opposite-face" ? "rotated-goal" : "past";
+    });
+
+    expect(app.algReviewAttemptMatchesEntry({ id: "edge-ab" }, ["wide-as-opposite-face", "extra"])).toBe(true);
+    expect(app.applyAlgReviewMove).toHaveBeenCalledTimes(1);
+  });
+
   it("uses smart-cube slice annotations for Alg Review attempts and display moves", () => {
     normalizeForOrientation.mockImplementation((_scramble, solve) => {
       if (solve === "L' R") {

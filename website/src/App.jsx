@@ -48,6 +48,32 @@ const FULL_SESSION_LOCAL_STORAGE_SOLVE_LIMIT = 250;
 const FULL_SESSION_LOCAL_STORAGE_CHAR_LIMIT = 2500000;
 const PRACTICE_LOCAL_STORAGE_SOLVE_LIMIT = 300;
 const ALG_REVIEW_CUBE_DEFINITION = experimentalCube3x3x3KPuzzle;
+const ALG_REVIEW_ROTATION_SEQUENCES = [
+  "",
+  "y",
+  "y2",
+  "y'",
+  "x",
+  "x y",
+  "x y2",
+  "x y'",
+  "x'",
+  "x' y",
+  "x' y2",
+  "x' y'",
+  "x2",
+  "x2 y",
+  "x2 y2",
+  "x2 y'",
+  "z",
+  "z y",
+  "z y2",
+  "z y'",
+  "z'",
+  "z' y",
+  "z' y2",
+  "z' y'",
+];
 
 class App extends React.Component {
   constructor() {
@@ -2995,6 +3021,68 @@ class App extends React.Component {
       .join(";");
   };
 
+  cloneAlgReviewCubeState = (state) => {
+    if (!state || !state.EDGES || !state.CORNERS || !state.CENTERS) {
+      return null;
+    }
+
+    return {
+      EDGES: {
+        permutation: state.EDGES.permutation.slice(),
+        orientation: state.EDGES.orientation.slice(),
+      },
+      CORNERS: {
+        permutation: state.CORNERS.permutation.slice(),
+        orientation: state.CORNERS.orientation.slice(),
+      },
+      CENTERS: {
+        permutation: state.CENTERS.permutation.slice(),
+        orientation: state.CENTERS.orientation.slice(),
+      },
+    };
+  };
+
+  getAlgReviewStateSignaturesModuloRotation = (state) => {
+    const exactSignature = this.getAlgReviewStateSignature(state);
+    const signatures = new Set(exactSignature ? [exactSignature] : []);
+    const clonedState = this.cloneAlgReviewCubeState(state);
+    if (!clonedState) {
+      return [...signatures];
+    }
+
+    ALG_REVIEW_ROTATION_SEQUENCES.forEach((rotationSequence) => {
+      if (!rotationSequence) {
+        return;
+      }
+
+      try {
+        const cube = new KPuzzle(ALG_REVIEW_CUBE_DEFINITION);
+        cube.state = this.cloneAlgReviewCubeState(clonedState);
+        this.splitAlgReviewMoves(rotationSequence).forEach((move) => this.applyAlgReviewMove(cube, move));
+        signatures.add(this.getAlgReviewStateSignature(cube.state));
+      } catch (error) {
+        console.warn("Failed to rotate Alg Review state", error);
+      }
+    });
+
+    return [...signatures].filter(Boolean);
+  };
+
+  algReviewStateMatchesTargets = (state, targetSignatures) => {
+    if (!targetSignatures || !targetSignatures.size) {
+      return false;
+    }
+
+    const exactSignature = this.getAlgReviewStateSignature(state);
+    if (exactSignature && targetSignatures.has(exactSignature)) {
+      return true;
+    }
+
+    return this.getAlgReviewStateSignaturesModuloRotation(state).some((signature) =>
+      targetSignatures.has(signature)
+    );
+  };
+
   resetAlgReviewAttemptCube = (options = {}) => {
     this.algReviewAttemptCube = new KPuzzle(ALG_REVIEW_CUBE_DEFINITION);
     if (options.clearMoves !== false) {
@@ -3093,7 +3181,7 @@ class App extends React.Component {
       for (const move of orientedMoves) {
         this.applyAlgReviewMove(this.algReviewAttemptCube, move);
         attemptSignature = this.getAlgReviewStateSignature(this.algReviewAttemptCube.state);
-        if (targetSignatures && targetSignatures.has(attemptSignature)) {
+        if (this.algReviewStateMatchesTargets(this.algReviewAttemptCube.state, targetSignatures)) {
           return { signature: attemptSignature, matched: true };
         }
       }
