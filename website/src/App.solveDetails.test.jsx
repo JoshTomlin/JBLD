@@ -618,7 +618,7 @@ describe("solve details view data", () => {
     expect(app.applyAlgReviewMove).toHaveBeenCalledTimes(1);
   });
 
-  it("uses annotated Alg Review display moves without changing recognition tokens", () => {
+  it("uses smart-cube slice annotations for Alg Review attempts and display moves", () => {
     normalizeForOrientation.mockImplementation((_scramble, solve) => {
       if (solve === "L' R r") {
         return { commSolveTokens: ["L'", "R", "r"], solveTokens: ["M", "r"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
@@ -631,9 +631,144 @@ describe("solve details view data", () => {
     });
 
     const app = new App();
+    const appliedMoves = [];
+    app.applyAlgReviewMove = jest.fn((_cube, move) => {
+      appliedMoves.push(move);
+    });
 
     expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"])).toEqual(["L'", "R", "Rw"]);
+    expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"], { useSmartCubeSlicePairs: true })).toEqual(["M", "Rw"]);
     expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"], { display: true })).toEqual(["M", "Rw"]);
+
+    app.applyAlgReviewAttemptMoves(["L'", "R", "r"]);
+
+    expect(appliedMoves).toEqual(["M", "Rw"]);
+  });
+
+  it("recognizes smart-cube slice pairs across Alg Review move-stream updates", () => {
+    normalizeForOrientation.mockImplementation((_scramble, solve) => {
+      if (solve === "L' R") {
+        return { commSolveTokens: ["L'", "R"], solveTokens: ["M"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
+      }
+      const tokens = String(solve || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      return { commSolveTokens: tokens, solveTokens: tokens, useSmartCubeSlicePairs: false, rotationPrefix: "" };
+    });
+
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    app.resetAlgReviewAttemptCube = jest.fn((options = {}) => {
+      app.algReviewAttemptCube = { state: { signature: "start" } };
+      if (options.clearMoves !== false) {
+        app.algReviewAttemptMoves = [];
+      }
+      return app.algReviewAttemptCube;
+    });
+    app.getAlgReviewTargetSignature = jest.fn(() => "goal");
+    app.getAlgReviewStateSignature = jest.fn((state) => state.signature || "start");
+    app.applyAlgReviewMove = jest.fn((cube, move) => {
+      cube.state.signature = move === "M" ? "goal" : move;
+    });
+    app.persistAlgReviewAttemptRecords = jest.fn((records) => records);
+    const entry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "alpha", category: "Set" };
+    const nextEntry = { id: "edge-cd", case_code: "CD", piece_type: "edge", memo_word: "charlie", category: "Set" };
+    app.state = {
+      ...app.state,
+      drillSessionActive: true,
+      drillMode: "alg-review",
+      drillQueue: [entry, nextEntry],
+      drillCurrentIndex: 0,
+      drillCurrentEntry: entry,
+      drillNextEntry: nextEntry,
+      drillExecutingEntry: null,
+      drillProcessedMoveCount: 0,
+      drillCompletedCount: 0,
+      drillSkippedCount: 0,
+      drillReviewEntries: [],
+      algReviewAttemptRecords: [],
+      cube_moves: [],
+    };
+
+    app.handleDrillMoveStream(["L'"]);
+
+    expect(app.state.drillCurrentEntry).toBe(entry);
+    expect(app.state.drillExecutingEntry).toBe(entry);
+    expect(app.state.drillCurrentMoves).toEqual(["L'"]);
+
+    app.handleDrillMoveStream(["L'", "R"]);
+
+    expect(app.applyAlgReviewMove).toHaveBeenLastCalledWith(expect.anything(), "M");
+    expect(app.state.drillCurrentIndex).toBe(1);
+    expect(app.state.drillCurrentEntry).toBe(nextEntry);
+    expect(app.state.drillExecutingEntry).toBeNull();
+    expect(app.state.drillCompletedCount).toBe(1);
+    expect(app.state.drillCurrentMoves).toEqual([]);
+  });
+
+  it("falls back to the saved alg when Alg Review description is not executable notation", () => {
+    const app = new App();
+    const appliedMoves = [];
+    app.applyAlgReviewMove = jest.fn((cube, move) => {
+      if (move === "plain" || move === "words") {
+        throw new Error("not an alg");
+      }
+      appliedMoves.push(move);
+      cube.state.EDGES.permutation[0] = appliedMoves.length;
+    });
+
+    const signature = app.getAlgReviewTargetSignature({
+      id: "edge-ab",
+      description: "plain words",
+      alg: "R U",
+      piece_type: "edge",
+    });
+
+    expect(signature).toBeTruthy();
+    expect(appliedMoves).toEqual(["R", "U"]);
+  });
+
+  it("skips an executing Alg Review prompt on the first press", () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    app.resetAlgReviewAttemptCube = jest.fn();
+    const entry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "alpha", category: "Set" };
+    const nextEntry = { id: "edge-cd", case_code: "CD", piece_type: "edge", memo_word: "charlie", category: "Set" };
+    app.state = {
+      ...app.state,
+      drillMode: "alg-review",
+      drillQueue: [entry, nextEntry],
+      drillCurrentIndex: 0,
+      drillCurrentEntry: entry,
+      drillNextEntry: nextEntry,
+      drillExecutingEntry: entry,
+      drillSkippedCount: 0,
+      drillReviewEntries: [],
+      drillCurrentMoves: ["R"],
+      cube_moves: ["R"],
+      algReviewAttemptRecords: [],
+    };
+
+    app.advanceDrillSession({ skipped: true });
+
+    expect(app.state.drillCurrentIndex).toBe(1);
+    expect(app.state.drillCurrentEntry).toBe(nextEntry);
+    expect(app.state.drillExecutingEntry).toBeNull();
+    expect(app.state.drillSkippedCount).toBe(1);
+    expect(app.state.drillCurrentMoves).toEqual([]);
   });
 });
 
