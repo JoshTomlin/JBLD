@@ -558,6 +558,26 @@ describe("solve details view data", () => {
     nowSpy.mockRestore();
   });
 
+  it("builds memo audit rows and searches starts, endings, then memo text", () => {
+    const app = new App();
+    const entries = [
+      { id: "edge-ab", piece_type: "edge", case_code: "AB", memo_word: "same" },
+      { id: "corner-ab", piece_type: "corner", case_code: "AB", memo_word: "same" },
+      { id: "edge-ba", piece_type: "edge", case_code: "BA", memo_word: "edge" },
+      { id: "corner-ba", piece_type: "corner", case_code: "BA", memo_word: "corner" },
+      { id: "edge-xb", piece_type: "edge", case_code: "XB", memo_word: "xeno" },
+      { id: "corner-xb", piece_type: "corner", case_code: "XB", memo_word: "xeno" },
+      { id: "edge-cd", piece_type: "edge", case_code: "CD", memo_word: "banana" },
+      { id: "corner-cd", piece_type: "corner", case_code: "CD", memo_word: "banana" },
+    ];
+
+    const allRows = app.buildMemoAuditRows(entries);
+    const searchedRows = app.buildMemoAuditRows(entries, "b");
+
+    expect(allRows.find((row) => row.caseCode === "BA").isMismatch).toBe(true);
+    expect(searchedRows.map((row) => row.caseCode)).toEqual(["BA", "AB", "XB", "CD"]);
+  });
+
   it("marks normal and practise solve comms as seen when they are saved", () => {
     const comm = { phase: "edge", parse_text: "AB" };
     const app = new App();
@@ -771,6 +791,18 @@ describe("solve details view data", () => {
     expect(appliedMoves).toEqual(["R", "M'"]);
   });
 
+  it("compares Alg Review moves through commuting turns and wide-move equivalents", () => {
+    const app = new App();
+
+    expect(app.compareAlgReviewMoveSequences("U D R", ["D", "U", "R"]).matches).toBe(true);
+    expect(app.compareAlgReviewMoveSequences("r U", ["M'", "R", "U"]).matches).toBe(true);
+
+    const mismatch = app.compareAlgReviewMoveSequences("R U R'", ["R", "U", "R"]);
+
+    expect(mismatch.matches).toBe(false);
+    expect(mismatch.performedTokens.map((move) => move.status)).toEqual(["match", "match", "mismatch"]);
+  });
+
   it("recognizes smart-cube slice pairs across Alg Review move-stream updates", () => {
     normalizeForOrientation.mockImplementation((_scramble, solve) => {
       if (solve === "L' R") {
@@ -841,6 +873,7 @@ describe("solve details view data", () => {
     expect(app.state.drillCompletedCount).toBe(1);
     expect(app.state.drillCurrentMoves).toEqual([]);
     expect(app.state.drillLastCommEntry).toBe(entry);
+    expect(app.state.drillLastCommMoves).toEqual(["M"]);
     expect(app.state.algReviewPeekVisible).toBe(false);
     expect(app.markAlgLibraryEntriesSeen).toHaveBeenCalledWith([entry], expect.any(Number));
   });

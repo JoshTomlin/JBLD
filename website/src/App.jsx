@@ -135,6 +135,14 @@ class App extends React.Component {
       algLibraryRecentMatches: [],
       algLibraryImporting: false,
       algLibraryNotice: null,
+      memoAuditOpen: false,
+      memoAuditLoading: false,
+      memoAuditEntries: [],
+      memoAuditSearch: "",
+      memoAuditEditingCell: null,
+      memoAuditDraftMemo: "",
+      memoAuditSaving: false,
+      memoAuditNotice: null,
       drillMode: "memo-flow",
       drillPieceTypes: ["corner"],
       drillDisplayMode: "next",
@@ -153,6 +161,7 @@ class App extends React.Component {
       drillReviewEntries: [],
       drillCurrentMoves: [],
       drillLastCommEntry: null,
+      drillLastCommMoves: [],
       drillPromptStartedAt: null,
       drillAttemptStartedAt: null,
       drillCurrentRetryCount: 0,
@@ -917,6 +926,264 @@ class App extends React.Component {
           error && error.message ? `Saving failed. ${error.message}` : "Saving failed for this Alg Library entry.",
       });
     }
+  };
+
+  buildMemoAuditRows = (entries = [], search = "") => {
+    const rowsByCase = new Map();
+    const assignEntry = (entry, field) => {
+      const caseCode = String(entry && entry.case_code ? entry.case_code : "").trim().toUpperCase();
+      if (!caseCode) {
+        return;
+      }
+
+      const existingRow = rowsByCase.get(caseCode) || {
+        caseCode,
+        edgeEntry: null,
+        cornerEntry: null,
+      };
+      rowsByCase.set(caseCode, {
+        ...existingRow,
+        [field]: entry,
+      });
+    };
+
+    (Array.isArray(entries) ? entries : []).forEach((entry) => {
+      if (!entry) {
+        return;
+      }
+
+      if (entry.piece_type === "edge") {
+        assignEntry(entry, "edgeEntry");
+      } else if (entry.piece_type === "corner") {
+        assignEntry(entry, "cornerEntry");
+      }
+    });
+
+    const rows = [...rowsByCase.values()]
+      .map((row) => {
+        const edgeMemo = String((row.edgeEntry && row.edgeEntry.memo_word) || "").trim();
+        const cornerMemo = String((row.cornerEntry && row.cornerEntry.memo_word) || "").trim();
+        return {
+          ...row,
+          edgeMemo,
+          cornerMemo,
+          isMismatch: edgeMemo.toLowerCase() !== cornerMemo.toLowerCase(),
+        };
+      })
+      .sort((left, right) => left.caseCode.localeCompare(right.caseCode));
+
+    const query = String(search || "").trim().toLowerCase();
+    if (!query) {
+      return rows;
+    }
+
+    const orderedRows = [];
+    const usedCases = new Set();
+    const appendMatches = (predicate) => {
+      rows.forEach((row) => {
+        if (usedCases.has(row.caseCode) || !predicate(row)) {
+          return;
+        }
+        usedCases.add(row.caseCode);
+        orderedRows.push(row);
+      });
+    };
+
+    appendMatches((row) => row.caseCode.toLowerCase().startsWith(query));
+    appendMatches((row) => row.caseCode.toLowerCase().endsWith(query));
+    appendMatches((row) =>
+      row.edgeMemo.toLowerCase().includes(query) ||
+      row.cornerMemo.toLowerCase().includes(query)
+    );
+
+    return orderedRows;
+  };
+
+  openMemoAudit = async () => {
+    this.setState({
+      memoAuditOpen: true,
+      memoAuditLoading: true,
+      memoAuditSearch: "",
+      memoAuditNotice: null,
+      memoAuditEditingCell: null,
+      memoAuditDraftMemo: "",
+    });
+
+    try {
+      await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+      const result = await getAlgLibraryEntries({ pieceType: "all", search: "", limit: 5000 });
+      this.setState({
+        memoAuditEntries: Array.isArray(result.entries) ? result.entries : [],
+        memoAuditLoading: false,
+      });
+    } catch (error) {
+      this.setState({
+        memoAuditLoading: false,
+        memoAuditNotice:
+          error && error.message ? `Memo audit failed. ${error.message}` : "Memo audit failed to load.",
+      });
+    }
+  };
+
+  closeMemoAudit = () => {
+    this.setState({
+      memoAuditOpen: false,
+      memoAuditLoading: false,
+      memoAuditSearch: "",
+      memoAuditEditingCell: null,
+      memoAuditDraftMemo: "",
+      memoAuditNotice: null,
+    });
+  };
+
+  startMemoAuditEdit = (entry, pieceType) => {
+    if (!entry) {
+      return;
+    }
+
+    this.setState({
+      memoAuditEditingCell: {
+        entryId: entry.id,
+        pieceType,
+        caseCode: entry.case_code,
+      },
+      memoAuditDraftMemo: entry.memo_word || "",
+      memoAuditNotice: null,
+    });
+  };
+
+  cancelMemoAuditEdit = () => {
+    this.setState({
+      memoAuditEditingCell: null,
+      memoAuditDraftMemo: "",
+      memoAuditNotice: null,
+    });
+  };
+
+  saveMemoAuditMemo = async (entry) => {
+    if (!entry || this.state.memoAuditSaving) {
+      return;
+    }
+
+    const draftMemo = this.state.memoAuditDraftMemo;
+    this.setState({
+      memoAuditSaving: true,
+      memoAuditNotice: "Saving memo...",
+    });
+
+    try {
+      const savedEntry = await updateAlgLibraryEntry(entry.id, {
+        description: entry.description || "",
+        alg: entry.alg || "",
+        memoWord: draftMemo,
+        category: entry.category || "",
+        notes: entry.notes || "",
+      });
+      await this.refreshAlgLibrarySummary();
+      const mergeEntry = (libraryEntry) => (libraryEntry.id === savedEntry.id ? savedEntry : libraryEntry);
+      this.setState((currentState) => ({
+        memoAuditSaving: false,
+        memoAuditEditingCell: null,
+        memoAuditDraftMemo: "",
+        memoAuditNotice: `Saved ${savedEntry.case_code}.`,
+        algLibraryNotice: `Saved ${savedEntry.case_code} memo.`,
+        memoAuditEntries: Array.isArray(currentState.memoAuditEntries)
+          ? currentState.memoAuditEntries.map(mergeEntry)
+          : [],
+        algLibraryAllEntries: Array.isArray(currentState.algLibraryAllEntries)
+          ? currentState.algLibraryAllEntries.map(mergeEntry)
+          : [],
+        algLibraryEntries: Array.isArray(currentState.algLibraryEntries)
+          ? currentState.algLibraryEntries.map(mergeEntry)
+          : [],
+        algLibraryDraft:
+          currentState.algLibrarySelectedEntryId === savedEntry.id
+            ? {
+                description: savedEntry.description || "",
+                alg: savedEntry.alg || "",
+                memoWord: savedEntry.memo_word || "",
+                category: savedEntry.category || "",
+                notes: savedEntry.notes || "",
+              }
+            : currentState.algLibraryDraft,
+        solveDetailsLibraryByCase: Object.keys(currentState.solveDetailsLibraryByCase || {}).reduce((acc, key) => {
+          const libraryEntry = currentState.solveDetailsLibraryByCase[key];
+          acc[key] = libraryEntry && libraryEntry.id === savedEntry.id ? savedEntry : libraryEntry;
+          return acc;
+        }, {}),
+      }));
+    } catch (error) {
+      this.setState({
+        memoAuditSaving: false,
+        memoAuditNotice:
+          error && error.message ? `Saving failed. ${error.message}` : "Saving failed for this memo word.",
+      });
+    }
+  };
+
+  renderMemoAuditMemoCell = (entry, pieceType) => {
+    if (!entry) {
+      return <span className="memo_audit_missing">--</span>;
+    }
+
+    const editingCell = this.state.memoAuditEditingCell;
+    const isEditing =
+      editingCell &&
+      editingCell.entryId === entry.id &&
+      editingCell.pieceType === pieceType;
+
+    if (isEditing) {
+      return (
+        <div className="memo_audit_edit_cell">
+          <input
+            type="text"
+            className="settings_input memo_audit_input"
+            value={this.state.memoAuditDraftMemo}
+            autoFocus
+            onChange={(event) => this.setState({ memoAuditDraftMemo: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                this.saveMemoAuditMemo(entry);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                this.cancelMemoAuditEdit();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="memo_audit_cell_action memo_audit_cell_action_save"
+            aria-label="Save memo"
+            onClick={() => this.saveMemoAuditMemo(entry)}
+            disabled={this.state.memoAuditSaving}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m5 13 4 4L19 7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="memo_audit_cell_action"
+            aria-label="Cancel memo edit"
+            onClick={this.cancelMemoAuditEdit}
+            disabled={this.state.memoAuditSaving}
+          >
+            x
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        className="memo_audit_memo_button"
+        onClick={() => this.startMemoAuditEdit(entry, pieceType)}
+      >
+        {entry.memo_word || "--"}
+      </button>
+    );
   };
 
   ensureBundledAlgLibraryLoaded = async (options = {}) => {
@@ -1861,6 +2128,237 @@ class App extends React.Component {
     }
 
     return tokens.join(" ");
+  };
+
+  getAlgReviewComparisonAmount = (suffix = "") => {
+    if (suffix === "2" || suffix === "2'") {
+      return 2;
+    }
+    if (suffix === "'") {
+      return 3;
+    }
+    return 1;
+  };
+
+  getAlgReviewComparisonSuffix = (amount) => {
+    const normalizedAmount = ((Number(amount) || 0) % 4 + 4) % 4;
+    if (normalizedAmount === 1) {
+      return "";
+    }
+    if (normalizedAmount === 2) {
+      return "2";
+    }
+    if (normalizedAmount === 3) {
+      return "'";
+    }
+    return null;
+  };
+
+  getAlgReviewComparisonAxis = (base) => {
+    if (["R", "L", "M"].includes(base)) {
+      return "x";
+    }
+    if (["U", "D", "E"].includes(base)) {
+      return "y";
+    }
+    if (["F", "B", "S"].includes(base)) {
+      return "z";
+    }
+    return "";
+  };
+
+  parseAlgReviewComparisonMove = (token) => {
+    const normalizedToken = this.normalizeAlgReviewMoveToken(token);
+    const match = normalizedToken.match(/^(.+?)(2'?|'?)?$/);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      base: match[1],
+      amount: this.getAlgReviewComparisonAmount(match[2] || ""),
+    };
+  };
+
+  buildAlgReviewAtomicMove = (base, amount, sourceIndex) => {
+    const normalizedAmount = ((Number(amount) || 0) % 4 + 4) % 4;
+    if (!normalizedAmount) {
+      return null;
+    }
+
+    return {
+      base,
+      amount: normalizedAmount,
+      axis: this.getAlgReviewComparisonAxis(base),
+      sourceIndices: [sourceIndex],
+    };
+  };
+
+  expandAlgReviewComparisonMove = (token, sourceIndex = 0) => {
+    const parsed = this.parseAlgReviewComparisonMove(token);
+    if (!parsed) {
+      return [{
+        token: String(token || ""),
+        axis: "",
+        sourceIndices: [sourceIndex],
+      }];
+    }
+
+    const wideExpansions = {
+      Rw: [["R", 1], ["M", -1]],
+      Lw: [["L", 1], ["M", 1]],
+      Uw: [["U", 1], ["E", -1]],
+      Dw: [["D", 1], ["E", 1]],
+      Fw: [["F", 1], ["S", 1]],
+      Bw: [["B", 1], ["S", -1]],
+    };
+    const wideExpansion = wideExpansions[parsed.base];
+    const expandedMoves = wideExpansion
+      ? wideExpansion.map(([base, direction]) =>
+          this.buildAlgReviewAtomicMove(base, parsed.amount * direction, sourceIndex)
+        )
+      : [this.buildAlgReviewAtomicMove(parsed.base, parsed.amount, sourceIndex)];
+
+    return expandedMoves.filter(Boolean);
+  };
+
+  getAlgReviewComparisonToken = (move) => {
+    if (move && move.token) {
+      return move.token;
+    }
+
+    const suffix = this.getAlgReviewComparisonSuffix(move && move.amount);
+    return suffix === null || !move ? "" : `${move.base}${suffix}`;
+  };
+
+  canonicalizeAlgReviewComparisonAtoms = (atoms = []) => {
+    const axisBaseOrder = {
+      x: ["L", "M", "R"],
+      y: ["D", "E", "U"],
+      z: ["B", "S", "F"],
+    };
+    const canonicalAtoms = [];
+    let index = 0;
+
+    while (index < atoms.length) {
+      const axis = atoms[index] && atoms[index].axis;
+      if (!axis || !axisBaseOrder[axis]) {
+        canonicalAtoms.push({
+          token: this.getAlgReviewComparisonToken(atoms[index]),
+          sourceIndices: atoms[index] && atoms[index].sourceIndices ? atoms[index].sourceIndices : [],
+        });
+        index += 1;
+        continue;
+      }
+
+      const run = [];
+      while (index < atoms.length && atoms[index].axis === axis) {
+        run.push(atoms[index]);
+        index += 1;
+      }
+
+      axisBaseOrder[axis].forEach((base) => {
+        const matchingMoves = run.filter((move) => move.base === base);
+        if (!matchingMoves.length) {
+          return;
+        }
+
+        const amount = matchingMoves.reduce((total, move) => total + move.amount, 0) % 4;
+        const suffix = this.getAlgReviewComparisonSuffix(amount);
+        if (suffix === null) {
+          return;
+        }
+
+        canonicalAtoms.push({
+          token: `${base}${suffix}`,
+          sourceIndices: matchingMoves.reduce(
+            (indices, move) => [...indices, ...(move.sourceIndices || [])],
+            []
+          ),
+        });
+      });
+    }
+
+    return canonicalAtoms.filter((move) => move.token);
+  };
+
+  buildAlgReviewComparisonSequence = (algTextOrMoves = []) => {
+    const displayTokens = Array.isArray(algTextOrMoves)
+      ? algTextOrMoves.map((move) => String(move || "").trim()).filter(Boolean)
+      : this.splitAlgReviewMoves(algTextOrMoves);
+    const atoms = displayTokens.flatMap((token, index) =>
+      this.expandAlgReviewComparisonMove(token, index)
+    );
+    const canonicalAtoms = this.canonicalizeAlgReviewComparisonAtoms(atoms);
+
+    return {
+      displayTokens,
+      canonicalAtoms,
+      canonicalTokens: canonicalAtoms.map((move) => move.token),
+    };
+  };
+
+  getAlgReviewMatchedPerformedCanonicalIndices = (libraryTokens = [], performedTokens = []) => {
+    const rows = libraryTokens.length + 1;
+    const columns = performedTokens.length + 1;
+    const table = Array.from({ length: rows }, () => Array(columns).fill(0));
+
+    for (let row = 1; row < rows; row += 1) {
+      for (let column = 1; column < columns; column += 1) {
+        table[row][column] = libraryTokens[row - 1] === performedTokens[column - 1]
+          ? table[row - 1][column - 1] + 1
+          : Math.max(table[row - 1][column], table[row][column - 1]);
+      }
+    }
+
+    const matchedPerformedIndices = new Set();
+    let row = libraryTokens.length;
+    let column = performedTokens.length;
+    while (row > 0 && column > 0) {
+      if (libraryTokens[row - 1] === performedTokens[column - 1]) {
+        matchedPerformedIndices.add(column - 1);
+        row -= 1;
+        column -= 1;
+      } else if (table[row - 1][column] >= table[row][column - 1]) {
+        row -= 1;
+      } else {
+        column -= 1;
+      }
+    }
+
+    return matchedPerformedIndices;
+  };
+
+  compareAlgReviewMoveSequences = (libraryAlg = "", performedMoves = []) => {
+    const librarySequence = this.buildAlgReviewComparisonSequence(libraryAlg);
+    const performedSequence = this.buildAlgReviewComparisonSequence(performedMoves);
+    const matches =
+      librarySequence.canonicalTokens.length === performedSequence.canonicalTokens.length &&
+      librarySequence.canonicalTokens.every((token, index) => token === performedSequence.canonicalTokens[index]);
+    const matchedCanonicalIndices = matches
+      ? new Set(performedSequence.canonicalAtoms.map((_move, index) => index))
+      : this.getAlgReviewMatchedPerformedCanonicalIndices(
+          librarySequence.canonicalTokens,
+          performedSequence.canonicalTokens
+        );
+    const displayTokenStatus = performedSequence.displayTokens.map((_token, tokenIndex) => {
+      const relatedCanonicalIndices = performedSequence.canonicalAtoms.reduce((indices, move, canonicalIndex) => {
+        return (move.sourceIndices || []).includes(tokenIndex) ? [...indices, canonicalIndex] : indices;
+      }, []);
+      return relatedCanonicalIndices.length &&
+        relatedCanonicalIndices.every((canonicalIndex) => matchedCanonicalIndices.has(canonicalIndex))
+        ? "match"
+        : "mismatch";
+    });
+
+    return {
+      matches,
+      libraryTokens: librarySequence.displayTokens,
+      performedTokens: performedSequence.displayTokens.map((token, index) => ({
+        token,
+        status: matches ? "match" : displayTokenStatus[index],
+      })),
+    };
   };
 
   simplifyTurnSequence = (algText) => {
@@ -2868,6 +3366,7 @@ class App extends React.Component {
       skippedCount: this.state.drillSkippedCount,
       reviewEntries: this.state.drillReviewEntries,
       lastCommEntry: this.state.drillLastCommEntry,
+      lastCommMoves: this.state.drillLastCommMoves,
       attemptRecords: this.state.algReviewAttemptRecords,
       ...extra,
     };
@@ -2919,6 +3418,7 @@ class App extends React.Component {
       algReviewAttemptRecords: Array.isArray(progress.attemptRecords) ? progress.attemptRecords : this.state.algReviewAttemptRecords,
       drillCurrentMoves: [],
       drillLastCommEntry: progress.lastCommEntry || null,
+      drillLastCommMoves: Array.isArray(progress.lastCommMoves) ? progress.lastCommMoves : [],
       algReviewPeekVisible: false,
       drillPromptStartedAt: Date.now(),
       drillAttemptStartedAt: null,
@@ -3680,6 +4180,7 @@ class App extends React.Component {
           drillSessionActive: Boolean(nextEntry),
           drillPromptStartedAt: Date.now(),
           algReviewPeekVisible: false,
+          drillLastCommMoves: currentMoves,
         });
         this.resetAlgReviewAttemptCube();
 
@@ -3750,7 +4251,13 @@ class App extends React.Component {
     if (this.state.drillMode === "alg-review") {
       this.resetAlgReviewAttemptCube();
     }
-    this.setState({ drillLoading: true, algReviewPeekVisible: false, drillCurrentMoves: [], drillLastCommEntry: null });
+    this.setState({
+      drillLoading: true,
+      algReviewPeekVisible: false,
+      drillCurrentMoves: [],
+      drillLastCommEntry: null,
+      drillLastCommMoves: [],
+    });
 
     try {
       const filteredEntries = await this.getFilteredDrillEntries();
@@ -3782,6 +4289,7 @@ class App extends React.Component {
         drillAttemptStartedAt: null,
         drillCurrentRetryCount: 0,
         drillLastCommEntry: null,
+        drillLastCommMoves: [],
         algReviewAttemptRecords: this.state.drillMode === "alg-review" ? [] : this.state.algReviewAttemptRecords,
         algReviewProgress: this.state.drillMode === "alg-review" ? null : this.state.algReviewProgress,
       });
@@ -3806,6 +4314,7 @@ class App extends React.Component {
         drillAttemptStartedAt: null,
         drillCurrentRetryCount: 0,
         drillLastCommEntry: null,
+        drillLastCommMoves: [],
       });
     }
   };
@@ -3860,6 +4369,11 @@ class App extends React.Component {
         drillReviewEntries: nextReviewEntries,
         drillCurrentMoves: [],
         drillLastCommEntry: isAlgReview && currentEntry ? currentEntry : currentState.drillLastCommEntry,
+        drillLastCommMoves: isAlgReview && currentEntry && !skipped
+          ? currentState.drillCurrentMoves
+          : isAlgReview && currentEntry
+            ? []
+            : currentState.drillLastCommMoves,
         algReviewAttemptRecords: nextAttemptRecords,
         algReviewProgress: isAlgReview && !nextEntry ? null : currentState.algReviewProgress,
         drillSessionActive: Boolean(nextEntry),
@@ -3890,6 +4404,7 @@ class App extends React.Component {
       drillStatusMessage: "",
       drillCurrentMoves: [],
       drillLastCommEntry: null,
+      drillLastCommMoves: [],
       drillPromptStartedAt: null,
       drillAttemptStartedAt: null,
       drillCurrentRetryCount: 0,
@@ -5835,7 +6350,6 @@ class App extends React.Component {
     const execText = latestSolve ? this.convert_sec_to_format(latestSolve.exe_time) : "--";
     const latestFive = recentSolves.slice(0, 5);
     const recentCommHistory = this.getRecentCommHistory(recentSolves, 8);
-    const algLibraryCaseStats = this.getAlgLibraryCaseStatsMap(recentSolves);
     const algLibraryMatchCounts = this.state.algLibraryRecentMatches.reduce(
       (totals, entry) => ({
         ...totals,
@@ -5843,6 +6357,11 @@ class App extends React.Component {
       }),
       { match: 0, review: 0, missing: 0 }
     );
+    const memoAuditRows = this.buildMemoAuditRows(
+      this.state.memoAuditEntries,
+      this.state.memoAuditSearch
+    );
+    const memoAuditMismatchCount = memoAuditRows.filter((row) => row.isMismatch).length;
     const trendLabel =
       latestFive.length >= 2 &&
       !isDnfValue(latestFive[0].DNF) &&
@@ -6034,6 +6553,19 @@ class App extends React.Component {
       const algReviewRetries = algReviewRecords.reduce((total, record) => total + (Number(record.retries) || 0), 0);
       const algReviewProgress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
       const lastReviewEntry = reviewMode ? this.state.drillLastCommEntry : null;
+      const lastReviewMoves = reviewMode && Array.isArray(this.state.drillLastCommMoves)
+        ? this.state.drillLastCommMoves
+        : [];
+      const lastReviewComparison = lastReviewEntry
+        ? this.compareAlgReviewMoveSequences(lastReviewEntry.alg || "", lastReviewMoves)
+        : null;
+      const lastReviewPieceLabel = lastReviewEntry && lastReviewEntry.piece_type
+        ? `${lastReviewEntry.piece_type.charAt(0).toUpperCase()}${lastReviewEntry.piece_type.slice(1)}`
+        : "";
+      const lastReviewCategoryLabel = lastReviewEntry
+        ? this.formatAlgLibraryCategory(lastReviewEntry.category || "Unsorted")
+        : "";
+      const lastReviewMetaLabel = [lastReviewPieceLabel, lastReviewCategoryLabel].filter(Boolean).join(" | ");
       const activeEditorEntry = this.state.algReviewEditorEntry;
       const editorDraft = this.state.algReviewEditorDraft;
       mainView = (
@@ -6122,15 +6654,49 @@ class App extends React.Component {
                 <div className={`drill_last_comm_panel ${lastReviewEntry ? "" : "drill_last_comm_panel_empty"}`}>
                   {lastReviewEntry ? (
                     <React.Fragment>
-                      <div className="drill_last_comm_grid">
-                        <span>Name</span>
-                        <strong>{lastReviewEntry.case_code || "--"}</strong>
-                        <span>Memo</span>
-                        <strong>{lastReviewEntry.memo_word || "--"}</strong>
-                        <span>Comm</span>
-                        <strong>{lastReviewEntry.description || "No comm notation saved"}</strong>
-                        <span>Alg</span>
-                        <strong>{lastReviewEntry.alg || "No alg saved"}</strong>
+                      <div className="drill_last_comm_details">
+                        <div className="drill_last_comm_pair">
+                          <strong>{lastReviewEntry.case_code || "--"}</strong>
+                          <span>{lastReviewMetaLabel}</span>
+                        </div>
+                        <div className="drill_last_comm_memo">
+                          <strong>{lastReviewEntry.memo_word || "--"}</strong>
+                          <span>{lastReviewEntry.description || "No comm notation saved"}</span>
+                        </div>
+                        <div className="drill_last_comm_alg_compare">
+                          <span>Alg:</span>
+                          <strong>
+                            {(lastReviewComparison && lastReviewComparison.libraryTokens.length
+                              ? lastReviewComparison.libraryTokens
+                              : [lastReviewEntry.alg || "No alg saved"]
+                            ).map((token, index) => (
+                              <span key={`last-library-${index}-${token}`} className="drill_last_comm_move">
+                                {token}
+                              </span>
+                            ))}
+                          </strong>
+                          <span>You did:</span>
+                          <strong className={lastReviewComparison && lastReviewComparison.matches ? "drill_last_comm_alg_match" : ""}>
+                            {lastReviewComparison && lastReviewComparison.performedTokens.length ? (
+                              lastReviewComparison.performedTokens.map((move, index) => (
+                                <span
+                                  key={`last-performed-${index}-${move.token}`}
+                                  className={`drill_last_comm_move ${
+                                    lastReviewComparison.matches
+                                      ? "drill_last_comm_move_match"
+                                      : move.status === "mismatch"
+                                        ? "drill_last_comm_move_mismatch"
+                                        : ""
+                                  }`}
+                                >
+                                  {move.token}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="drill_last_comm_move drill_last_comm_move_mismatch">--</span>
+                            )}
+                          </strong>
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -6573,6 +7139,32 @@ class App extends React.Component {
               </div>
             </article>
             <article className="study_library_card">
+              <div className="study_library_title">Memo Audit</div>
+              <div className="alg_library_detail_grid">
+                <div className="alg_library_detail_block">
+                  <span>Rows</span>
+                  <strong>{this.state.memoAuditEntries.length ? memoAuditRows.length : "--"}</strong>
+                </div>
+                <div className="alg_library_detail_block">
+                  <span>Mismatches</span>
+                  <strong>{this.state.memoAuditEntries.length ? memoAuditMismatchCount || "--" : "--"}</strong>
+                </div>
+              </div>
+              <div className="study_library_action_row">
+                <button
+                  type="button"
+                  className="study_library_button"
+                  onClick={this.openMemoAudit}
+                  disabled={this.state.memoAuditLoading}
+                >
+                  {this.state.memoAuditLoading ? "Opening..." : "Open Memo Audit"}
+                </button>
+              </div>
+              {this.state.memoAuditNotice ? (
+                <div className="study_library_notice">{this.state.memoAuditNotice}</div>
+              ) : null}
+            </article>
+            <article className="study_library_card">
               <div className="study_library_title">Updated Entries</div>
               <div className="study_library_text">
                 {algLibraryCounts.length
@@ -6670,26 +7262,24 @@ class App extends React.Component {
             ) : algLibraryEntries.length ? (
               algLibraryEntries.map((entry) => {
                 const isEditing = this.state.algLibraryEditing && algLibrarySelectedEntry && algLibrarySelectedEntry.id === entry.id;
-                const stats = algLibraryCaseStats.get(`${entry.piece_type}:${entry.case_code}`);
-                const avgExec = stats && stats.execCount
-                  ? this.formatInlineDuration(stats.execTotal / stats.execCount)
-                  : null;
+                const pieceLabel = entry.piece_type
+                  ? `${entry.piece_type.charAt(0).toUpperCase()}${entry.piece_type.slice(1)}`
+                  : "";
+                const categoryLabel = this.formatAlgLibraryCategory(entry.category);
+                const cardTypeLabel = [pieceLabel, categoryLabel].filter(Boolean).join(" | ");
+                const lastSeenLabel = entry.last_seen_at ? formatHistoryDate(entry.last_seen_at) : "";
 
                 return (
                   <article
                     key={entry.id}
                     className={`study_library_card alg_library_entry_card ${isEditing ? "alg_library_entry_card_editing" : ""}`}
                   >
-                    <div className="alg_library_card_top">
-                      <strong>{entry.case_code}</strong>
-                      <span>
-                        {entry.piece_type
-                          ? `${entry.piece_type.charAt(0).toUpperCase()}${entry.piece_type.slice(1)}`
-                          : ""}
-                      </span>
-                    </div>
                     {isEditing ? (
                       <React.Fragment>
+                        <div className="alg_library_card_top">
+                          <strong>{entry.case_code}</strong>
+                          <span>{cardTypeLabel}</span>
+                        </div>
                         <div className="alg_library_card_meta alg_library_card_meta_editing">
                           <input
                             type="text"
@@ -6736,36 +7326,31 @@ class App extends React.Component {
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
-                        <div className="alg_library_card_meta">
-                          <span>
-                            {this.formatAlgLibraryCategory(entry.category)}
-                          </span>
-                          <span>
-                            {entry.memo_word || ""}
-                          </span>
+                        <div className="alg_library_card_pair">
+                          <strong>{entry.case_code}</strong>
+                          <span>{cardTypeLabel}</span>
                         </div>
-                        <div className="alg_library_card_meta">
-                          <span>Last seen</span>
-                          <span>{entry.last_seen_at ? formatHistoryDate(entry.last_seen_at) : "--"}</span>
+                        <div className="alg_library_card_memo_line">
+                          <strong>{entry.memo_word || "--"}</strong>
+                          <span>{lastSeenLabel}</span>
                         </div>
-                        <div className="alg_library_card_desc">
-                          <span>{entry.description || "No description saved yet"}</span>
-                          <span>{avgExec || ""}</span>
+                        <div className="alg_library_card_notation">
+                          {entry.description || "--"}
                         </div>
-                        <div className="alg_library_card_alg">
-                          <span>{entry.alg || "--"}</span>
-                          <button
-                            type="button"
-                            className="alg_library_icon_button alg_library_icon_button_small"
-                            onClick={() => this.openAlgLibraryEditorForEntry(entry)}
-                            aria-label="Edit entry"
-                          >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                            </svg>
-                          </button>
+                        <div className="alg_library_card_alg_text">
+                          {entry.alg || "--"}
                         </div>
+                        <button
+                          type="button"
+                          className="alg_library_icon_button alg_library_icon_button_small alg_library_card_edit_button"
+                          onClick={() => this.openAlgLibraryEditorForEntry(entry)}
+                          aria-label="Edit entry"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
+                        </button>
                       </React.Fragment>
                     )}
                   </article>
@@ -7964,6 +8549,83 @@ class App extends React.Component {
                 onDisconnectCube={this.handle_disconnect_cube}
                 onResetCube={this.handle_reset_cube}
               />
+            </div>
+          </div>
+        ) : null}
+
+        {this.state.memoAuditOpen ? (
+          <div
+            className="solve_modal_backdrop solve_modal_backdrop_top"
+            onClick={this.closeMemoAudit}
+          >
+            <div className="memo_audit_modal" onClick={(event) => event.stopPropagation()}>
+              <div className="memo_audit_header">
+                <div>
+                  <div className="solve_modal_title">Memo Audit</div>
+                  <div className="section_meta">
+                    {this.state.memoAuditLoading
+                      ? "Loading"
+                      : `${memoAuditRows.length} rows | ${memoAuditMismatchCount} mismatches`}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="solve_modal_close solve_modal_close_corner memo_audit_close"
+                  aria-label="Close memo audit"
+                  onClick={this.closeMemoAudit}
+                >
+                  x
+                </button>
+              </div>
+              <input
+                type="text"
+                className="settings_input memo_audit_search"
+                aria-label="Search memo audit"
+                value={this.state.memoAuditSearch}
+                onChange={(event) =>
+                  this.setState({
+                    memoAuditSearch: event.target.value,
+                    memoAuditEditingCell: null,
+                    memoAuditDraftMemo: "",
+                  })
+                }
+              />
+              {this.state.memoAuditNotice ? (
+                <div className="study_library_notice">{this.state.memoAuditNotice}</div>
+              ) : null}
+              {this.state.memoAuditLoading ? (
+                <div className="empty_state_card">
+                  <div className="placeholder_text">Loading memo audit...</div>
+                </div>
+              ) : memoAuditRows.length ? (
+                <div className="memo_audit_table_wrap">
+                  <table className="memo_audit_table">
+                    <thead>
+                      <tr>
+                        <th>Comm</th>
+                        <th>Edge Memo</th>
+                        <th>Corner Memo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memoAuditRows.map((row) => (
+                        <tr
+                          key={row.caseCode}
+                          className={row.isMismatch ? "memo_audit_row_mismatch" : ""}
+                        >
+                          <td className="memo_audit_comm">{row.caseCode}</td>
+                          <td>{this.renderMemoAuditMemoCell(row.edgeEntry, "edge")}</td>
+                          <td>{this.renderMemoAuditMemoCell(row.cornerEntry, "corner")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="empty_state_card">
+                  <div className="placeholder_text">No memo rows matched.</div>
+                </div>
+              )}
             </div>
           </div>
         ) : null}
