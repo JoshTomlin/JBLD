@@ -633,6 +633,9 @@ describe("solve details view data", () => {
       if (solve === "L' R") {
         return { commSolveTokens: ["L'", "R"], solveTokens: ["M"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
       }
+      if (solve === "R L R'") {
+        return { commSolveTokens: ["R", "L", "R'"], solveTokens: ["R", "M'"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
+      }
       if (solve === "L' R r") {
         return { commSolveTokens: ["L'", "R", "r"], solveTokens: ["M", "r"], useSmartCubeSlicePairs: true, rotationPrefix: "" };
       }
@@ -656,6 +659,11 @@ describe("solve details view data", () => {
     expect(app.formatAlgReviewCurrentMoves(["R", "R", "U", "U'"])).toEqual(["R2"]);
     expect(app.getAlgReviewOrientedMoves(["L'", "R"], { display: true, pieceType: "corner" })).toEqual(["L'", "R"]);
     expect(app.formatAlgReviewCurrentMoves(["L'", "R"], { pieceType: "corner" })).toEqual(["L'", "R"]);
+    expect(app.getAlgReviewOrientedMoves(["R", "L", "R'"], {
+      useSmartCubeSlicePairs: true,
+      pieceType: "corner",
+    })).toEqual(["R", "M'"]);
+    expect(app.formatAlgReviewCurrentMoves(["R", "L", "R'"], { pieceType: "corner" })).toEqual(["R", "L", "R'"]);
 
     app.applyAlgReviewAttemptMoves(["L'", "R", "r"]);
 
@@ -664,7 +672,12 @@ describe("solve details view data", () => {
     appliedMoves.length = 0;
     app.applyAlgReviewAttemptMoves(["L'", "R"], null, { pieceType: "corner" });
 
-    expect(appliedMoves).toEqual(["L'", "R"]);
+    expect(appliedMoves).toEqual(["M"]);
+
+    appliedMoves.length = 0;
+    app.applyAlgReviewAttemptMoves(["R", "L", "R'"], null, { pieceType: "corner" });
+
+    expect(appliedMoves).toEqual(["R", "M'"]);
   });
 
   it("recognizes smart-cube slice pairs across Alg Review move-stream updates", () => {

@@ -2956,11 +2956,11 @@ class App extends React.Component {
   };
 
   shouldUseAlgReviewSlicePairs = (options = {}) => {
-    if (this.getAlgReviewPieceType(options) === "corner") {
-      return false;
-    }
     if (Object.prototype.hasOwnProperty.call(options, "useSmartCubeSlicePairs")) {
       return Boolean(options.useSmartCubeSlicePairs);
+    }
+    if (this.getAlgReviewPieceType(options) === "corner") {
+      return false;
     }
     return Boolean(options.display);
   };
