@@ -77,4 +77,44 @@ describe("solveRecommender", () => {
     expect(result.cycleBreaks).toEqual(["D"]);
     expect(result.solved).toBe(true);
   });
+
+  it("cycle-breaks instead of targeting another sticker from the buffer piece", () => {
+    const pieces = ["UF", "UR", "UB", "UL"];
+    const slotMap = solvedMapForPieces(pieces);
+    slotMap.UF = "FU";
+    slotMap.FU = "UF";
+    slotMap.UB = "UL";
+    slotMap.UL = "UB";
+
+    const result = traceMemoTargetsFromSlotMap({
+      slotMap,
+      buffer: "UF",
+      pieces,
+      letterPairs: { UF: "C", FU: "I", UB: "A", UL: "D" },
+      cycleBreakPreferences: ["A", "D"],
+    });
+
+    expect(result.targets[0]).toBe("A");
+    expect(result.targets).not.toContain("I");
+    expect(result.cycleBreaks[0]).toBe("A");
+  });
+
+  it("does not use already solved pieces as cycle breaks", () => {
+    const pieces = ["UF", "UR", "UB", "UL"];
+    const slotMap = solvedMapForPieces(pieces);
+    slotMap.UB = "UL";
+    slotMap.UL = "UB";
+
+    const result = traceMemoTargetsFromSlotMap({
+      slotMap,
+      buffer: "UF",
+      pieces,
+      letterPairs: { UF: "C", UR: "B", UB: "A", UL: "D" },
+      cycleBreakPreferences: ["B", "A", "D"],
+    });
+
+    expect(result.targets[0]).toBe("A");
+    expect(result.cycleBreaks).toEqual(["A"]);
+    expect(result.solved).toBe(true);
+  });
 });

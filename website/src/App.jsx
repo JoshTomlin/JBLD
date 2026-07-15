@@ -3696,6 +3696,89 @@ class App extends React.Component {
     return Number.isFinite(value) ? value.toFixed(1) : "--";
   };
 
+  formatPieceTypeLabel = (pieceType) => {
+    const value = String(pieceType || "").trim();
+    if (!value) {
+      return "";
+    }
+    const lowerValue = value.toLowerCase();
+    const labels = {
+      edge: "Edge",
+      corner: "Corner",
+      flip: "Flip",
+      twist: "Twist",
+      parity: "Parity",
+    };
+    return labels[lowerValue] || `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+  };
+
+  renderRecentCommCardContent = ({
+    caseCode = "--",
+    pieceType = "",
+    category = "",
+    memoWord = "--",
+    description = "",
+    libraryAlg = "--",
+    performedAlg = "--",
+    statusLabel = "",
+    statusKey = "review",
+    footerLabel = "",
+  } = {}) => {
+    const pieceLabel = this.formatPieceTypeLabel(pieceType);
+    const categoryLabel = this.formatAlgLibraryCategory(category);
+    const metaLabel = [pieceLabel, categoryLabel].filter(Boolean).join(" | ");
+
+    return (
+      <React.Fragment>
+        <div className="comm_recent_header">
+          <strong>{caseCode || "--"}</strong>
+          <span>{metaLabel}</span>
+        </div>
+        <div className="comm_recent_memo_row">
+          <strong>{memoWord || "--"}</strong>
+          <span>{description || "No comm notation saved"}</span>
+        </div>
+        <div className="comm_recent_alg_rows">
+          <span>ALG</span>
+          <strong className="comm_recent_alg_value">{libraryAlg || "--"}</strong>
+          <span>DID</span>
+          <strong className="comm_recent_alg_value">{performedAlg || "--"}</strong>
+        </div>
+        <div className="comm_recent_footer">
+          {statusLabel ? (
+            <span className={`drill_attempt_status drill_attempt_status_${statusKey}`}>
+              {statusLabel}
+            </span>
+          ) : (
+            <span></span>
+          )}
+          <span>{footerLabel}</span>
+        </div>
+      </React.Fragment>
+    );
+  };
+
+  renderRecentCommCard = ({ cardKey = null, className = "", onClick = null, ...cardData } = {}) => {
+    if (onClick) {
+      return (
+        <button
+          key={cardKey}
+          type="button"
+          className={`comm_recent_card ${className}`.trim()}
+          onClick={onClick}
+        >
+          {this.renderRecentCommCardContent(cardData)}
+        </button>
+      );
+    }
+
+    return (
+      <article key={cardKey} className={`comm_recent_card ${className}`.trim()}>
+        {this.renderRecentCommCardContent(cardData)}
+      </article>
+    );
+  };
+
   getRecentDrillAttemptRecords = (limit = 30) => {
     const records = Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : [];
     return records.slice(-limit).reverse();
@@ -7504,30 +7587,24 @@ class App extends React.Component {
                         const pieceType = record.pieceType || record.piece_type || "";
                         const caseCode = record.caseCode || record.case_code || "--";
                         const memoWord = record.memoWord || record.memo_word || "--";
-                        const libraryAlg = record.libraryAlg || record.alg || "--";
-                        const performedAlg = record.performedAlg || "--";
+                        const libraryAlg = this.formatAlgLibraryAlg(record.libraryAlg || record.alg || "", pieceType) || "--";
+                        const performedAlg = this.formatAlgLibraryAlg(record.performedAlg || "", pieceType) || "--";
                         const category = record.category || "Unsorted";
 
-                        return (
-                          <article key={record.id || `${caseCode}-${record.completedAt}`} className="drill_recent_card">
-                            <div className="drill_recent_header">
-                              <strong>{caseCode}</strong>
-                              <span>{[pieceType, category].filter(Boolean).join(" | ")}</span>
-                            </div>
-                            <div className="drill_recent_memo">{memoWord}</div>
-                            <div className="drill_recent_description">{record.description || "No comm notation saved"}</div>
-                            <div className="drill_recent_alg_grid">
-                              <span>Library</span>
-                              <code>{libraryAlg}</code>
-                              <span>You did</span>
-                              <code>{performedAlg}</code>
-                            </div>
-                            <div className="drill_recent_footer">
-                              <span className={`drill_attempt_status drill_attempt_status_${statusKey}`}>{statusLabel}</span>
-                              <span>{formatHistoryDate(record.completedAt)}</span>
-                            </div>
-                          </article>
-                        );
+                        return this.renderRecentCommCard({
+                          cardKey: record.id || `${caseCode}-${record.completedAt}`,
+                          className: "drill_recent_card",
+                          caseCode,
+                          pieceType,
+                          category,
+                          memoWord,
+                          description: record.description || "No comm notation saved",
+                          libraryAlg,
+                          performedAlg,
+                          statusLabel,
+                          statusKey,
+                          footerLabel: formatHistoryDate(record.completedAt),
+                        });
                       })
                     ) : (
                       <div className="empty_state_card">
@@ -8085,18 +8162,21 @@ class App extends React.Component {
                     ) || "--"
                   : "--";
                 const usedAlg = this.formatAlgLibraryAlg(entry.algUsed || "", entry.pieceType) || "--";
-                const preferredStatus = entry.preferredEntry
+                const statusLabel = entry.preferredEntry
                   ? entry.status === "match"
-                    ? "Matches preferred alg"
-                    : "Different from preferred"
-                  : "No preferred alg saved";
+                    ? "Matched"
+                    : "Different"
+                  : "Missing";
+                const statusKey = entry.preferredEntry
+                  ? entry.status === "match"
+                    ? "matched"
+                    : "review"
+                  : "missing";
 
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    className="alg_library_match_button alg_library_entry_card alg_library_recent_card"
-                    onClick={() => {
+                return this.renderRecentCommCard({
+                  cardKey: entry.id,
+                  className: "alg_library_match_button alg_library_entry_card alg_library_recent_card",
+                  onClick: () => {
                       if (entry.preferredEntry) {
                         this.jumpToAlgLibraryEntry(entry.preferredEntry);
                       } else {
@@ -8107,35 +8187,18 @@ class App extends React.Component {
                           algLibraryEditing: false,
                         });
                       }
-                    }}
-                  >
-                    <div className="alg_library_card_top">
-                      <strong>{entry.caseCode}</strong>
-                      <span>
-                        {entry.pieceType
-                          ? `${entry.pieceType.charAt(0).toUpperCase()}${entry.pieceType.slice(1)}`
-                          : ""}
-                      </span>
-                    </div>
-                    <div className="alg_library_card_meta">
-                      <span>
-                        {entry.preferredEntry
-                          ? this.formatAlgLibraryCategory(entry.preferredEntry.category)
-                          : ""}
-                      </span>
-                      <span>{entry.preferredEntry ? entry.preferredEntry.memo_word || "" : ""}</span>
-                    </div>
-                    <div className="alg_library_card_desc">
-                      <span>{usedAlg}</span>
-                      <span>
-                        {preferredStatus}
-                      </span>
-                    </div>
-                    <div className="alg_library_card_alg">
-                      <span>{preferredAlg}</span>
-                    </div>
-                  </button>
-                );
+                    },
+                  caseCode: entry.caseCode,
+                  pieceType: entry.pieceType,
+                  category: entry.preferredEntry ? entry.preferredEntry.category || "" : "",
+                  memoWord: entry.preferredEntry ? entry.preferredEntry.memo_word || "--" : "--",
+                  description: entry.preferredEntry ? entry.preferredEntry.description || "No comm notation saved" : "No library entry saved",
+                  libraryAlg: preferredAlg,
+                  performedAlg: usedAlg,
+                  statusLabel,
+                  statusKey,
+                  footerLabel: entry.solveDate ? formatHistoryDate(entry.solveDate) : "",
+                });
               })
             ) : (
               <div className="empty_state_card">
@@ -9453,16 +9516,12 @@ class App extends React.Component {
                       >
                         x
                       </button>
-                      <div className="alg_library_card_top">
-                        <strong>{selectedSolveCommCardData.label}</strong>
-                        <span>
-                          {selectedSolveCommCardData.pieceType
-                            ? `${selectedSolveCommCardData.pieceType.charAt(0).toUpperCase()}${selectedSolveCommCardData.pieceType.slice(1)}`
-                            : ""}
-                        </span>
-                      </div>
                       {this.state.solveCommEditorDraft && selectedSolveCommEntry ? (
                         <React.Fragment>
+                          <div className="alg_library_card_top">
+                            <strong>{selectedSolveCommCardData.label}</strong>
+                            <span>{this.formatPieceTypeLabel(selectedSolveCommCardData.pieceType)}</span>
+                          </div>
                           <div className="solve_comm_editor_grid">
                             <div className="solve_comm_editor_pair">
                               <input
@@ -9513,32 +9572,28 @@ class App extends React.Component {
                         </React.Fragment>
                       ) : (
                         <React.Fragment>
-                          <div className="alg_library_card_meta">
-                            <span>{selectedSolveCommCardData.category}</span>
-                            <span>{selectedSolveCommCardData.memoWord}</span>
-                          </div>
-                          <div className="alg_library_card_desc">
-                            <span>{selectedSolveCommCardData.description}</span>
-                            <span>
-                              {selectedSolveCommCardData.status === "mismatch"
-                                ? "Different from library"
-                                : selectedSolveCommCardData.status === "match"
-                                  ? "Matches library"
-                                  : selectedSolveCommCardData.status === "missing"
-                                    ? "Missing from library"
-                                    : selectedSolveCommCardData.timing}
-                            </span>
-                          </div>
-                          <div className="solve_comm_overlay_alg_block">
-                            <div className="solve_comm_overlay_alg_row">
-                              <span>Library</span>
-                              <strong>{selectedSolveCommCardData.preferredAlg}</strong>
-                            </div>
-                            <div className="solve_comm_overlay_alg_row">
-                              <span>Used</span>
-                              <strong>{selectedSolveCommCardData.usedAlg}</strong>
-                            </div>
-                          </div>
+                          {this.renderRecentCommCardContent({
+                            caseCode: selectedSolveCommCardData.label,
+                            pieceType: selectedSolveCommCardData.pieceType,
+                            category: selectedSolveCommCardData.category,
+                            memoWord: selectedSolveCommCardData.memoWord || "--",
+                            description: selectedSolveCommCardData.description,
+                            libraryAlg: selectedSolveCommCardData.preferredAlg,
+                            performedAlg: selectedSolveCommCardData.usedAlg,
+                            statusLabel: selectedSolveCommCardData.status === "mismatch"
+                              ? "Different"
+                              : selectedSolveCommCardData.status === "match"
+                                ? "Matched"
+                                : selectedSolveCommCardData.status === "missing"
+                                  ? "Missing"
+                                  : "",
+                            statusKey: selectedSolveCommCardData.status === "match"
+                              ? "matched"
+                              : selectedSolveCommCardData.status === "missing"
+                                ? "missing"
+                                : "review",
+                            footerLabel: selectedSolveCommCardData.timing,
+                          })}
                           {selectedSolveCommEntry ? (
                             <button
                               type="button"

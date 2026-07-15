@@ -165,8 +165,8 @@ function scoreCycleBreakSticker(sticker, letterPairs, preferences, order) {
 
 function pickCycleBreakSticker(slotMap, buffer, stickers, order, letterPairs, preferences) {
   const candidates = stickers
-    .filter((sticker) => sticker !== buffer)
-    .filter((sticker) => slotMap[sticker] !== sticker);
+    .filter((sticker) => !isSamePiece(sticker, buffer))
+    .filter((sticker) => !isSolvedForStickers(slotMap, stickersForPiece(sticker)));
 
   if (!candidates.length) {
     return null;
@@ -223,7 +223,11 @@ export function traceMemoTargetsFromSlotMap({
   while (hasUnsolvedStickers(stickers, workingMap) && guard < 200) {
     guard += 1;
 
-    if (workingMap[buffer] && workingMap[buffer] !== buffer) {
+    if (
+      workingMap[buffer] &&
+      workingMap[buffer] !== buffer &&
+      !isSamePiece(workingMap[buffer], buffer)
+    ) {
       const targetSticker = workingMap[buffer];
       targets.push(stickerToLetter(targetSticker, letterPairs));
       workingMap = swapStickers(workingMap, buffer, targetSticker);
