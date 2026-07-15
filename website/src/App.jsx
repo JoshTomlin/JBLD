@@ -20,7 +20,6 @@ import {
   formatAlgLibrarySpecialCaseLabel,
   getAlgLibrarySearchAliases,
   getAlgLibrarySearchNeedles,
-  getAlgLibrarySpecialLabel,
   getAlgLibrarySpecialType,
   getDefaultAlgLibraryMemoWord,
   normalizeAlgLibraryCaseCode,
@@ -847,6 +846,10 @@ class App extends React.Component {
     if (!entry) {
       return "--";
     }
+    const specialType = getAlgLibrarySpecialType(entry.piece_type);
+    if (specialType) {
+      return formatAlgLibrarySpecialCaseLabel(specialType, entry.case_code) || "--";
+    }
     return (
       entry.memo_word ||
       getDefaultAlgLibraryMemoWord(entry.piece_type, entry.case_code) ||
@@ -854,12 +857,7 @@ class App extends React.Component {
     );
   };
 
-  getAlgLibraryDisplaySpecialLabel = (entry) => {
-    const specialType = getAlgLibrarySpecialType(entry && entry.piece_type);
-    return specialType === "twist" || specialType === "flip"
-      ? getAlgLibrarySpecialLabel(specialType)
-      : "";
-  };
+  isAlgLibrarySpecialEntry = (entry) => Boolean(getAlgLibrarySpecialType(entry && entry.piece_type));
 
   applyAlgLibraryFilters = (options = {}) => {
     this.setState((currentState) => {
@@ -6673,8 +6671,8 @@ class App extends React.Component {
         body: "This page brings your execution trends and weak cases together in one place.",
       },
       "alg-library": {
-        title: "Alg Library",
-        eyebrow: "Alg Library",
+        title: "Library",
+        eyebrow: "Library",
         heading: "Search, review, and update your preferred comms without leaving the app.",
         body: "Use the library tabs to search comms, review recent cases, and maintain your local data.",
       },
@@ -7305,7 +7303,7 @@ class App extends React.Component {
       );
     } else if (this.state.activeView === "alg-library") {
       mainView = (
-        <section className="study_screen view_panel">
+        <section className="study_screen view_panel alg_library_screen">
           {this.state.algLibraryTab === "stats" ? (
           <div className="stats_breakdown_grid">
             <div className="breakdown_card">
@@ -7488,7 +7486,7 @@ class App extends React.Component {
                   className="settings_input alg_library_search alg_library_search_compact"
                   placeholder=""
                   value={this.state.algLibrarySearch}
-                  onChange={(event) => this.setState({ algLibrarySearch: event.target.value })}
+                  onChange={(event) => this.setState({ algLibrarySearch: event.target.value.toUpperCase() })}
                 />
               </label>
             </div>
@@ -7508,7 +7506,7 @@ class App extends React.Component {
                 const cardTypeLabel = [pieceLabel, categoryLabel].filter(Boolean).join(" | ");
                 const lastSeenLabel = entry.last_seen_at ? formatHistoryDate(entry.last_seen_at) : "";
                 const displayMemoWord = this.getAlgLibraryDisplayMemoWord(entry);
-                const specialDisplayLabel = this.getAlgLibraryDisplaySpecialLabel(entry);
+                const isSpecialEntry = this.isAlgLibrarySpecialEntry(entry);
 
                 return (
                   <article
@@ -7572,14 +7570,14 @@ class App extends React.Component {
                           <span>{cardTypeLabel}</span>
                         </div>
                         <div className="alg_library_card_memo_line">
-                          <strong>{displayMemoWord}</strong>
-                          <span>
-                            {specialDisplayLabel ? (
-                              <em className="alg_library_special_label">{specialDisplayLabel}</em>
-                            ) : null}
-                            {specialDisplayLabel && lastSeenLabel ? " " : ""}
-                            {lastSeenLabel}
-                          </span>
+                          <strong>
+                            {isSpecialEntry ? (
+                              <em className="alg_library_special_label">{displayMemoWord}</em>
+                            ) : (
+                              displayMemoWord
+                            )}
+                          </strong>
+                          <span>{lastSeenLabel}</span>
                         </div>
                         <div className="alg_library_card_notation">
                           {entry.description || "--"}

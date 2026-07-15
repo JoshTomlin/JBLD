@@ -606,6 +606,8 @@ describe("solve details view data", () => {
       { id: "flip-ca", piece_type: "flip", case_code: "CA", memo_word: null },
       { id: "parity-b", piece_type: "parity", case_code: "B", memo_word: null },
       { id: "edge-sp", piece_type: "edge", case_code: "SP", memo_word: "sip" },
+      { id: "corner-ps", piece_type: "corner", case_code: "PS", memo_word: "spoon" },
+      { id: "edge-ab", piece_type: "edge", case_code: "AB", memo_word: "spoon" },
     ];
 
     expect(app.filterAlgLibraryEntries(entries, { search: "SP-Twist" }).map((entry) => entry.id)).toEqual([
@@ -614,10 +616,17 @@ describe("solve details view data", () => {
     expect(app.filterAlgLibraryEntries(entries, { search: "AC-Flip" }).map((entry) => entry.id)).toEqual([
       "flip-ca",
     ]);
-    expect(app.getAlgLibraryDisplayMemoWord(entries[0])).toBe("PS");
-    expect(app.getAlgLibraryDisplayMemoWord(entries[2])).toBe("B");
-    expect(app.getAlgLibraryDisplaySpecialLabel(entries[0])).toBe("Twist");
-    expect(app.getAlgLibraryDisplaySpecialLabel(entries[2])).toBe("");
+    expect(app.filterAlgLibraryEntries(entries, { search: "SP" }).map((entry) => entry.id).sort()).toEqual([
+      "corner-ps",
+      "edge-sp",
+      "twist-ps",
+    ]);
+    expect(app.filterAlgLibraryEntries(entries, { search: "SPOON" }).map((entry) => entry.id)).toEqual([]);
+    expect(app.getAlgLibraryDisplayMemoWord(entries[0])).toBe("PS-Twist");
+    expect(app.getAlgLibraryDisplayMemoWord(entries[1])).toBe("AC-Flip");
+    expect(app.getAlgLibraryDisplayMemoWord(entries[2])).toBe("B-Parity");
+    expect(app.isAlgLibrarySpecialEntry(entries[0])).toBe(true);
+    expect(app.isAlgLibrarySpecialEntry(entries[2])).toBe(true);
   });
 
   it("marks normal and practise solve comms as seen when they are saved", () => {

@@ -1219,6 +1219,12 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.alg_library_screen {
+  align-content: start;
+  align-items: start;
+  grid-auto-rows: min-content;
+}
+
 .alg_library_shell {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -1311,6 +1317,11 @@ textarea {
 
 .alg_library_toolbar_flat {
   gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-bottom: 2px;
+  background: rgba(5, 12, 28, 0.98);
 }
 
 .alg_library_toolbar_flat .alg_library_field {

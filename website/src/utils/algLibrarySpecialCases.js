@@ -31,7 +31,7 @@ export function normalizeAlgLibraryCaseCode(pieceType, caseCode) {
 
 export function getDefaultAlgLibraryMemoWord(pieceType, caseCode) {
   const specialType = getAlgLibrarySpecialType(pieceType);
-  return specialType ? normalizeAlgLibraryCaseCode(specialType, caseCode) : "";
+  return specialType ? formatAlgLibrarySpecialCaseLabel(specialType, caseCode) : "";
 }
 
 export function formatAlgLibrarySpecialCaseLabel(pieceType, caseCode) {
@@ -87,11 +87,6 @@ export function getAlgLibrarySearchAliases(entry = {}) {
   const aliases = [
     caseCode,
     normalizedCaseCode,
-    entry.description,
-    entry.alg,
-    entry.memo_word || entry.memoWord,
-    entry.category,
-    entry.notes,
   ];
 
   if (specialLabel) {
