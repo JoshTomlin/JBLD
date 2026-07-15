@@ -599,10 +599,11 @@ describe("solve details view data", () => {
     };
 
     const record = app.buildDrillAttemptRecord(entry, { performedAlg: "R U R'", matched: true });
-    const box = app.getDrillLastSeenBoxPlot([
-      { lastSeenAt: "2026-07-14T00:00:00.000Z", completedAt: "2026-07-15T00:00:00.000Z" },
-      { lastSeenAt: "2026-07-12T00:00:00.000Z", completedAt: "2026-07-15T00:00:00.000Z" },
-      { lastSeenAt: "2026-07-10T00:00:00.000Z", completedAt: "2026-07-15T00:00:00.000Z" },
+    const lastSeenCounts = app.getDrillLastSeenThresholdCounts([
+      { lastSeenAt: "2026-07-14T12:00:00.000Z" },
+      { lastSeenAt: "2026-07-13T00:00:00.000Z" },
+      { lastSeenAt: "2026-07-01T00:00:00.000Z" },
+      { lastSeenAt: "2026-06-01T00:00:00.000Z" },
     ]);
 
     expect(record).toMatchObject({
@@ -614,14 +615,65 @@ describe("solve details view data", () => {
       lastSeenAt: "2026-07-01T00:00:00.000Z",
       matched: true,
     });
-    expect(box).toMatchObject({
-      min: 1,
-      median: 3,
-      max: 5,
-      count: 3,
+    expect(lastSeenCounts).toMatchObject({
+      total: 4,
+      overDay: 3,
+      overWeek: 2,
+      overMonth: 1,
     });
 
     nowSpy.mockRestore();
+  });
+
+  it("filters drill stats by alg type before counting rusty algs", () => {
+    const app = new App();
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2026-07-15T00:00:00.000Z").getTime());
+    const records = [
+      { id: "edge-ab", piece_type: "edge", last_seen_at: "2026-07-01T00:00:00.000Z" },
+      { id: "corner-ab", piece_type: "corner", last_seen_at: "2026-06-01T00:00:00.000Z" },
+      { id: "twist-ab", piece_type: "twist", last_seen_at: "2026-07-10T00:00:00.000Z" },
+      { id: "flip-ab", piece_type: "flip", last_seen_at: "2026-05-01T00:00:00.000Z" },
+      { id: "parity-a", piece_type: "parity", last_seen_at: "2026-07-14T12:00:00.000Z" },
+    ];
+
+    const twistRecords = app.filterDrillStatsRecordsByType(records, "twist");
+    const allRecords = app.filterDrillStatsRecordsByType(records, "all");
+    const twistCounts = app.getDrillLastSeenThresholdCounts(twistRecords);
+
+    expect(twistRecords.map((record) => record.id)).toEqual(["twist-ab"]);
+    expect(allRecords).toHaveLength(5);
+    expect(twistCounts).toMatchObject({
+      total: 1,
+      overDay: 1,
+      overWeek: 0,
+      overMonth: 0,
+    });
+
+    nowSpy.mockRestore();
+  });
+
+  it("keeps old main algs when promoting an alternate alg", () => {
+    const app = new App();
+    const entry = {
+      id: "edge-ab",
+      case_code: "AB",
+      piece_type: "edge",
+      alg: "R U R'",
+      alternate_algs: ["F R F'", "R U R'"],
+    };
+
+    const promotedAlternates = app.buildAlternateAlgsForMainAlg(entry, "F R F'");
+    const nextDraft = app.promoteAlternateAlgInDraft(
+      { alg: "R U R'", alternateAlgs: ["F R F'"] },
+      "F R F'",
+      "edge"
+    );
+
+    expect(promotedAlternates).toEqual(["R U R'"]);
+    expect(nextDraft).toMatchObject({
+      alg: "F R F'",
+      alternateAlgs: ["R U R'"],
+    });
   });
 
   it("builds memo audit rows and searches starts, endings, then memo text", () => {

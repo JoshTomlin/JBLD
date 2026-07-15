@@ -1679,6 +1679,56 @@ textarea {
   resize: vertical;
 }
 
+.alg_alternates_editor {
+  display: grid;
+  gap: 8px;
+}
+
+.alg_alternates_header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.alg_alternates_header span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.alg_alternates_header small {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
+.alg_alternate_button_list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alg_alternate_button {
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #bfdbfe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.alg_alternates_textarea {
+  min-height: 58px;
+}
+
 .alg_library_icon_button_small {
   width: 20px;
   min-width: 20px;
@@ -3773,6 +3823,10 @@ textarea {
   min-height: 28px;
 }
 
+.drill_stats_type_filter {
+  width: min(220px, 100%);
+}
+
 .drill_recent_list,
 .drill_rusty_list {
   display: grid;
@@ -3961,6 +4015,39 @@ button.comm_recent_card {
   color: var(--text-soft);
   font-size: 0.95rem;
   font-weight: 650;
+}
+
+.drill_last_seen_counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drill_last_seen_count {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.68);
+  text-align: center;
+}
+
+.drill_last_seen_count span {
+  color: var(--text-dim);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.drill_last_seen_count strong {
+  color: #bfdbfe;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .drill_box_plot {
@@ -4316,6 +4403,61 @@ button.comm_recent_card {
   overflow-wrap: anywhere;
 }
 
+.drill_last_comm_alg_compare {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.drill_last_comm_promote {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(191, 219, 254, 0.22);
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.82);
+  color: #bfdbfe;
+}
+
+.drill_last_comm_promote:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.drill_last_comm_promote svg {
+  width: 15px;
+  height: 15px;
+}
+
+.drill_last_comm_alg_stack {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.drill_last_comm_alg_stack span {
+  color: rgba(219, 234, 254, 0.72);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.drill_last_comm_alg_stack code {
+  min-width: 0;
+  color: var(--text-soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
 .drill_last_comm_edit {
   position: absolute;
   right: 10px;
@@ -4449,9 +4591,48 @@ button.comm_recent_card {
     font-size: 0.68rem;
   }
 
+  .drill_last_comm_alg_compare {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .drill_last_comm_promote {
+    width: 24px;
+    height: 24px;
+  }
+
+  .drill_last_comm_promote svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .drill_last_comm_alg_stack span {
+    font-size: 0.54rem;
+  }
+
+  .drill_last_comm_alg_stack code {
+    font-size: 0.68rem;
+  }
+
   .drill_recent_card,
   .drill_stats_card {
     padding: 10px;
+  }
+
+  .drill_last_seen_counts {
+    gap: 6px;
+  }
+
+  .drill_last_seen_count {
+    padding: 8px 5px;
+  }
+
+  .drill_last_seen_count span {
+    font-size: 0.58rem;
+  }
+
+  .drill_last_seen_count strong {
+    font-size: 1.22rem;
   }
 
   .drill_recent_alg_grid {

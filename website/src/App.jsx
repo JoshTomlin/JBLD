@@ -162,6 +162,7 @@ class App extends React.Component {
       drillFlowEntries: [],
       drillStatsEntries: [],
       drillStatsLoading: false,
+      drillStatsPieceType: "all",
       drillDisplayMode: "next",
       drillLoading: false,
       drillSessionActive: false,
@@ -192,6 +193,7 @@ class App extends React.Component {
       algReviewEditorEntry: null,
       algReviewEditorDraft: null,
       algReviewEditorSaving: false,
+      algReviewPromotingAlg: false,
       practiceSolves: this.parseJsonStorage("practiceSolves", []),
       practiceScrambleType: "edges",
       practiceTab: "solve",
@@ -878,15 +880,7 @@ class App extends React.Component {
         algLibraryEntries: filteredEntries,
         algLibraryEntryTotal: filteredEntries.length,
         algLibrarySelectedEntryId: selectedEntry ? selectedEntry.id : null,
-        algLibraryDraft: selectedEntry
-          ? {
-              description: selectedEntry.description || "",
-              alg: selectedEntry.alg || "",
-              memoWord: selectedEntry.memo_word || "",
-              category: selectedEntry.category || "",
-              notes: selectedEntry.notes || "",
-            }
-          : null,
+        algLibraryDraft: selectedEntry ? this.buildAlgLibraryDraftFromEntry(selectedEntry) : null,
       };
     });
   };
@@ -895,15 +889,7 @@ class App extends React.Component {
     this.setState({
       algLibrarySelectedEntryId: entry ? entry.id : null,
       algLibraryEditing: false,
-      algLibraryDraft: entry
-        ? {
-            description: entry.description || "",
-            alg: entry.alg || "",
-            memoWord: entry.memo_word || "",
-            category: entry.category || "",
-            notes: entry.notes || "",
-          }
-        : null,
+      algLibraryDraft: entry ? this.buildAlgLibraryDraftFromEntry(entry) : null,
     });
   };
 
@@ -914,6 +900,154 @@ class App extends React.Component {
         [field]: value,
       },
     }));
+  };
+
+  selectAlgLibraryAlternateAlg = (alg, pieceType = "") => {
+    this.setState((currentState) => ({
+      algLibraryDraft: this.promoteAlternateAlgInDraft(
+        currentState.algLibraryDraft || {},
+        alg,
+        pieceType
+      ),
+    }));
+  };
+
+  normalizeAlternateAlgs = (value = []) => {
+    const source = typeof value === "string"
+      ? value.split(/\r?\n/)
+      : Array.isArray(value)
+        ? value
+        : [];
+    const seen = new Set();
+    const alternates = [];
+
+    source.forEach((alg) => {
+      const text = String(alg || "").trim().replace(/\s+/g, " ");
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      alternates.push(text);
+    });
+
+    return alternates;
+  };
+
+  getEntryAlternateAlgs = (entry = {}) =>
+    this.normalizeAlternateAlgs(
+      entry && Object.prototype.hasOwnProperty.call(entry, "alternate_algs")
+        ? entry.alternate_algs
+        : entry && entry.alternateAlgs
+    );
+
+  formatAlternateAlgsText = (value = []) => this.normalizeAlternateAlgs(value).join("\n");
+
+  buildAlgLibraryDraftFromEntry = (entry = {}) => ({
+    description: entry.description || "",
+    alg: entry.alg || "",
+    memoWord: entry.memo_word || "",
+    category: entry.category || "",
+    notes: entry.notes || "",
+    alternateAlgs: this.getEntryAlternateAlgs(entry),
+  });
+
+  getAlgDedupKey = (algText = "", pieceType = "") =>
+    this.normalizeAlgComparisonText(algText, pieceType) ||
+    String(algText || "").trim().replace(/\s+/g, " ");
+
+  buildAlternateAlgsForMainAlg = (entry = {}, nextMainAlg = "") => {
+    const pieceType = entry.piece_type || entry.pieceType || "";
+    const nextKey = this.getAlgDedupKey(nextMainAlg, pieceType);
+    const seen = new Set();
+    const alternates = [];
+
+    [entry.alg, ...this.getEntryAlternateAlgs(entry)].forEach((alg) => {
+      const text = String(alg || "").trim().replace(/\s+/g, " ");
+      const key = this.getAlgDedupKey(text, pieceType);
+      if (!text || !key || key === nextKey || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      alternates.push(text);
+    });
+
+    return alternates;
+  };
+
+  promoteAlternateAlgInDraft = (draft = {}, selectedAlg = "", pieceType = "") => {
+    const nextAlg = String(selectedAlg || "").trim();
+    if (!nextAlg) {
+      return draft;
+    }
+
+    const selectedKey = this.getAlgDedupKey(nextAlg, pieceType);
+    const seen = new Set();
+    const alternateAlgs = [];
+
+    [draft.alg, ...this.normalizeAlternateAlgs(draft.alternateAlgs || draft.alternate_algs)].forEach((alg) => {
+      const text = String(alg || "").trim().replace(/\s+/g, " ");
+      const key = this.getAlgDedupKey(text, pieceType);
+      if (!text || !key || key === selectedKey || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      alternateAlgs.push(text);
+    });
+
+    return {
+      ...draft,
+      alg: nextAlg,
+      alternateAlgs,
+    };
+  };
+
+  renderAlternateAlgsEditor = ({
+    draft = {},
+    pieceType = "",
+    onChange,
+    onSelect,
+    uncontrolled = false,
+  } = {}) => {
+    const alternateAlgs = this.normalizeAlternateAlgs(draft.alternateAlgs || draft.alternate_algs);
+    const textareaProps = uncontrolled
+      ? {
+          defaultValue: this.formatAlternateAlgsText(alternateAlgs),
+          key: `alternate-algs-${alternateAlgs.join("|")}`,
+        }
+      : {
+          value: this.formatAlternateAlgsText(alternateAlgs),
+        };
+
+    return (
+      <div className="alg_alternates_editor">
+        <div className="alg_alternates_header">
+          <span>Alternate Algs</span>
+          <small>{alternateAlgs.length ? "Tap one to use it" : "None saved"}</small>
+        </div>
+        {alternateAlgs.length ? (
+          <div className="alg_alternate_button_list">
+            {alternateAlgs.map((alg) => (
+              <button
+                key={`${pieceType}-${alg}`}
+                type="button"
+                className="alg_alternate_button"
+                onClick={() => onSelect && onSelect(alg)}
+              >
+                {this.formatAlgLibraryAlg(alg, pieceType) || alg}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <textarea
+          className="settings_textarea alg_library_inline_textarea alg_alternates_textarea"
+          placeholder="Alternate Algs"
+          {...textareaProps}
+          onChange={(event) =>
+            onChange && onChange(this.normalizeAlternateAlgs(event.target.value))
+          }
+        />
+      </div>
+    );
   };
 
   openAlgLibraryEditor = () => {
@@ -932,13 +1066,7 @@ class App extends React.Component {
     this.setState({
       algLibrarySelectedEntryId: entry.id,
       algLibraryEditing: true,
-      algLibraryDraft: {
-        description: entry.description || "",
-        alg: entry.alg || "",
-        memoWord: entry.memo_word || "",
-        category: entry.category || "",
-        notes: entry.notes || "",
-      },
+      algLibraryDraft: this.buildAlgLibraryDraftFromEntry(entry),
     });
   };
 
@@ -979,19 +1107,18 @@ class App extends React.Component {
         [...this.state.solves_stats].slice().reverse().slice(0, 8)
       );
       this.setState((currentState) => ({
+        ...this.mergeSavedAlgLibraryEntryState(currentState, savedEntry),
         algLibrarySavingEntry: false,
         algLibraryEditing: false,
         algLibraryNotice: `Saved ${savedEntry.case_code} in your local Alg Library.`,
         algLibraryRecentMatches: recentMatches,
-        algLibraryEntries: currentState.algLibraryEntries.map((entry) =>
-          entry.id === savedEntry.id ? savedEntry : entry
-        ),
         algLibraryDraft: {
           description: savedEntry.description || "",
           alg: savedEntry.alg || "",
           memoWord: savedEntry.memo_word || "",
           category: savedEntry.category || "",
           notes: savedEntry.notes || "",
+          alternateAlgs: this.getEntryAlternateAlgs(savedEntry),
         },
       }));
     } catch (error) {
@@ -1167,10 +1294,12 @@ class App extends React.Component {
         memoWord: draftMemo,
         category: entry.category || "",
         notes: entry.notes || "",
+        alternateAlgs: this.getEntryAlternateAlgs(entry),
       });
       await this.refreshAlgLibrarySummary();
       const mergeEntry = (libraryEntry) => (libraryEntry.id === savedEntry.id ? savedEntry : libraryEntry);
       this.setState((currentState) => ({
+        ...this.mergeSavedAlgLibraryEntryState(currentState, savedEntry),
         memoAuditSaving: false,
         memoAuditEditingCell: null,
         memoAuditDraftMemo: "",
@@ -1193,6 +1322,7 @@ class App extends React.Component {
                 memoWord: savedEntry.memo_word || "",
                 category: savedEntry.category || "",
                 notes: savedEntry.notes || "",
+                alternateAlgs: this.getEntryAlternateAlgs(savedEntry),
               }
             : currentState.algLibraryDraft,
         solveDetailsLibraryByCase: Object.keys(currentState.solveDetailsLibraryByCase || {}).reduce((acc, key) => {
@@ -3215,6 +3345,38 @@ class App extends React.Component {
     return null;
   };
 
+  mergeSavedAlgLibraryEntryState = (currentState, savedEntry) => {
+    if (!savedEntry) {
+      return {};
+    }
+
+    const patchEntry = (entry) =>
+      entry && this.getAlgReviewEntryKey(entry) === this.getAlgReviewEntryKey(savedEntry)
+        ? { ...entry, ...savedEntry }
+        : entry;
+    const patchEntryList = (entries) => (Array.isArray(entries) ? entries.map(patchEntry) : entries);
+    const solveDetailsLibraryByCase = Object.keys(currentState.solveDetailsLibraryByCase || {}).reduce((acc, key) => {
+      const entry = currentState.solveDetailsLibraryByCase[key];
+      acc[key] = patchEntry(entry);
+      return acc;
+    }, {});
+
+    return {
+      algLibraryAllEntries: patchEntryList(currentState.algLibraryAllEntries),
+      algLibraryEntries: patchEntryList(currentState.algLibraryEntries),
+      algReviewEntries: patchEntryList(currentState.algReviewEntries),
+      drillFlowEntries: patchEntryList(currentState.drillFlowEntries),
+      drillStatsEntries: patchEntryList(currentState.drillStatsEntries),
+      drillQueue: patchEntryList(currentState.drillQueue),
+      drillReviewEntries: patchEntryList(currentState.drillReviewEntries),
+      drillCurrentEntry: patchEntry(currentState.drillCurrentEntry),
+      drillNextEntry: patchEntry(currentState.drillNextEntry),
+      drillExecutingEntry: patchEntry(currentState.drillExecutingEntry),
+      drillLastCommEntry: patchEntry(currentState.drillLastCommEntry),
+      solveDetailsLibraryByCase,
+    };
+  };
+
   buildAlgLibraryCaseRefsFromComms = (commStats = []) => {
     const seen = new Set();
     const refs = [];
@@ -3424,13 +3586,7 @@ class App extends React.Component {
       return;
     }
 
-    const draft = {
-      description: entry.description || "",
-      alg: entry.alg || "",
-      memoWord: entry.memo_word || "",
-      category: entry.category || "",
-      notes: entry.notes || "",
-    };
+    const draft = this.buildAlgLibraryDraftFromEntry(entry);
     this.solveCommEditorDraftBuffer = draft;
 
     this.setState({
@@ -3444,6 +3600,16 @@ class App extends React.Component {
       ...(this.solveCommEditorDraftBuffer || this.state.solveCommEditorDraft || {}),
       [field]: value,
     };
+  };
+
+  selectSolveCommAlternateAlg = (alg, pieceType = "") => {
+    const draft = this.promoteAlternateAlgInDraft(
+      this.solveCommEditorDraftBuffer || this.state.solveCommEditorDraft || {},
+      alg,
+      pieceType
+    );
+    this.solveCommEditorDraftBuffer = draft;
+    this.setState({ solveCommEditorDraft: draft });
   };
 
   saveSolveDetailsCommEditor = async () => {
@@ -3471,21 +3637,22 @@ class App extends React.Component {
       const nextStatus = usedAlg && preferredAlg && usedAlg === preferredAlg ? "match" : "mismatch";
 
       this.solveCommEditorDraftBuffer = null;
-      this.setState((currentState) => ({
-        solveCommEditorSaving: false,
-        solveCommEditorDraft: null,
-        solveDetailsLibraryByCase: {
-          ...currentState.solveDetailsLibraryByCase,
-          [caseKey]: savedEntry,
-        },
-        solveDetailsCommStatusByKey: {
-          ...currentState.solveDetailsCommStatusByKey,
-          [rowKey]: nextStatus,
-        },
-        algLibraryEntries: currentState.algLibraryEntries.map((libraryEntry) =>
-          libraryEntry.id === savedEntry.id ? savedEntry : libraryEntry
-        ),
-      }));
+      this.setState((currentState) => {
+        const mergedState = this.mergeSavedAlgLibraryEntryState(currentState, savedEntry);
+        return {
+          ...mergedState,
+          solveCommEditorSaving: false,
+          solveCommEditorDraft: null,
+          solveDetailsLibraryByCase: {
+            ...mergedState.solveDetailsLibraryByCase,
+            [caseKey]: savedEntry,
+          },
+          solveDetailsCommStatusByKey: {
+            ...currentState.solveDetailsCommStatusByKey,
+            [rowKey]: nextStatus,
+          },
+        };
+      });
     } catch (error) {
       console.warn("Failed to save solve-details comm edit", error);
       this.setState({ solveCommEditorSaving: false });
@@ -3791,6 +3958,29 @@ class App extends React.Component {
     return record && record.matched ? "Matched" : "Review";
   };
 
+  getDrillStatsTypeOptions = () => [
+    { value: "all", label: "All" },
+    { value: "edge", label: "Edges" },
+    { value: "corner", label: "Corners" },
+    { value: "twist", label: "Twist" },
+    { value: "flip", label: "Flip" },
+    { value: "parity", label: "Parity" },
+  ];
+
+  filterDrillStatsRecordsByType = (records = [], pieceType = "all") => {
+    const selectedType = String(pieceType || "all").toLowerCase();
+    const sourceRecords = Array.isArray(records) ? records : [];
+    if (selectedType === "all") {
+      return sourceRecords;
+    }
+
+    return sourceRecords.filter((record) => {
+      const rawType = record ? record.piece_type || record.pieceType : "";
+      const recordType = String(rawType || "").toLowerCase();
+      return recordType === selectedType;
+    });
+  };
+
   getDrillRecordLastSeenTime = (record) => {
     const value = record && (record.lastSeenAt || record.last_seen_at || record.lastSeen);
     const parsed = new Date(value || "2026-01-01T00:00:00.000Z").getTime();
@@ -3816,6 +4006,25 @@ class App extends React.Component {
       return `${Math.round(value)}d`;
     }
     return `${Math.round(value / 7)}w`;
+  };
+
+  getDrillCurrentLastSeenAgeDays = (record, now = Date.now()) => {
+    const endTime = Number(now);
+    const ageMs = Math.max(0, (Number.isFinite(endTime) ? endTime : Date.now()) - this.getDrillRecordLastSeenTime(record));
+    return ageMs / (24 * 60 * 60 * 1000);
+  };
+
+  getDrillLastSeenThresholdCounts = (records = [], now = Date.now()) => {
+    const values = (Array.isArray(records) ? records : [])
+      .map((record) => this.getDrillCurrentLastSeenAgeDays(record, now))
+      .filter((value) => Number.isFinite(value));
+
+    return {
+      total: values.length,
+      overDay: values.filter((value) => value > 1).length,
+      overWeek: values.filter((value) => value > 7).length,
+      overMonth: values.filter((value) => value > 30).length,
+    };
   };
 
   getDrillLastSeenBoxPlot = (records = []) => {
@@ -4589,13 +4798,7 @@ class App extends React.Component {
 
     this.setState({
       algReviewEditorEntry: entry,
-      algReviewEditorDraft: {
-        description: entry.description || "",
-        alg: entry.alg || "",
-        memoWord: entry.memo_word || "",
-        category: entry.category || "",
-        notes: entry.notes || "",
-      },
+      algReviewEditorDraft: this.buildAlgLibraryDraftFromEntry(entry),
     });
   };
 
@@ -4612,22 +4815,23 @@ class App extends React.Component {
     }));
   };
 
+  selectAlgReviewAlternateAlg = (alg) => {
+    this.setState((currentState) => ({
+      algReviewEditorDraft: this.promoteAlternateAlgInDraft(
+        currentState.algReviewEditorDraft || {},
+        alg,
+        currentState.algReviewEditorEntry && currentState.algReviewEditorEntry.piece_type
+      ),
+    }));
+  };
+
   replaceAlgReviewEntry = (savedEntry) => {
     if (!savedEntry) {
       return;
     }
 
-    const patchEntry = (entry) =>
-      entry && this.getAlgReviewEntryKey(entry) === this.getAlgReviewEntryKey(savedEntry)
-        ? { ...entry, ...savedEntry }
-        : entry;
-
     this.setState((currentState) => ({
-      algReviewEntries: currentState.algReviewEntries.map(patchEntry),
-      drillQueue: currentState.drillQueue.map(patchEntry),
-      drillCurrentEntry: patchEntry(currentState.drillCurrentEntry),
-      drillNextEntry: patchEntry(currentState.drillNextEntry),
-      drillExecutingEntry: patchEntry(currentState.drillExecutingEntry),
+      ...this.mergeSavedAlgLibraryEntryState(currentState, savedEntry),
     }));
   };
 
@@ -4650,6 +4854,39 @@ class App extends React.Component {
     } catch (error) {
       console.warn("Failed to save alg review edit", error);
       this.setState({ algReviewEditorSaving: false });
+    }
+  };
+
+  promoteLastAlgReviewAttemptToLibrary = async () => {
+    const entry = this.state.drillLastCommEntry;
+    const performedAlg = Array.isArray(this.state.drillLastCommMoves)
+      ? this.state.drillLastCommMoves.join(" ").trim()
+      : "";
+    if (!entry || !entry.id || !performedAlg || this.state.algReviewPromotingAlg) {
+      return;
+    }
+
+    const draft = {
+      ...this.buildAlgLibraryDraftFromEntry(entry),
+      alg: performedAlg,
+      alternateAlgs: this.buildAlternateAlgsForMainAlg(entry, performedAlg),
+    };
+
+    this.setState({ algReviewPromotingAlg: true });
+    try {
+      const savedEntry = await updateAlgLibraryEntry(entry.id, draft);
+      await this.refreshAlgLibrarySummary();
+      this.setState((currentState) => ({
+        ...this.mergeSavedAlgLibraryEntryState(currentState, savedEntry),
+        algReviewPromotingAlg: false,
+        drillStatusMessage: `Updated ${savedEntry.case_code || "alg"}`,
+      }));
+    } catch (error) {
+      console.warn("Failed to promote Alg Review attempt", error);
+      this.setState({
+        algReviewPromotingAlg: false,
+        drillStatusMessage: "Could not update library alg",
+      });
     }
   };
   toggleDrillPieceType = (pieceType) => {
@@ -7287,6 +7524,7 @@ class App extends React.Component {
       const drillTab = this.state.drillTab || "setup";
       const drillFlowPieceType = this.getDrillFlowPieceType();
       const drillFlowGroups = Array.isArray(this.state.drillFlowGroups) ? this.state.drillFlowGroups : [];
+      const drillStatsTypeOptions = this.getDrillStatsTypeOptions();
       const setupGroups = reviewMode ? algReviewGroups : drillFlowGroups;
       const recentDrillRecords = this.getRecentDrillAttemptRecords(30);
       const drillStatsEntryMap = new Map();
@@ -7301,22 +7539,12 @@ class App extends React.Component {
         }
       });
       const drillStatsRecords = drillStatsEntryMap.size ? [...drillStatsEntryMap.values()] : algReviewRecords;
-      const drillBoxPlot = this.getDrillLastSeenBoxPlot(drillStatsRecords);
-      const getDrillBoxPosition = (value) => {
-        if (!drillBoxPlot || drillBoxPlot.max <= drillBoxPlot.min) {
-          return "50%";
-        }
-        const position = ((value - drillBoxPlot.min) / (drillBoxPlot.max - drillBoxPlot.min)) * 100;
-        return `${Math.max(0, Math.min(100, position))}%`;
-      };
-      const drillBoxPlotStyle = drillBoxPlot
-        ? {
-            "--drill-box-left": getDrillBoxPosition(drillBoxPlot.q1),
-            "--drill-box-right": getDrillBoxPosition(drillBoxPlot.q3),
-            "--drill-box-median": getDrillBoxPosition(drillBoxPlot.median),
-          }
-        : {};
-      const drillRustiestRecords = this.getDrillRustiestRecords(drillStatsRecords, 5);
+      const filteredDrillStatsRecords = this.filterDrillStatsRecordsByType(
+        drillStatsRecords,
+        this.state.drillStatsPieceType
+      );
+      const drillLastSeenCounts = this.getDrillLastSeenThresholdCounts(filteredDrillStatsRecords);
+      const drillRustiestRecords = this.getDrillRustiestRecords(filteredDrillStatsRecords, 5);
       const lastReviewEntry = reviewMode ? this.state.drillLastCommEntry : null;
       const lastReviewMoves = reviewMode && Array.isArray(this.state.drillLastCommMoves)
         ? this.state.drillLastCommMoves
@@ -7447,11 +7675,32 @@ class App extends React.Component {
                           <strong>{lastReviewEntry.memo_word || "--"}</strong>
                           <span>{lastReviewEntry.description || "No comm notation saved"}</span>
                         </div>
-                        <div className="drill_last_comm_alg_lines">
-                          <span>Library alg</span>
-                          <code>{lastReviewLibraryAlg}</code>
-                          <span>You did</span>
-                          <code>{lastReviewPerformedAlg}</code>
+                        <div className="drill_last_comm_alg_compare">
+                          <button
+                            type="button"
+                            className="drill_last_comm_promote"
+                            aria-label="Use performed alg as library alg"
+                            onClick={this.promoteLastAlgReviewAttemptToLibrary}
+                            disabled={
+                              this.state.algReviewPromotingAlg ||
+                              !lastReviewEntry ||
+                              !lastReviewMoves.length ||
+                              lastReviewPerformedAlg === "--"
+                            }
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M7 7h10" />
+                              <path d="m14 4 3 3-3 3" />
+                              <path d="M17 17H7" />
+                              <path d="m10 14-3 3 3 3" />
+                            </svg>
+                          </button>
+                          <div className="drill_last_comm_alg_stack">
+                            <span>Library Alg</span>
+                            <code>{lastReviewLibraryAlg}</code>
+                            <code>{lastReviewPerformedAlg}</code>
+                            <span>You Did</span>
+                          </div>
                         </div>
                       </div>
                       <button
@@ -7618,27 +7867,38 @@ class App extends React.Component {
                   <div className="drill_page_header">
                     <div className="chart_card_title">Stats</div>
                     <div className="section_meta">
-                      {this.state.drillStatsLoading ? "Loading..." : drillBoxPlot ? `${drillBoxPlot.count} algs` : "No data"}
+                      {this.state.drillStatsLoading ? "Loading..." : drillLastSeenCounts.total ? `${drillLastSeenCounts.total} algs` : "No data"}
                     </div>
                   </div>
-                  {drillBoxPlot ? (
+                  <label className="drill_select_label drill_stats_type_filter">
+                    Alg Type
+                    <select
+                      className="drill_select"
+                      value={this.state.drillStatsPieceType || "all"}
+                      onChange={(event) => this.setState({ drillStatsPieceType: event.target.value })}
+                    >
+                      {drillStatsTypeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {drillLastSeenCounts.total ? (
                     <React.Fragment>
                       <article className="drill_stats_card">
-                        <div className="drill_stats_card_title">Last Seen Spread</div>
-                        <div className="drill_box_plot" style={drillBoxPlotStyle}>
-                          <span className="drill_box_whisker"></span>
-                          <span className="drill_box_range"></span>
-                          <span className="drill_box_median"></span>
-                        </div>
-                        <div className="drill_box_labels">
-                          <span>{this.formatDrillLastSeenAge(drillBoxPlot.min)}</span>
-                          <span>{this.formatDrillLastSeenAge(drillBoxPlot.median)}</span>
-                          <span>{this.formatDrillLastSeenAge(drillBoxPlot.max)}</span>
-                        </div>
-                        <div className="drill_box_summary">
-                          <span>Q1 {this.formatDrillLastSeenAge(drillBoxPlot.q1)}</span>
-                          <span>Median {this.formatDrillLastSeenAge(drillBoxPlot.median)}</span>
-                          <span>Q3 {this.formatDrillLastSeenAge(drillBoxPlot.q3)}</span>
+                        <div className="drill_stats_card_title">Not Seen For</div>
+                        <div className="drill_last_seen_counts">
+                          <div className="drill_last_seen_count">
+                            <span>Over 1 Day</span>
+                            <strong>{drillLastSeenCounts.overDay}</strong>
+                          </div>
+                          <div className="drill_last_seen_count">
+                            <span>Over 1 Week</span>
+                            <strong>{drillLastSeenCounts.overWeek}</strong>
+                          </div>
+                          <div className="drill_last_seen_count">
+                            <span>Over 1 Month</span>
+                            <strong>{drillLastSeenCounts.overMonth}</strong>
+                          </div>
                         </div>
                       </article>
                       <div className="drill_rusty_list">
@@ -7659,7 +7919,11 @@ class App extends React.Component {
                     </React.Fragment>
                   ) : (
                     <div className="empty_state_card">
-                      <div className="placeholder_text">Last-seen stats will appear once the alg library has loaded.</div>
+                      <div className="placeholder_text">
+                        {drillStatsRecords.length
+                          ? "No algs found for this type."
+                          : "Last-seen stats will appear once the alg library has loaded."}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -7704,6 +7968,12 @@ class App extends React.Component {
                   value={editorDraft.alg || ""}
                   onChange={(event) => this.updateAlgReviewEditorDraftField("alg", event.target.value)}
                 />
+                {this.renderAlternateAlgsEditor({
+                  draft: editorDraft || {},
+                  pieceType: activeEditorEntry.piece_type,
+                  onChange: (alternateAlgs) => this.updateAlgReviewEditorDraftField("alternateAlgs", alternateAlgs),
+                  onSelect: this.selectAlgReviewAlternateAlg,
+                })}
                 <textarea
                   className="settings_textarea alg_library_inline_textarea"
                   placeholder="Notes"
@@ -8103,6 +8373,12 @@ class App extends React.Component {
                             </svg>
                           </button>
                         </div>
+                        {this.renderAlternateAlgsEditor({
+                          draft: this.state.algLibraryDraft || {},
+                          pieceType: entry.piece_type,
+                          onChange: (alternateAlgs) => this.updateAlgLibraryDraftField("alternateAlgs", alternateAlgs),
+                          onSelect: (alg) => this.selectAlgLibraryAlternateAlg(alg, entry.piece_type),
+                        })}
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
@@ -9546,11 +9822,21 @@ class App extends React.Component {
                               onChange={(event) => this.updateSolveCommEditorDraftField("description", event.target.value)}
                             />
                             <textarea
+                              key={`solve-comm-alg-${this.state.solveCommEditorDraft.alg || ""}`}
                               className="settings_textarea alg_library_inline_textarea"
                               placeholder="Alg"
                               defaultValue={this.state.solveCommEditorDraft.alg || ""}
                               onChange={(event) => this.updateSolveCommEditorDraftField("alg", event.target.value)}
                             />
+                            {this.renderAlternateAlgsEditor({
+                              draft: this.state.solveCommEditorDraft || {},
+                              pieceType: selectedSolveCommEntry.piece_type,
+                              uncontrolled: true,
+                              onChange: (alternateAlgs) =>
+                                this.updateSolveCommEditorDraftField("alternateAlgs", alternateAlgs),
+                              onSelect: (alg) =>
+                                this.selectSolveCommAlternateAlg(alg, selectedSolveCommEntry.piece_type),
+                            })}
                             <textarea
                               className="settings_textarea alg_library_inline_textarea solve_comm_editor_notes"
                               placeholder="Notes"
