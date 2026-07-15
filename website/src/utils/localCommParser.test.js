@@ -231,7 +231,7 @@ describe("localCommParser", () => {
     );
 
     expect(pieceType).toEqual({ edge: false, corner: true, parity: false });
-    expect(comm).toEqual(["RFU", "BUR", "twist"]);
+    expect(comm).toEqual(["BUR", "RFU", "twist"]);
   });
 
   it("detects six-sticker corner twists as corner comms", () => {
@@ -248,7 +248,7 @@ describe("localCommParser", () => {
     );
 
     expect(pieceType).toEqual({ edge: false, corner: true, parity: false });
-    expect(comm).toEqual(["RBU", "FRD", "twist"]);
+    expect(comm).toEqual(["FRD", "RBU", "twist"]);
   });
 
   it("recognizes a J-perm style two-edge two-corner parity case", () => {

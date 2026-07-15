@@ -955,13 +955,16 @@ function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, bu
 
   if (specialType) {
     const relevantTargets = mappedComm.filter((token) => token !== "flip" && token !== "twist");
-    const label = specialType === "rotation" ? "Twist" : "flip";
+    const label = specialType === "rotation" ? "Twist" : "Flip";
+    const orderedTargets = relevantTargets
+      .slice()
+      .sort((left, right) => String(left).localeCompare(String(right)));
     return {
       bufferTarget: null,
-      targetA: relevantTargets[0] || null,
-      targetB: relevantTargets[1] || null,
+      targetA: orderedTargets[0] || null,
+      targetB: orderedTargets[1] || null,
       specialType,
-      parseText: `${relevantTargets.join("")} ${label}`.trim(),
+      parseText: `${orderedTargets.join("")} ${label}`.trim(),
     };
   }
 

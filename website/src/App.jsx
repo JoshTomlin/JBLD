@@ -17,6 +17,16 @@ import { computeSessionAggregateStats, isDnfValue } from "./utils/solveAverages"
 import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
 import { expandCommNotation, hasCommNotation } from "./utils/commNotation";
 import {
+  formatAlgLibrarySpecialCaseLabel,
+  getAlgLibrarySearchAliases,
+  getAlgLibrarySearchNeedles,
+  getAlgLibrarySpecialLabel,
+  getAlgLibrarySpecialType,
+  getDefaultAlgLibraryMemoWord,
+  normalizeAlgLibraryCaseCode,
+  normalizeAlgLibrarySpecialLabel,
+} from "./utils/algLibrarySpecialCases";
+import {
   fetchSupabaseDataset,
   fetchSupabaseSolveById,
   isSupabaseConfigured,
@@ -95,6 +105,7 @@ class App extends React.Component {
       activeView: "solve",
       showMenu: false,
       showSettings: false,
+      showBackupMenu: false,
       showLastSolveDetails: false,
       loadingSolveDetails: false,
       loadingSolveDetailsCommLibrary: false,
@@ -375,6 +386,7 @@ class App extends React.Component {
     if (showNotice || closeMenu) {
       this.setState({
         showMenu: closeMenu ? false : this.state.showMenu,
+        showBackupMenu: false,
         connectionNotice: showNotice
           ? `Backup exported with ${algLibraryEntries.length} Alg Library entries included. Keep the JSON file somewhere safe outside the browser.`
           : this.state.connectionNotice,
@@ -384,7 +396,7 @@ class App extends React.Component {
     return { algLibraryCount: algLibraryEntries.length };
   };
   triggerSolveBackupImport = () => {
-    this.setState({ showMenu: false }, () => {
+    this.setState({ showMenu: false, showBackupMenu: false }, () => {
       if (this.backupImportInputRef.current) {
         this.backupImportInputRef.current.value = "";
         this.backupImportInputRef.current.click();
@@ -465,6 +477,7 @@ class App extends React.Component {
     try {
       this.setState({
         showMenu: false,
+        showBackupMenu: false,
         connectionNotice: "Creating local and alg library backups before updating...",
       });
       await this.exportSolveBackup({
@@ -784,6 +797,7 @@ class App extends React.Component {
   filterAlgLibraryEntries = (entries = [], options = {}) => {
     const search = typeof options.search === "string" ? options.search.trim().toLowerCase() : "";
     const group = typeof options.group === "string" ? options.group : "all";
+    const searchNeedles = getAlgLibrarySearchNeedles(search);
 
     return entries.filter((entry) => {
       const entryGroup = String(entry.category || "").trim();
@@ -792,6 +806,15 @@ class App extends React.Component {
       }
 
       if (!search) {
+        return true;
+      }
+
+      const searchableAliases = getAlgLibrarySearchAliases(entry).map((alias) => alias.toLowerCase());
+      if (
+        searchNeedles.length
+          ? searchableAliases.some((alias) => searchNeedles.some((needle) => alias.includes(needle)))
+          : searchableAliases.some((alias) => alias.includes(search))
+      ) {
         return true;
       }
 
@@ -818,6 +841,24 @@ class App extends React.Component {
 
     const match = value.match(/^set up to (.+)$/i);
     return match ? `${match[1]} set-up` : value;
+  };
+
+  getAlgLibraryDisplayMemoWord = (entry) => {
+    if (!entry) {
+      return "--";
+    }
+    return (
+      entry.memo_word ||
+      getDefaultAlgLibraryMemoWord(entry.piece_type, entry.case_code) ||
+      "--"
+    );
+  };
+
+  getAlgLibraryDisplaySpecialLabel = (entry) => {
+    const specialType = getAlgLibrarySpecialType(entry && entry.piece_type);
+    return specialType === "twist" || specialType === "flip"
+      ? getAlgLibrarySpecialLabel(specialType)
+      : "";
   };
 
   applyAlgLibraryFilters = (options = {}) => {
@@ -1891,11 +1932,11 @@ class App extends React.Component {
     }
 
     if (comm.special_type === "flip") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Flip`.trim();
+      return formatAlgLibrarySpecialCaseLabel("flip", [comm.target_a, comm.target_b].filter(Boolean).join(""));
     }
 
     if (comm.special_type === "rotation" || comm.special_type === "twist") {
-      return `${[comm.target_a, comm.target_b].filter(Boolean).join("")}-Twist`.trim();
+      return formatAlgLibrarySpecialCaseLabel("twist", [comm.target_a, comm.target_b].filter(Boolean).join(""));
     }
 
     return [comm.target_a, comm.target_b].filter(Boolean).join("");
@@ -1906,7 +1947,7 @@ class App extends React.Component {
       return text;
     }
 
-    return String(text)
+    const normalizedText = String(text)
       .trim()
       .replace(/\s+(rotation|twist)$/i, "-Twist")
       .replace(/\s+flip$/i, "-Flip")
@@ -1914,6 +1955,7 @@ class App extends React.Component {
       .replace(/-(rotation|twist)$/i, "-Twist")
       .replace(/-flip$/i, "-Flip")
       .replace(/-parity$/i, "-Parity");
+    return normalizeAlgLibrarySpecialLabel(normalizedText);
   };
 
   normalizeDisplayAlgText = (algText) => {
@@ -2995,7 +3037,7 @@ class App extends React.Component {
       return {
         label,
         pieceType: "parity",
-        caseCode: label.replace(/-Parity$/i, ""),
+        caseCode: normalizeAlgLibraryCaseCode("parity", label.replace(/-Parity$/i, "")),
       };
     }
 
@@ -3003,7 +3045,7 @@ class App extends React.Component {
       return {
         label,
         pieceType: "flip",
-        caseCode: label.replace(/-Flip$/i, ""),
+        caseCode: normalizeAlgLibraryCaseCode("flip", label.replace(/-Flip$/i, "")),
       };
     }
 
@@ -3011,7 +3053,7 @@ class App extends React.Component {
       return {
         label,
         pieceType: "twist",
-        caseCode: label.replace(/-Twist$/i, ""),
+        caseCode: normalizeAlgLibraryCaseCode("twist", label.replace(/-Twist$/i, "")),
       };
     }
 
@@ -3127,7 +3169,8 @@ class App extends React.Component {
       .filter((value) => value !== null && value !== undefined && value !== "")
       .join(":");
 
-  buildSolveDetailsCaseKey = (pieceType, caseCode) => `${pieceType}:${caseCode}`;
+  buildSolveDetailsCaseKey = (pieceType, caseCode) =>
+    `${pieceType}:${normalizeAlgLibraryCaseCode(pieceType, caseCode)}`;
 
   loadSolveDetailsCommLibrary = async (solve) => {
     const commStats = Array.isArray(solve && solve.comm_stats) ? solve.comm_stats : [];
@@ -6294,6 +6337,7 @@ class App extends React.Component {
         {
           showMenu: false,
           showSettings: false,
+          showBackupMenu: false,
           showLastSolveDetails: false,
           loadingSolveDetails: false,
           loadingSolveDetailsCommLibrary: false,
@@ -7463,6 +7507,8 @@ class App extends React.Component {
                 const categoryLabel = this.formatAlgLibraryCategory(entry.category);
                 const cardTypeLabel = [pieceLabel, categoryLabel].filter(Boolean).join(" | ");
                 const lastSeenLabel = entry.last_seen_at ? formatHistoryDate(entry.last_seen_at) : "";
+                const displayMemoWord = this.getAlgLibraryDisplayMemoWord(entry);
+                const specialDisplayLabel = this.getAlgLibraryDisplaySpecialLabel(entry);
 
                 return (
                   <article
@@ -7526,8 +7572,14 @@ class App extends React.Component {
                           <span>{cardTypeLabel}</span>
                         </div>
                         <div className="alg_library_card_memo_line">
-                          <strong>{entry.memo_word || "--"}</strong>
-                          <span>{lastSeenLabel}</span>
+                          <strong>{displayMemoWord}</strong>
+                          <span>
+                            {specialDisplayLabel ? (
+                              <em className="alg_library_special_label">{specialDisplayLabel}</em>
+                            ) : null}
+                            {specialDisplayLabel && lastSeenLabel ? " " : ""}
+                            {lastSeenLabel}
+                          </span>
                         </div>
                         <div className="alg_library_card_notation">
                           {entry.description || "--"}
@@ -8437,7 +8489,7 @@ class App extends React.Component {
                 type="button"
                 className="icon_button"
                 aria-label="Open menu"
-                onClick={() => this.setState({ showMenu: true })}
+                onClick={() => this.setState({ showMenu: true, showBackupMenu: false })}
               >
                 <span className="icon_menu">
                   <span></span>
@@ -8626,7 +8678,6 @@ class App extends React.Component {
               <div className="solve_modal_header">
                 <div>
                   <div className="section_label">Menu</div>
-                  <div className="solve_modal_title">Menu</div>
                 </div>
                 <button
                   type="button"
@@ -8656,23 +8707,16 @@ class App extends React.Component {
                 <button
                   type="button"
                   className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "study" })}
+                  onClick={() => this.setState({ showMenu: false, activeView: "drill" })}
                 >
-                  Study
+                  Drill
                 </button>
                 <button
                   type="button"
                   className="menu_item"
                   onClick={() => this.setState({ showMenu: false, activeView: "alg-library" })}
                 >
-                  Alg Library
-                </button>
-                <button
-                  type="button"
-                  className="menu_item"
-                  onClick={() => this.setState({ showMenu: false, activeView: "drill" })}
-                >
-                  Drill
+                  Library
                 </button>
                 <button
                   type="button"
@@ -8684,16 +8728,51 @@ class App extends React.Component {
                 <button
                   type="button"
                   className="menu_item"
+                  onClick={() => this.setState({ showMenu: false, showBackupMenu: true })}
+                >
+                  Backup
+                </button>
+                <button
+                  type="button"
+                  className="menu_item"
                   onClick={this.refreshAppWithoutClearingData}
                 >
-                  Update App
+                  Update
                 </button>
+                <div className="menu_update_note">Last updated {APP_LAST_UPDATED_LABEL}</div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {this.state.showBackupMenu ? (
+          <div
+            className="solve_modal_backdrop"
+            onClick={() => this.setState({ showBackupMenu: false })}
+          >
+            <div className="menu_overlay backup_overlay" onClick={(event) => event.stopPropagation()}>
+              <div className="solve_modal_header">
+                <div>
+                  <div className="section_label">Data</div>
+                  <div className="solve_modal_title">Backup</div>
+                </div>
+                <button
+                  type="button"
+                  className="solve_modal_close solve_modal_close_subtle"
+                  aria-label="Close backup"
+                  onClick={() => this.setState({ showBackupMenu: false })}
+                >
+                  Ã—
+                </button>
+              </div>
+
+              <div className="menu_list">
                 <button
                   type="button"
                   className="menu_item"
                   onClick={this.exportSolveBackup}
                 >
-                  Export Local Backup
+                  Export Backup
                 </button>
                 <button
                   type="button"
@@ -8707,9 +8786,8 @@ class App extends React.Component {
                   className="menu_item"
                   onClick={this.resetLocalAppData}
                 >
-                  Reset Local Data
+                  Reset Data
                 </button>
-                <div className="menu_update_note">Last updated {APP_LAST_UPDATED_LABEL}</div>
               </div>
             </div>
           </div>

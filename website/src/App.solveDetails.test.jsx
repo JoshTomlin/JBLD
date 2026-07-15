@@ -352,9 +352,28 @@ describe("solve details view data", () => {
       { phase: "parity", parse_text: "A Parity" },
     ]);
 
-    expect(groups.edges.join(", ")).toBe("AU, DB-Flip, ?");
-    expect(groups.corners.join(", ")).toBe("PB-Twist");
+    expect(groups.edges.join(", ")).toBe("AU, BD-Flip, ?");
+    expect(groups.corners.join(", ")).toBe("BP-Twist");
     expect(groups.parity.join(", ")).toBe("A-Parity");
+  });
+
+  it("normalizes twist and flip labels alphabetically for library lookups", () => {
+    const app = new App();
+
+    expect(app.formatSpecialCommText("SP rotation")).toBe("PS-Twist");
+    expect(app.formatSpecialCommText("DB flip")).toBe("BD-Flip");
+    expect(
+      app.getSolveDetailsCommLookup({
+        phase: "corner",
+        special_type: "rotation",
+        target_a: "S",
+        target_b: "P",
+      })
+    ).toEqual({
+      label: "PS-Twist",
+      pieceType: "twist",
+      caseCode: "PS",
+    });
   });
 
   it("shows unknown comms as question marks in the last solve summary", () => {
@@ -578,6 +597,27 @@ describe("solve details view data", () => {
     expect(allRows.find((row) => row.caseCode === "BA").isMismatch).toBe(true);
     expect(allRows.find((row) => row.caseCode === "AI").isMismatch).toBe(false);
     expect(searchedRows.map((row) => row.caseCode)).toEqual(["BA", "AB", "XB", "CD"]);
+  });
+
+  it("finds alphabetized special alg library cases from reversed special searches", () => {
+    const app = new App();
+    const entries = [
+      { id: "twist-ps", piece_type: "twist", case_code: "PS", memo_word: null },
+      { id: "flip-ca", piece_type: "flip", case_code: "CA", memo_word: null },
+      { id: "parity-b", piece_type: "parity", case_code: "B", memo_word: null },
+      { id: "edge-sp", piece_type: "edge", case_code: "SP", memo_word: "sip" },
+    ];
+
+    expect(app.filterAlgLibraryEntries(entries, { search: "SP-Twist" }).map((entry) => entry.id)).toEqual([
+      "twist-ps",
+    ]);
+    expect(app.filterAlgLibraryEntries(entries, { search: "AC-Flip" }).map((entry) => entry.id)).toEqual([
+      "flip-ca",
+    ]);
+    expect(app.getAlgLibraryDisplayMemoWord(entries[0])).toBe("PS");
+    expect(app.getAlgLibraryDisplayMemoWord(entries[2])).toBe("B");
+    expect(app.getAlgLibraryDisplaySpecialLabel(entries[0])).toBe("Twist");
+    expect(app.getAlgLibraryDisplaySpecialLabel(entries[2])).toBe("");
   });
 
   it("marks normal and practise solve comms as seen when they are saved", () => {

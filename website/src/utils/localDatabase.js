@@ -1,3 +1,10 @@
+import {
+  getAlgLibraryCaseLookupCodes,
+  getDefaultAlgLibraryMemoWord,
+  getAlgLibrarySearchAliases,
+  getAlgLibrarySearchNeedles,
+} from "./algLibrarySpecialCases";
+
 const DATABASE_PATH = "idb://jbld-local-db";
 const SCHEMA_VERSION = 5;
 const LOCAL_APP_META_KEY = "jbld-local-app-meta";
@@ -168,6 +175,7 @@ function writeLocalJson(key, value) {
 
 function normalizeAlgLibraryEntry(entry = {}) {
   const pieceType = entry.piece_type || entry.pieceType || "unknown";
+  const caseCode = entry.case_code || entry.caseCode || "";
   const lastSeenAt = toIsoDate(
     entry.last_seen_at || entry.lastSeenAt || entry.lastSeen,
     DEFAULT_ALG_LAST_SEEN_AT
@@ -178,10 +186,15 @@ function normalizeAlgLibraryEntry(entry = {}) {
     sheet_name: entry.sheet_name || entry.sheetName || null,
     row_index:
       Number.isFinite(Number(entry.row_index ?? entry.rowIndex)) ? Number(entry.row_index ?? entry.rowIndex) : null,
-    case_code: entry.case_code || entry.caseCode || "",
+    case_code: caseCode,
     description: entry.description || entry.notation || "",
     alg: entry.alg || entry.expandedAlg || "",
-    memo_word: entry.memo_word || entry.memoWord || entry.memo || null,
+    memo_word:
+      entry.memo_word ||
+      entry.memoWord ||
+      entry.memo ||
+      getDefaultAlgLibraryMemoWord(pieceType, caseCode) ||
+      null,
     category: entry.category || null,
     notes: entry.notes || null,
     last_seen_at: lastSeenAt,
@@ -291,6 +304,7 @@ function sortAlgLibraryEntries(entries = []) {
 
 function filterAlgLibraryEntries(entries = [], { pieceType = "all", search = "", limit = 200 } = {}) {
   const normalizedSearch = String(search || "").trim().toLowerCase();
+  const searchNeedles = getAlgLibrarySearchNeedles(normalizedSearch);
   const filteredEntries = (Array.isArray(entries) ? entries : []).filter((entry) => {
     if (pieceType !== "all" && entry.piece_type !== pieceType) {
       return false;
@@ -300,16 +314,10 @@ function filterAlgLibraryEntries(entries = [], { pieceType = "all", search = "",
       return true;
     }
 
-    return [
-      entry.case_code,
-      entry.description,
-      entry.alg,
-      entry.memo_word,
-      entry.category,
-      entry.notes,
-    ]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+    const aliases = getAlgLibrarySearchAliases(entry).map((value) => value.toLowerCase());
+    return searchNeedles.length
+      ? aliases.some((alias) => searchNeedles.some((needle) => alias.includes(needle)))
+      : aliases.some((alias) => alias.includes(normalizedSearch));
   });
 
   return sortAlgLibraryEntries(filteredEntries).slice(0, Math.max(1, Number(limit) || 200));
@@ -1122,6 +1130,26 @@ export async function getAlgLibraryEntries(options = {}) {
   const searchPattern = rawSearch ? `%${rawSearch.toLowerCase()}%` : null;
   try {
     const db = await getDatabase();
+    if (rawSearch) {
+      const allResult = await db.query(
+        `SELECT id, piece_type, sheet_name, row_index, case_code, description, alg, memo_word, category, notes, last_seen_at, updated_at
+         FROM alg_library_entries
+         WHERE ($1 = 'all' OR piece_type = $1)
+         ORDER BY piece_type ASC, case_code ASC, row_index ASC NULLS LAST, updated_at DESC`,
+        [pieceType]
+      );
+      const allEntries = allResult.rows || [];
+      const matchingEntries = filterAlgLibraryEntries(allEntries, {
+        pieceType: "all",
+        search: rawSearch,
+        limit: allEntries.length || 1,
+      });
+      return {
+        totalCount: matchingEntries.length,
+        entries: matchingEntries.slice(0, limit),
+      };
+    }
+
     const params = [pieceType, searchPattern, limit];
     const [countResult, entryResult] = await Promise.all([
       db.query(
@@ -1235,8 +1263,8 @@ export async function updateAlgLibraryEntry(id, updates = {}) {
   }
 }
 
-export async function getAlgLibraryEntriesForCases(caseRefs = []) {
-  const normalizedRefs = Array.isArray(caseRefs)
+function normalizeAlgLibraryCaseRefs(caseRefs = []) {
+  return Array.isArray(caseRefs)
     ? caseRefs
         .filter((entry) => entry && entry.caseCode && entry.pieceType)
         .map((entry) => ({
@@ -1244,6 +1272,27 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
           caseCode: String(entry.caseCode),
         }))
     : [];
+}
+
+function expandAlgLibraryCaseRefsForLookup(caseRefs = []) {
+  const refs = [];
+  const seenKeys = new Set();
+
+  normalizeAlgLibraryCaseRefs(caseRefs).forEach((entry) => {
+    getAlgLibraryCaseLookupCodes(entry.pieceType, entry.caseCode).forEach((caseCode) => {
+      const key = `${entry.pieceType}:${caseCode}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        refs.push({ pieceType: entry.pieceType, caseCode });
+      }
+    });
+  });
+
+  return refs;
+}
+
+export async function getAlgLibraryEntriesForCases(caseRefs = []) {
+  const normalizedRefs = expandAlgLibraryCaseRefsForLookup(caseRefs);
 
   if (!normalizedRefs.length) {
     return [];
@@ -1275,14 +1324,7 @@ export async function getAlgLibraryEntriesForCases(caseRefs = []) {
 }
 
 export async function markAlgLibraryEntriesSeen(caseRefs = [], seenAt = Date.now()) {
-  const normalizedRefs = Array.isArray(caseRefs)
-    ? caseRefs
-        .filter((entry) => entry && entry.caseCode && entry.pieceType)
-        .map((entry) => ({
-          pieceType: String(entry.pieceType),
-          caseCode: String(entry.caseCode),
-        }))
-    : [];
+  const normalizedRefs = expandAlgLibraryCaseRefsForLookup(caseRefs);
   const uniqueRefs = [];
   const seenKeys = new Set();
   normalizedRefs.forEach((entry) => {

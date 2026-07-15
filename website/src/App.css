@@ -1606,6 +1606,10 @@ textarea {
   text-align: right;
 }
 
+.alg_library_special_label {
+  font-style: italic;
+}
+
 .alg_library_card_memo_line strong {
   color: #bfdbfe;
   font-size: 0.92rem;
@@ -2448,7 +2452,16 @@ textarea {
 
 .memo_audit_table th:first-child,
 .memo_audit_table td:first-child {
-  width: 56px;
+  width: 68px;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.memo_audit_table th:nth-child(2),
+.memo_audit_table th:nth-child(3),
+.memo_audit_table td:nth-child(2),
+.memo_audit_table td:nth-child(3) {
+  text-align: center;
 }
 
 .memo_audit_table th {
@@ -2488,7 +2501,7 @@ textarea {
   border: 0;
   background: transparent;
   color: var(--text-soft);
-  text-align: left;
+  text-align: center;
   font: inherit;
   overflow-wrap: anywhere;
 }
@@ -2518,6 +2531,7 @@ textarea {
   border-radius: 10px;
   background: rgba(7, 17, 38, 0.96);
   color: var(--text-soft);
+  text-align: center;
 }
 
 .solve_modal_header {
