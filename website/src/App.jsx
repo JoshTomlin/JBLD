@@ -154,8 +154,14 @@ class App extends React.Component {
       memoAuditDraftMemo: "",
       memoAuditSaving: false,
       memoAuditNotice: null,
+      drillTab: "setup",
       drillMode: "memo-flow",
       drillPieceTypes: ["corner"],
+      drillFlowGroup: "all",
+      drillFlowGroups: [],
+      drillFlowEntries: [],
+      drillStatsEntries: [],
+      drillStatsLoading: false,
       drillDisplayMode: "next",
       drillLoading: false,
       drillSessionActive: false,
@@ -3547,6 +3553,86 @@ class App extends React.Component {
     return Number.isFinite(value) ? value.toFixed(1) : "--";
   };
 
+  getRecentDrillAttemptRecords = (limit = 30) => {
+    const records = Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : [];
+    return records.slice(-limit).reverse();
+  };
+
+  formatDrillAttemptStatus = (record) => {
+    if (record && record.skipped) {
+      return "Skipped";
+    }
+    return record && record.matched ? "Matched" : "Review";
+  };
+
+  getDrillRecordLastSeenTime = (record) => {
+    const value = record && (record.lastSeenAt || record.last_seen_at || record.lastSeen);
+    const parsed = new Date(value || "2026-01-01T00:00:00.000Z").getTime();
+    return Number.isFinite(parsed) ? parsed : new Date("2026-01-01T00:00:00.000Z").getTime();
+  };
+
+  getDrillLastSeenAgeDays = (record, now = Date.now()) => {
+    const completedAt = record && record.completedAt ? new Date(record.completedAt).getTime() : Number(now);
+    const endTime = Number.isFinite(completedAt) ? completedAt : Number(now);
+    const ageMs = Math.max(0, endTime - this.getDrillRecordLastSeenTime(record));
+    return ageMs / (24 * 60 * 60 * 1000);
+  };
+
+  formatDrillLastSeenAge = (days) => {
+    const value = Number(days);
+    if (!Number.isFinite(value)) {
+      return "--";
+    }
+    if (value < 1) {
+      return "<1d";
+    }
+    if (value < 45) {
+      return `${Math.round(value)}d`;
+    }
+    return `${Math.round(value / 7)}w`;
+  };
+
+  getDrillLastSeenBoxPlot = (records = []) => {
+    const values = (Array.isArray(records) ? records : [])
+      .map((record) => this.getDrillLastSeenAgeDays(record))
+      .filter((value) => Number.isFinite(value))
+      .sort((left, right) => left - right);
+
+    if (!values.length) {
+      return null;
+    }
+
+    const quantile = (percentile) => {
+      if (values.length === 1) {
+        return values[0];
+      }
+      const position = (values.length - 1) * percentile;
+      const lower = Math.floor(position);
+      const upper = Math.ceil(position);
+      const weight = position - lower;
+      return values[lower] * (1 - weight) + values[upper] * weight;
+    };
+
+    return {
+      min: values[0],
+      q1: quantile(0.25),
+      median: quantile(0.5),
+      q3: quantile(0.75),
+      max: values[values.length - 1],
+      count: values.length,
+    };
+  };
+
+  getDrillRustiestRecords = (records = [], limit = 5) =>
+    (Array.isArray(records) ? records : [])
+      .map((record) => ({
+        ...record,
+        lastSeenAgeDays: this.getDrillLastSeenAgeDays(record),
+      }))
+      .filter((record) => Number.isFinite(record.lastSeenAgeDays))
+      .sort((left, right) => right.lastSeenAgeDays - left.lastSeenAgeDays)
+      .slice(0, limit);
+
   persistAlgReviewAttemptRecords = (records = []) => {
     const nextRecords = Array.isArray(records) ? records.slice(-1000) : [];
     this.safeSetJsonStorage("algReviewAttemptRecords", nextRecords, "alg review attempts");
@@ -3637,8 +3723,33 @@ class App extends React.Component {
         this.loadAlgReviewOptions().catch((error) => {
           console.warn("Failed to load alg review options", error);
         });
+      } else if (drillMode === "memo-flow" && !this.state.drillFlowGroups.length) {
+        this.loadDrillFlowOptions().catch((error) => {
+          console.warn("Failed to load flow drill options", error);
+        });
       }
     });
+  };
+
+  getDrillFlowPieceType = () => {
+    const selectedTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
+    return selectedTypes[0] || "corner";
+  };
+
+  setDrillFlowPieceType = (pieceType) => {
+    this.setState(
+      {
+        drillPieceTypes: [pieceType],
+        drillFlowGroup: "all",
+        drillFlowGroups: [],
+        drillFlowEntries: [],
+      },
+      () => {
+        this.loadDrillFlowOptions(pieceType).catch((error) => {
+          console.warn("Failed to load flow drill groups", error);
+        });
+      }
+    );
   };
 
   setAlgReviewPieceType = (pieceType) => {
@@ -3669,6 +3780,33 @@ class App extends React.Component {
     return { entries, groups };
   };
 
+  loadDrillFlowOptions = async (pieceType = this.getDrillFlowPieceType()) => {
+    await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+    const result = await getAlgLibraryEntries({ pieceType, search: "", limit: 5000 });
+    const entries = Array.isArray(result && result.entries) ? result.entries : [];
+    const groups = Array.from(
+      new Set(entries.map((entry) => entry.category || "Unsorted").filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right));
+
+    this.setState({ drillFlowEntries: entries, drillFlowGroups: groups });
+    return { entries, groups };
+  };
+
+  loadDrillStatsEntries = async () => {
+    this.setState({ drillStatsLoading: true });
+    try {
+      await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+      const result = await getAlgLibraryEntries({ search: "", limit: 5000 });
+      const entries = Array.isArray(result && result.entries) ? result.entries : [];
+      this.setState({ drillStatsEntries: entries, drillStatsLoading: false });
+      return entries;
+    } catch (error) {
+      console.warn("Failed to load drill stats entries", error);
+      this.setState({ drillStatsLoading: false });
+      return [];
+    }
+  };
+
   getFilteredDrillEntries = async () => {
     await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
 
@@ -3685,10 +3823,17 @@ class App extends React.Component {
       });
     }
 
-    const selectedTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
-    const result = await getAlgLibraryEntries({ limit: 2000 });
-    const allEntries = Array.isArray(result && result.entries) ? result.entries : [];
-    return allEntries.filter((entry) => selectedTypes.includes(entry.piece_type));
+    const pieceType = this.getDrillFlowPieceType();
+    let entries = Array.isArray(this.state.drillFlowEntries) ? this.state.drillFlowEntries : [];
+    if (!entries.length || entries.some((entry) => entry.piece_type !== pieceType)) {
+      const loaded = await this.loadDrillFlowOptions(pieceType);
+      entries = loaded.entries;
+    }
+
+    return entries.filter((entry) => {
+      const group = entry.category || "Unsorted";
+      return this.state.drillFlowGroup === "all" || group === this.state.drillFlowGroup;
+    });
   };
 
   splitAlgReviewMoves = (algText = "") =>
@@ -4017,6 +4162,10 @@ class App extends React.Component {
       caseCode: entry && entry.case_code ? entry.case_code : "",
       memoWord: entry && entry.memo_word ? entry.memo_word : "",
       category: entry && entry.category ? entry.category : "Unsorted",
+      description: entry && entry.description ? entry.description : "",
+      libraryAlg: entry && entry.alg ? entry.alg : "",
+      performedAlg: options.performedAlg || "",
+      lastSeenAt: entry && entry.last_seen_at ? entry.last_seen_at : null,
       matched: options.matched !== false,
       skipped: Boolean(options.skipped),
       retries: Number(options.retries) || 0,
@@ -4360,6 +4509,7 @@ class App extends React.Component {
         const record = this.buildDrillAttemptRecord(executingEntry, {
           matched: true,
           retries: this.state.drillCurrentRetryCount || 0,
+          performedAlg: currentMoves.join(" "),
           promptStartedAt,
           startedAt: attemptStartedAt || Date.now(),
         });
@@ -4433,6 +4583,17 @@ class App extends React.Component {
 
     if (completedComm && executingEntry) {
       const matched = this.drillCommMatchesEntry(completedComm, executingEntry);
+      const completedAt = Date.now();
+      const record = this.buildDrillAttemptRecord(executingEntry, {
+        matched,
+        performedAlg: this.formatReconstructionAlg(completedComm) || (completedComm && completedComm.alg) || "",
+        promptStartedAt: this.state.drillPromptStartedAt,
+        startedAt: this.state.drillAttemptStartedAt || completedAt,
+      });
+      const nextAttemptRecords = this.persistAlgReviewAttemptRecords([
+        ...(Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : []),
+        record,
+      ]);
       this.markAlgLibraryCommsSeen([completedComm], Date.now());
       Object.assign(nextState, {
         drillExecutingEntry: null,
@@ -4440,6 +4601,7 @@ class App extends React.Component {
         drillAttemptStartedAt: null,
         drillCurrentRetryCount: 0,
         drillCompletedCount: this.state.drillCompletedCount + 1,
+        algReviewAttemptRecords: nextAttemptRecords,
         drillReviewEntries: matched
           ? this.state.drillReviewEntries
           : this.addDrillReviewEntry(this.state.drillReviewEntries, executingEntry),
@@ -4495,7 +4657,6 @@ class App extends React.Component {
         drillCurrentRetryCount: 0,
         drillLastCommEntry: null,
         drillLastCommMoves: [],
-        algReviewAttemptRecords: this.state.drillMode === "alg-review" ? [] : this.state.algReviewAttemptRecords,
         algReviewProgress: this.state.drillMode === "alg-review" ? null : this.state.algReviewProgress,
       });
     } catch (error) {
@@ -4546,6 +4707,7 @@ class App extends React.Component {
           skipped,
           matched: !missed && !skipped,
           retries: currentState.drillCurrentRetryCount || 0,
+          performedAlg: Array.isArray(currentState.drillCurrentMoves) ? currentState.drillCurrentMoves.join(" ") : "",
           promptStartedAt: currentState.drillPromptStartedAt,
           startedAt: currentState.drillAttemptStartedAt || Date.now(),
         });
@@ -6753,7 +6915,6 @@ class App extends React.Component {
 
     if (this.state.activeView === "drill") {
       const drillOptions = this.getDrillPieceTypeOptions();
-      const selectedDrillTypes = Array.isArray(this.state.drillPieceTypes) ? this.state.drillPieceTypes : [];
       const reviewMode = this.state.drillMode === "alg-review";
       const activeDrillPromptEntry = this.getActiveDrillPromptEntry();
       const activeDrillPrompt = reviewMode
@@ -6766,6 +6927,39 @@ class App extends React.Component {
       const algReviewRecords = Array.isArray(this.state.algReviewAttemptRecords) ? this.state.algReviewAttemptRecords : [];
       const algReviewRetries = algReviewRecords.reduce((total, record) => total + (Number(record.retries) || 0), 0);
       const algReviewProgress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
+      const drillTab = this.state.drillTab || "setup";
+      const drillFlowPieceType = this.getDrillFlowPieceType();
+      const drillFlowGroups = Array.isArray(this.state.drillFlowGroups) ? this.state.drillFlowGroups : [];
+      const setupGroups = reviewMode ? algReviewGroups : drillFlowGroups;
+      const recentDrillRecords = this.getRecentDrillAttemptRecords(30);
+      const drillStatsEntryMap = new Map();
+      [
+        ...(Array.isArray(this.state.drillStatsEntries) ? this.state.drillStatsEntries : []),
+        ...(Array.isArray(this.state.algLibraryAllEntries) ? this.state.algLibraryAllEntries : []),
+        ...(Array.isArray(this.state.algReviewEntries) ? this.state.algReviewEntries : []),
+        ...(Array.isArray(this.state.drillFlowEntries) ? this.state.drillFlowEntries : []),
+      ].forEach((entry) => {
+        if (entry) {
+          drillStatsEntryMap.set(this.getAlgReviewEntryKey(entry), entry);
+        }
+      });
+      const drillStatsRecords = drillStatsEntryMap.size ? [...drillStatsEntryMap.values()] : algReviewRecords;
+      const drillBoxPlot = this.getDrillLastSeenBoxPlot(drillStatsRecords);
+      const getDrillBoxPosition = (value) => {
+        if (!drillBoxPlot || drillBoxPlot.max <= drillBoxPlot.min) {
+          return "50%";
+        }
+        const position = ((value - drillBoxPlot.min) / (drillBoxPlot.max - drillBoxPlot.min)) * 100;
+        return `${Math.max(0, Math.min(100, position))}%`;
+      };
+      const drillBoxPlotStyle = drillBoxPlot
+        ? {
+            "--drill-box-left": getDrillBoxPosition(drillBoxPlot.q1),
+            "--drill-box-right": getDrillBoxPosition(drillBoxPlot.q3),
+            "--drill-box-median": getDrillBoxPosition(drillBoxPlot.median),
+          }
+        : {};
+      const drillRustiestRecords = this.getDrillRustiestRecords(drillStatsRecords, 5);
       const lastReviewEntry = reviewMode ? this.state.drillLastCommEntry : null;
       const lastReviewMoves = reviewMode && Array.isArray(this.state.drillLastCommMoves)
         ? this.state.drillLastCommMoves
@@ -6968,169 +7162,196 @@ class App extends React.Component {
               ) : null}
             </React.Fragment>
           ) : (
-          <React.Fragment>
-          <div className="section_header">
-            <div>
-              <div className="placeholder_title">Drill</div>
-              <div className="placeholder_text">
-                {reviewMode
-                  ? "Pick a set, then practise the algs from memo prompts with retries, peeks, edits, and saved progress."
-                  : "Pick the sets you want, then cycle memo prompts while logging skips and misses for review."}
-              </div>
-            </div>
-            <div className="section_meta">
-              {reviewMode
-                ? `${this.getAlgReviewGroupLabel(this.state.algReviewGroup)} ${this.state.algReviewPieceType}`
-                : `${selectedDrillTypes.length} set${selectedDrillTypes.length === 1 ? "" : "s"} selected`}
-            </div>
-          </div>
-          <div className="drill_tabs drill_mode_tabs">
-            <button
-              type="button"
-              className={`drill_tab ${!reviewMode ? "drill_tab_active" : ""}`}
-              onClick={() => this.setDrillMode("memo-flow")}
-            >
-              Memo Flow
-            </button>
-            <button
-              type="button"
-              className={`drill_tab ${reviewMode ? "drill_tab_active" : ""}`}
-              onClick={() => this.setDrillMode("alg-review")}
-            >
-              Alg Review
-            </button>
-          </div>
-          {reviewMode ? (
             <React.Fragment>
-              <div className="drill_review_setup">
-                <label className="drill_select_label">
-                  Type
-                  <select
-                    className="drill_select"
-                    value={this.state.algReviewPieceType}
-                    onChange={(event) => this.setAlgReviewPieceType(event.target.value)}
-                  >
-                    {drillOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="drill_select_label">
-                  Subset
-                  <select
-                    className="drill_select"
-                    value={this.state.algReviewGroup}
-                    onFocus={() => this.loadAlgReviewOptions().catch((error) => console.warn("Failed to load alg review groups", error))}
-                    onChange={(event) => this.setState({ algReviewGroup: event.target.value })}
-                  >
-                    <option value="all">All</option>
-                    {algReviewGroups.map((group) => (
-                      <option key={group} value={group}>{group}</option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="drill_action_button drill_action_button_secondary"
-                  onClick={() => this.loadAlgReviewOptions()}
-                  disabled={this.state.drillLoading}
-                >
-                  Load Sets
-                </button>
-              </div>
-              <div className="drill_card_list">
-                <article className="drill_card drill_review_card">
-                  <div>
-                    <div className="drill_card_title">Alg Review</div>
-                    <div className="drill_card_text">
-                      Random memo prompts from {this.getAlgReviewGroupLabel(this.state.algReviewGroup)}. Retry keeps the same prompt without asking you to solve the cube first.
-                    </div>
-                    <div className="drill_review_mini_stats">
-                      <span>{algReviewRecords.length} attempts saved</span>
-                      <span>{algReviewRetries} retries</span>
+              {drillTab === "setup" ? (
+                <div className="drill_setup_panel">
+                  <div className="drill_setup_top">
+                    <label className="drill_select_label drill_select_label_type">
+                      Drill Type
+                      <select
+                        className="drill_select"
+                        value={this.state.drillMode}
+                        onChange={(event) => this.setDrillMode(event.target.value)}
+                      >
+                        <option value="alg-review">Alg Review</option>
+                        <option value="memo-flow">Flow</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="drill_setup_grid">
+                    <label className="drill_select_label">
+                      Alg Type
+                      <select
+                        className="drill_select"
+                        value={reviewMode ? this.state.algReviewPieceType : drillFlowPieceType}
+                        onChange={(event) =>
+                          reviewMode
+                            ? this.setAlgReviewPieceType(event.target.value)
+                            : this.setDrillFlowPieceType(event.target.value)
+                        }
+                      >
+                        {drillOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="drill_select_label">
+                      Subset
+                      <select
+                        className="drill_select"
+                        value={reviewMode ? this.state.algReviewGroup : this.state.drillFlowGroup}
+                        onFocus={() =>
+                          reviewMode
+                            ? this.loadAlgReviewOptions().catch((error) => console.warn("Failed to load alg review groups", error))
+                            : this.loadDrillFlowOptions().catch((error) => console.warn("Failed to load flow drill groups", error))
+                        }
+                        onChange={(event) =>
+                          reviewMode
+                            ? this.setState({ algReviewGroup: event.target.value })
+                            : this.setState({ drillFlowGroup: event.target.value })
+                        }
+                      >
+                        <option value="all">All</option>
+                        {setupGroups.map((group) => (
+                          <option key={group} value={group}>{group}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="drill_prompt_mode_panel">
+                    <span className="drill_filter_label">Prompt Mode</span>
+                    <div className="drill_mode_toggle">
+                      <button
+                        type="button"
+                        className={`drill_chip ${this.state.drillDisplayMode === "current" ? "drill_chip_active" : ""}`}
+                        onClick={() => this.setState({ drillDisplayMode: "current" })}
+                      >
+                        Current
+                      </button>
+                      <button
+                        type="button"
+                        className={`drill_chip ${this.state.drillDisplayMode === "next" ? "drill_chip_active" : ""}`}
+                        onClick={() => this.setState({ drillDisplayMode: "next" })}
+                      >
+                        Think Ahead
+                      </button>
                     </div>
                   </div>
-                  <div className="drill_card_side">
-                    <div className="drill_badge">{this.state.algReviewPieceType}</div>
-                    <button type="button" className="drill_action_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
-                      {this.state.drillLoading ? "Loading..." : "Start Review"}
+                  <div className="drill_setup_actions">
+                    <button type="button" className="drill_action_button drill_start_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
+                      {this.state.drillLoading ? "Loading..." : reviewMode ? "Start Alg Review" : "Start Flow"}
                     </button>
-                    {algReviewProgress ? (
+                    {reviewMode && algReviewProgress ? (
                       <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.resumeAlgReviewProgress}>
                         Resume
                       </button>
                     ) : null}
                   </div>
-                </article>
-              </div>
-              <div className="drill_review_strip drill_review_recent">
-                {algReviewRecords.length
-                  ? algReviewRecords
-                      .slice(-4)
-                      .reverse()
-                      .map((record) => `${record.caseCode || "--"}: ${this.formatDrillSeconds(record.recogTime)} / ${this.formatDrillSeconds(record.execTime)}${record.retries ? `, r${record.retries}` : ""}`)
-                      .join(" | ")
-                  : "Review timings will appear here"}
-              </div>
-            </React.Fragment>
-          ) : (
-            <React.Fragment>
-              <div className="drill_filter_group">
-                <span className="drill_filter_label">Include Sets</span>
-                <div className="drill_filter_chips">
-                  {drillOptions.map((option) => {
-                    const active = selectedDrillTypes.includes(option.value);
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`drill_chip ${active ? "drill_chip_active" : ""}`}
-                        onClick={() => this.toggleDrillPieceType(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
                 </div>
-              </div>
-              <div className="drill_filter_group">
-                <span className="drill_filter_label">Prompt Mode</span>
-                <div className="drill_mode_toggle">
-                  <button
-                    type="button"
-                    className={`drill_chip ${this.state.drillDisplayMode === "current" ? "drill_chip_active" : ""}`}
-                    onClick={() => this.setState({ drillDisplayMode: "current" })}
-                  >
-                    Current
-                  </button>
-                  <button
-                    type="button"
-                    className={`drill_chip ${this.state.drillDisplayMode === "next" ? "drill_chip_active" : ""}`}
-                    onClick={() => this.setState({ drillDisplayMode: "next" })}
-                  >
-                    Think Ahead
-                  </button>
+              ) : drillTab === "recents" ? (
+                <div className="drill_page_panel">
+                  <div className="drill_page_header">
+                    <div className="chart_card_title">Recents</div>
+                    <div className="section_meta">{recentDrillRecords.length} attempts</div>
+                  </div>
+                  <div className="drill_recent_list">
+                    {recentDrillRecords.length ? (
+                      recentDrillRecords.map((record) => {
+                        const statusLabel = this.formatDrillAttemptStatus(record);
+                        const statusKey = record.skipped ? "skipped" : record.matched ? "matched" : "review";
+                        const pieceType = record.pieceType || record.piece_type || "";
+                        const caseCode = record.caseCode || record.case_code || "--";
+                        const memoWord = record.memoWord || record.memo_word || "--";
+                        const libraryAlg = record.libraryAlg || record.alg || "--";
+                        const performedAlg = record.performedAlg || "--";
+                        const category = record.category || "Unsorted";
+
+                        return (
+                          <article key={record.id || `${caseCode}-${record.completedAt}`} className="drill_recent_card">
+                            <div className="drill_recent_header">
+                              <strong>{caseCode}</strong>
+                              <span>{[pieceType, category].filter(Boolean).join(" | ")}</span>
+                            </div>
+                            <div className="drill_recent_memo">{memoWord}</div>
+                            <div className="drill_recent_description">{record.description || "No comm notation saved"}</div>
+                            <div className="drill_recent_alg_grid">
+                              <span>Library</span>
+                              <code>{libraryAlg}</code>
+                              <span>You did</span>
+                              <code>{performedAlg}</code>
+                            </div>
+                            <div className="drill_recent_footer">
+                              <span className={`drill_attempt_status drill_attempt_status_${statusKey}`}>{statusLabel}</span>
+                              <span>{formatHistoryDate(record.completedAt)}</span>
+                            </div>
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <div className="empty_state_card">
+                        <div className="placeholder_text">Recent drill attempts will appear here.</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="drill_card_list">
-                <article className="drill_card">
-                  <div>
-                    <div className="drill_card_title">Memo Flow Drill</div>
-                    <div className="drill_card_text">
-                      Starts with a memo word, then lets you advance to the next prompt the moment you begin the alg. Skips and misses are tracked separately.
+              ) : drillTab === "stats" ? (
+                <div className="drill_page_panel">
+                  <div className="drill_page_header">
+                    <div className="chart_card_title">Stats</div>
+                    <div className="section_meta">
+                      {this.state.drillStatsLoading ? "Loading..." : drillBoxPlot ? `${drillBoxPlot.count} algs` : "No data"}
                     </div>
                   </div>
-                  <div className="drill_card_side">
-                    <div className="drill_badge">{selectedDrillTypes.join(", ") || "None"}</div>
-                    <button type="button" className="drill_action_button" onClick={this.startDrillSession} disabled={this.state.drillLoading}>
-                      {this.state.drillLoading ? "Loading..." : "Start Drill"}
-                    </button>
+                  {drillBoxPlot ? (
+                    <React.Fragment>
+                      <article className="drill_stats_card">
+                        <div className="drill_stats_card_title">Last Seen Spread</div>
+                        <div className="drill_box_plot" style={drillBoxPlotStyle}>
+                          <span className="drill_box_whisker"></span>
+                          <span className="drill_box_range"></span>
+                          <span className="drill_box_median"></span>
+                        </div>
+                        <div className="drill_box_labels">
+                          <span>{this.formatDrillLastSeenAge(drillBoxPlot.min)}</span>
+                          <span>{this.formatDrillLastSeenAge(drillBoxPlot.median)}</span>
+                          <span>{this.formatDrillLastSeenAge(drillBoxPlot.max)}</span>
+                        </div>
+                        <div className="drill_box_summary">
+                          <span>Q1 {this.formatDrillLastSeenAge(drillBoxPlot.q1)}</span>
+                          <span>Median {this.formatDrillLastSeenAge(drillBoxPlot.median)}</span>
+                          <span>Q3 {this.formatDrillLastSeenAge(drillBoxPlot.q3)}</span>
+                        </div>
+                      </article>
+                      <div className="drill_rusty_list">
+                        {drillRustiestRecords.map((record) => {
+                          const caseCode = record.caseCode || record.case_code || "--";
+                          const memoWord = record.memoWord || record.memo_word || "--";
+                          const pieceType = record.pieceType || record.piece_type || "";
+
+                          return (
+                            <article key={record.id || `${pieceType}-${caseCode}`} className="drill_rusty_row">
+                              <strong>{caseCode}</strong>
+                              <span>{memoWord}</span>
+                              <em>{this.formatDrillLastSeenAge(record.lastSeenAgeDays)}</em>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </React.Fragment>
+                  ) : (
+                    <div className="empty_state_card">
+                      <div className="placeholder_text">Last-seen stats will appear once the alg library has loaded.</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="drill_page_panel">
+                  <div className="empty_state_card">
+                    <div className="placeholder_text">This Drill page is ready for the next idea.</div>
                   </div>
-                </article>
-              </div>
+                </div>
+              )}
             </React.Fragment>
-          )}
-          </React.Fragment>
           )}
           {editorDraft && activeEditorEntry ? (
             <div className="alg_review_editor_overlay">
@@ -7182,7 +7403,8 @@ class App extends React.Component {
             </div>
           ) : null}
         </section>
-      );    } else if (this.state.activeView === "study") {
+      );
+    } else if (this.state.activeView === "study") {
       mainView = (
         <section className="study_screen view_panel">
           <div className="section_header">
@@ -8626,6 +8848,46 @@ class App extends React.Component {
                 >
                   <span className="nav_icon nav_icon_sessions"></span>
                   <span className="nav_label">Sessions</span>
+                </button>
+              </nav>
+            ) : this.state.activeView === "drill" ? (
+              <nav className="bottom_nav" aria-label="Drill">
+                <button
+                  type="button"
+                  className={`nav_item ${(this.state.drillTab || "setup") === "setup" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ drillTab: "setup" })}
+                >
+                  <span className="nav_icon nav_icon_solve"></span>
+                  <span className="nav_label">Drill</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.drillTab === "recents" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ drillTab: "recents" })}
+                >
+                  <span className="nav_icon nav_icon_history"></span>
+                  <span className="nav_label">Recents</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.drillTab === "stats" ? "nav_item_active" : ""}`}
+                  onClick={() => {
+                    this.setState({ drillTab: "stats" });
+                    if (!this.state.drillStatsEntries.length) {
+                      this.loadDrillStatsEntries();
+                    }
+                  }}
+                >
+                  <span className="nav_icon nav_icon_stats"></span>
+                  <span className="nav_label">Stats</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nav_item ${this.state.drillTab === "more" ? "nav_item_active" : ""}`}
+                  onClick={() => this.setState({ drillTab: "more" })}
+                >
+                  <span className="nav_icon nav_icon_sessions"></span>
+                  <span className="nav_label">More</span>
                 </button>
               </nav>
             ) : (

@@ -577,6 +577,51 @@ describe("solve details view data", () => {
     nowSpy.mockRestore();
   });
 
+  it("stores drill attempt alg details and summarizes last-seen ages", () => {
+    const app = new App();
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2026-07-15T00:00:00.000Z").getTime());
+    app.state = {
+      ...app.state,
+      drillPromptStartedAt: new Date("2026-07-15T00:00:00.000Z").getTime() - 5000,
+      drillAttemptStartedAt: new Date("2026-07-15T00:00:00.000Z").getTime() - 3000,
+    };
+    const entry = {
+      id: "edge-ab",
+      case_code: "AB",
+      piece_type: "edge",
+      memo_word: "alpha",
+      description: "[A, B]",
+      alg: "R U R'",
+      category: "4-Mover",
+      last_seen_at: "2026-07-01T00:00:00.000Z",
+    };
+
+    const record = app.buildDrillAttemptRecord(entry, { performedAlg: "R U R'", matched: true });
+    const box = app.getDrillLastSeenBoxPlot([
+      { lastSeenAt: "2026-07-14T00:00:00.000Z", completedAt: "2026-07-15T00:00:00.000Z" },
+      { lastSeenAt: "2026-07-12T00:00:00.000Z", completedAt: "2026-07-15T00:00:00.000Z" },
+      { lastSeenAt: "2026-07-10T00:00:00.000Z", completedAt: "2026-07-15T00:00:00.000Z" },
+    ]);
+
+    expect(record).toMatchObject({
+      caseCode: "AB",
+      memoWord: "alpha",
+      description: "[A, B]",
+      libraryAlg: "R U R'",
+      performedAlg: "R U R'",
+      lastSeenAt: "2026-07-01T00:00:00.000Z",
+      matched: true,
+    });
+    expect(box).toMatchObject({
+      min: 1,
+      median: 3,
+      max: 5,
+      count: 3,
+    });
+
+    nowSpy.mockRestore();
+  });
+
   it("builds memo audit rows and searches starts, endings, then memo text", () => {
     const app = new App();
     const entries = [

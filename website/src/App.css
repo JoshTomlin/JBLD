@@ -3684,6 +3684,47 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.drill_setup_panel,
+.drill_page_panel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 0;
+}
+
+.drill_page_panel {
+  height: 100%;
+  overflow: hidden;
+}
+
+.drill_setup_top {
+  display: grid;
+  grid-template-columns: minmax(130px, 220px) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.drill_setup_grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.drill_prompt_mode_panel {
+  display: grid;
+  gap: 10px;
+}
+
+.drill_setup_actions {
+  display: grid;
+  gap: 10px;
+}
+
+.drill_start_button {
+  width: 100%;
+  min-height: 46px;
+}
+
 .drill_review_setup {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) auto;
@@ -3701,6 +3742,8 @@ textarea {
 }
 
 .drill_select {
+  width: 100%;
+  min-width: 0;
   min-height: 38px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 12px;
@@ -3714,6 +3757,197 @@ textarea {
 .drill_select:focus {
   border-color: rgba(96, 165, 250, 0.45);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.drill_page_header,
+.drill_recent_header,
+.drill_recent_footer,
+.drill_rusty_row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.drill_page_header {
+  min-height: 28px;
+}
+
+.drill_recent_list,
+.drill_rusty_list {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.drill_recent_card,
+.drill_stats_card,
+.drill_rusty_row {
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  border-radius: 8px;
+  background: rgba(16, 24, 47, 0.86);
+}
+
+.drill_recent_card,
+.drill_stats_card {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+}
+
+.drill_recent_header strong,
+.drill_rusty_row strong {
+  color: var(--text-soft);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.drill_recent_header span,
+.drill_recent_footer,
+.drill_rusty_row span,
+.drill_rusty_row em {
+  color: var(--text-dim);
+  font-size: 0.76rem;
+}
+
+.drill_recent_memo {
+  color: var(--text-soft);
+  font-weight: 650;
+}
+
+.drill_recent_description {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.drill_recent_alg_grid {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 5px 8px;
+  align-items: start;
+}
+
+.drill_recent_alg_grid span {
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.drill_recent_alg_grid code {
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.drill_attempt_status {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.drill_attempt_status_matched {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.drill_attempt_status_review {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.drill_attempt_status_skipped {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.drill_stats_card_title {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.drill_box_plot {
+  position: relative;
+  height: 44px;
+  margin-top: 2px;
+}
+
+.drill_box_whisker,
+.drill_box_range,
+.drill_box_median {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.drill_box_whisker {
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(96, 165, 250, 0.34);
+}
+
+.drill_box_range {
+  left: var(--drill-box-left, 40%);
+  right: calc(100% - var(--drill-box-right, 60%));
+  height: 24px;
+  border: 1px solid rgba(96, 165, 250, 0.42);
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.drill_box_median {
+  left: var(--drill-box-median, 50%);
+  width: 3px;
+  height: 32px;
+  border-radius: 999px;
+  background: #bfdbfe;
+}
+
+.drill_box_labels,
+.drill_box_summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drill_box_labels span,
+.drill_box_summary span {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+}
+
+.drill_box_labels span:nth-child(2),
+.drill_box_summary span {
+  text-align: center;
+}
+
+.drill_box_labels span:last-child {
+  text-align: right;
+}
+
+.drill_rusty_row {
+  padding: 10px 12px;
+}
+
+.drill_rusty_row span {
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drill_rusty_row em {
+  font-style: normal;
 }
 
 .drill_review_card {
@@ -3784,6 +4018,18 @@ textarea {
 }
 
 @media (max-width: 680px) {
+  .drill_setup_top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .drill_setup_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drill_recent_alg_grid {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
   .drill_review_setup {
     grid-template-columns: 1fr;
   }
@@ -4126,6 +4372,24 @@ textarea {
     min-height: 18px;
     padding: 2px;
     font-size: 0.68rem;
+  }
+
+  .drill_recent_card,
+  .drill_stats_card {
+    padding: 10px;
+  }
+
+  .drill_recent_alg_grid {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 4px 6px;
+  }
+
+  .drill_box_summary {
+    grid-template-columns: 1fr;
+  }
+
+  .drill_box_summary span {
+    text-align: left;
   }
 
   .drill_screen_review_mode .drill_prompt_actions_review .drill_action_button {
