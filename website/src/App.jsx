@@ -326,7 +326,19 @@ class App extends React.Component {
       this.promptInstall();
     });
   };
-  exportSolveBackup = async () => {
+  downloadBlobFile = (blob, fileName) => {
+    const objectUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(objectUrl);
+  };
+
+  exportSolveBackup = async (options = {}) => {
+    const { closeMenu = true, showNotice = true, fileLabel = "" } = options;
     const { sessions, activeSessionId } = this.ensureSessionStorage();
     const algLibraryResult = await getAlgLibraryEntries({
       pieceType: "all",
@@ -350,24 +362,26 @@ class App extends React.Component {
         totalCount: Number(algLibraryResult.totalCount) || algLibraryEntries.length,
         entries: algLibraryEntries,
       },
+      algLibraryEntries,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
-    const objectUrl = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = objectUrl;
-    anchor.download = `jbld-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.URL.revokeObjectURL(objectUrl);
+    const dateLabel = new Date().toISOString().slice(0, 10);
+    const normalizedFileLabel = fileLabel ? `-${fileLabel}` : "";
+    this.downloadBlobFile(blob, `jbld-backup${normalizedFileLabel}-${dateLabel}.json`);
 
-    this.setState({
-      showMenu: false,
-      connectionNotice: `Backup exported with ${algLibraryEntries.length} Alg Library entries. Keep the JSON file somewhere safe outside the browser.`,
-    });
+    if (showNotice || closeMenu) {
+      this.setState({
+        showMenu: closeMenu ? false : this.state.showMenu,
+        connectionNotice: showNotice
+          ? `Backup exported with ${algLibraryEntries.length} Alg Library entries included. Keep the JSON file somewhere safe outside the browser.`
+          : this.state.connectionNotice,
+      });
+    }
+
+    return { algLibraryCount: algLibraryEntries.length };
   };
   triggerSolveBackupImport = () => {
     this.setState({ showMenu: false }, () => {
@@ -449,6 +463,21 @@ class App extends React.Component {
   };
   refreshAppWithoutClearingData = async () => {
     try {
+      this.setState({
+        showMenu: false,
+        connectionNotice: "Creating local and alg library backups before updating...",
+      });
+      await this.exportSolveBackup({
+        closeMenu: false,
+        showNotice: false,
+        fileLabel: "pre-update",
+      });
+      await this.exportAlgLibrary({
+        showNotice: false,
+        fileLabel: "pre-update",
+        throwOnError: true,
+      });
+
       const { sessions, activeSessionId } = this.ensureSessionStorage({ skipDatabaseMirror: true });
       await this.persistLocalDatabaseSnapshot(sessions, activeSessionId);
 
@@ -1051,6 +1080,7 @@ class App extends React.Component {
         entryId: entry.id,
         pieceType,
         caseCode: entry.case_code,
+        originalMemo: entry.memo_word || "",
       },
       memoAuditDraftMemo: entry.memo_word || "",
       memoAuditNotice: null,
@@ -1065,12 +1095,21 @@ class App extends React.Component {
     });
   };
 
-  saveMemoAuditMemo = async (entry) => {
+  saveMemoAuditMemo = async (entry, memoValue = null) => {
     if (!entry || this.state.memoAuditSaving) {
       return;
     }
 
-    const draftMemo = this.state.memoAuditDraftMemo;
+    const draftMemo = memoValue !== null ? memoValue : this.state.memoAuditDraftMemo;
+    const originalMemo =
+      this.state.memoAuditEditingCell && this.state.memoAuditEditingCell.entryId === entry.id
+        ? this.state.memoAuditEditingCell.originalMemo || ""
+        : entry.memo_word || "";
+    if (String(draftMemo || "") === String(originalMemo || "")) {
+      this.cancelMemoAuditEdit();
+      return;
+    }
+
     this.setState({
       memoAuditSaving: true,
       memoAuditNotice: "Saving memo...",
@@ -1146,36 +1185,24 @@ class App extends React.Component {
             value={this.state.memoAuditDraftMemo}
             autoFocus
             onChange={(event) => this.setState({ memoAuditDraftMemo: event.target.value })}
+            onBlur={(event) => this.saveMemoAuditMemo(entry, event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                this.saveMemoAuditMemo(entry);
+                event.currentTarget.blur();
               } else if (event.key === "Escape") {
                 event.preventDefault();
-                this.cancelMemoAuditEdit();
+                const originalMemo =
+                  this.state.memoAuditEditingCell && this.state.memoAuditEditingCell.originalMemo
+                    ? this.state.memoAuditEditingCell.originalMemo
+                    : "";
+                event.currentTarget.value = originalMemo;
+                this.setState({ memoAuditDraftMemo: originalMemo }, () => {
+                  event.currentTarget.blur();
+                });
               }
             }}
           />
-          <button
-            type="button"
-            className="memo_audit_cell_action memo_audit_cell_action_save"
-            aria-label="Save memo"
-            onClick={() => this.saveMemoAuditMemo(entry)}
-            disabled={this.state.memoAuditSaving}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m5 13 4 4L19 7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="memo_audit_cell_action"
-            aria-label="Cancel memo edit"
-            onClick={this.cancelMemoAuditEdit}
-            disabled={this.state.memoAuditSaving}
-          >
-            x
-          </button>
         </div>
       );
     }
@@ -6367,7 +6394,8 @@ class App extends React.Component {
     }
   };
 
-  exportAlgLibrary = async () => {
+  exportAlgLibrary = async (options = {}) => {
+    const { showNotice = true, fileLabel = "", throwOnError = false } = options;
     try {
       await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
       const result = await getAlgLibraryEntries({
@@ -6380,22 +6408,26 @@ class App extends React.Component {
       const file = new Blob([workbook.buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      const url = window.URL.createObjectURL(file);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = workbook.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      this.setState({
-        algLibraryNotice: `Exported ${workbook.entryCount} alg library entries to ${workbook.fileName}.`,
-      });
+      const normalizedFileLabel = fileLabel ? `-${fileLabel}` : "";
+      const fileName = normalizedFileLabel
+        ? workbook.fileName.replace(/\.xlsx$/i, `${normalizedFileLabel}.xlsx`)
+        : workbook.fileName;
+      this.downloadBlobFile(file, fileName);
+      if (showNotice) {
+        this.setState({
+          algLibraryNotice: `Exported ${workbook.entryCount} alg library entries to ${fileName}.`,
+        });
+      }
+      return { entryCount: workbook.entryCount, fileName };
     } catch (error) {
       this.setState({
         algLibraryNotice:
           error && error.message ? `Export failed. ${error.message}` : "Export failed for the alg library workbook.",
       });
+      if (throwOnError) {
+        throw error;
+      }
+      return null;
     }
   };
   desktop_layout = () => {
@@ -8661,7 +8693,7 @@ class App extends React.Component {
                   className="menu_item"
                   onClick={this.exportSolveBackup}
                 >
-                  Export Backup
+                  Export Local Backup
                 </button>
                 <button
                   type="button"

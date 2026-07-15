@@ -2506,9 +2506,8 @@ textarea {
 
 .memo_audit_edit_cell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 26px 26px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 4px;
 }
 
 .memo_audit_input {
@@ -2519,34 +2518,6 @@ textarea {
   border-radius: 10px;
   background: rgba(7, 17, 38, 0.96);
   color: var(--text-soft);
-}
-
-.memo_audit_cell_action {
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-dim);
-  display: grid;
-  place-items: center;
-  font-size: 0.72rem;
-}
-
-.memo_audit_cell_action svg {
-  width: 14px;
-  height: 14px;
-}
-
-.memo_audit_cell_action_save {
-  border-color: rgba(74, 222, 128, 0.28);
-  background: rgba(34, 197, 94, 0.1);
-  color: rgba(187, 247, 208, 0.9);
-}
-
-.memo_audit_cell_action:disabled {
-  opacity: 0.55;
 }
 
 .solve_modal_header {
