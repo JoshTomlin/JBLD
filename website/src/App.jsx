@@ -139,6 +139,7 @@ class App extends React.Component {
       memoAuditLoading: false,
       memoAuditEntries: [],
       memoAuditSearch: "",
+      memoAuditMismatchesOnly: false,
       memoAuditEditingCell: null,
       memoAuditDraftMemo: "",
       memoAuditSaving: false,
@@ -967,7 +968,9 @@ class App extends React.Component {
           ...row,
           edgeMemo,
           cornerMemo,
-          isMismatch: edgeMemo.toLowerCase() !== cornerMemo.toLowerCase(),
+          isMismatch:
+            Boolean(row.edgeEntry && row.cornerEntry) &&
+            edgeMemo.toLowerCase() !== cornerMemo.toLowerCase(),
         };
       })
       .sort((left, right) => left.caseCode.localeCompare(right.caseCode));
@@ -1004,6 +1007,7 @@ class App extends React.Component {
       memoAuditOpen: true,
       memoAuditLoading: true,
       memoAuditSearch: "",
+      memoAuditMismatchesOnly: false,
       memoAuditNotice: null,
       memoAuditEditingCell: null,
       memoAuditDraftMemo: "",
@@ -1030,6 +1034,7 @@ class App extends React.Component {
       memoAuditOpen: false,
       memoAuditLoading: false,
       memoAuditSearch: "",
+      memoAuditMismatchesOnly: false,
       memoAuditEditingCell: null,
       memoAuditDraftMemo: "",
       memoAuditNotice: null,
@@ -2329,6 +2334,121 @@ class App extends React.Component {
     return matchedPerformedIndices;
   };
 
+  buildAlgReviewAlignmentColumns = (libraryAtoms = [], performedAtoms = []) => {
+    const rowCount = libraryAtoms.length + 1;
+    const columnCount = performedAtoms.length + 1;
+    const cells = Array.from({ length: rowCount }, () =>
+      Array.from({ length: columnCount }, () => ({ cost: 0, action: null }))
+    );
+
+    for (let row = 1; row < rowCount; row += 1) {
+      cells[row][0] = { cost: row, action: "delete" };
+    }
+    for (let column = 1; column < columnCount; column += 1) {
+      cells[0][column] = { cost: column, action: "insert" };
+    }
+
+    for (let row = 1; row < rowCount; row += 1) {
+      for (let column = 1; column < columnCount; column += 1) {
+        const libraryToken = libraryAtoms[row - 1] && libraryAtoms[row - 1].token;
+        const performedToken = performedAtoms[column - 1] && performedAtoms[column - 1].token;
+        const substitutionCost = libraryToken === performedToken ? 0 : 1;
+        const choices = [
+          { cost: cells[row - 1][column - 1].cost + substitutionCost, action: "diagonal" },
+          { cost: cells[row - 1][column].cost + 1, action: "delete" },
+          { cost: cells[row][column - 1].cost + 1, action: "insert" },
+        ];
+        cells[row][column] = choices.reduce((best, choice) =>
+          choice.cost < best.cost ? choice : best
+        );
+      }
+    }
+
+    const columns = [];
+    let row = libraryAtoms.length;
+    let column = performedAtoms.length;
+    while (row > 0 || column > 0) {
+      const action = cells[row][column].action;
+      if (action === "diagonal") {
+        const libraryAtom = libraryAtoms[row - 1];
+        const performedAtom = performedAtoms[column - 1];
+        columns.unshift({
+          libraryAtom,
+          performedAtom,
+          matches: Boolean(libraryAtom && performedAtom && libraryAtom.token === performedAtom.token),
+        });
+        row -= 1;
+        column -= 1;
+      } else if (action === "delete") {
+        columns.unshift({
+          libraryAtom: libraryAtoms[row - 1],
+          performedAtom: null,
+          matches: false,
+        });
+        row -= 1;
+      } else {
+        columns.unshift({
+          libraryAtom: null,
+          performedAtom: performedAtoms[column - 1],
+          matches: false,
+        });
+        column -= 1;
+      }
+    }
+
+    return columns;
+  };
+
+  buildAlgReviewAlignedCells = (columns = [], side = "library", displayTokens = [], fullMatch = false) => {
+    const atomKey = side === "performed" ? "performedAtom" : "libraryAtom";
+    const cells = [];
+    let index = 0;
+
+    while (index < columns.length) {
+      const atom = columns[index][atomKey];
+      if (!atom) {
+        cells.push({ token: "", status: "blank", colSpan: 1 });
+        index += 1;
+        continue;
+      }
+
+      const sourceIndex = atom.sourceIndices && atom.sourceIndices.length ? atom.sourceIndices[0] : `atom-${index}`;
+      let colSpan = 1;
+      let allColumnsMatch = Boolean(columns[index].matches);
+      let anyColumnMismatch = !columns[index].matches;
+
+      while (index + colSpan < columns.length) {
+        const nextAtom = columns[index + colSpan][atomKey];
+        const nextSourceIndex =
+          nextAtom && nextAtom.sourceIndices && nextAtom.sourceIndices.length
+            ? nextAtom.sourceIndices[0]
+            : null;
+        if (!nextAtom || nextSourceIndex !== sourceIndex) {
+          break;
+        }
+
+        allColumnsMatch = allColumnsMatch && Boolean(columns[index + colSpan].matches);
+        anyColumnMismatch = anyColumnMismatch || !columns[index + colSpan].matches;
+        colSpan += 1;
+      }
+
+      cells.push({
+        token: displayTokens[sourceIndex] || this.getAlgReviewComparisonToken(atom),
+        status: fullMatch
+          ? "match"
+          : side === "performed" && anyColumnMismatch
+            ? "mismatch"
+            : allColumnsMatch
+              ? "match"
+              : "neutral",
+        colSpan,
+      });
+      index += colSpan;
+    }
+
+    return cells;
+  };
+
   compareAlgReviewMoveSequences = (libraryAlg = "", performedMoves = []) => {
     const librarySequence = this.buildAlgReviewComparisonSequence(libraryAlg);
     const performedSequence = this.buildAlgReviewComparisonSequence(performedMoves);
@@ -2350,6 +2470,10 @@ class App extends React.Component {
         ? "match"
         : "mismatch";
     });
+    const alignedColumns = this.buildAlgReviewAlignmentColumns(
+      librarySequence.canonicalAtoms,
+      performedSequence.canonicalAtoms
+    );
 
     return {
       matches,
@@ -2358,6 +2482,19 @@ class App extends React.Component {
         token,
         status: matches ? "match" : displayTokenStatus[index],
       })),
+      libraryCells: this.buildAlgReviewAlignedCells(
+        alignedColumns,
+        "library",
+        librarySequence.displayTokens,
+        matches
+      ),
+      performedCells: this.buildAlgReviewAlignedCells(
+        alignedColumns,
+        "performed",
+        performedSequence.displayTokens,
+        matches
+      ),
+      columnCount: Math.max(alignedColumns.length, 1),
     };
   };
 
@@ -6357,11 +6494,14 @@ class App extends React.Component {
       }),
       { match: 0, review: 0, missing: 0 }
     );
-    const memoAuditRows = this.buildMemoAuditRows(
+    const memoAuditFilteredRows = this.buildMemoAuditRows(
       this.state.memoAuditEntries,
       this.state.memoAuditSearch
     );
-    const memoAuditMismatchCount = memoAuditRows.filter((row) => row.isMismatch).length;
+    const memoAuditMismatchCount = memoAuditFilteredRows.filter((row) => row.isMismatch).length;
+    const memoAuditRows = this.state.memoAuditMismatchesOnly
+      ? memoAuditFilteredRows.filter((row) => row.isMismatch)
+      : memoAuditFilteredRows;
     const trendLabel =
       latestFive.length >= 2 &&
       !isDnfValue(latestFive[0].DNF) &&
@@ -6559,6 +6699,20 @@ class App extends React.Component {
       const lastReviewComparison = lastReviewEntry
         ? this.compareAlgReviewMoveSequences(lastReviewEntry.alg || "", lastReviewMoves)
         : null;
+      const lastReviewLibraryCells =
+        lastReviewComparison && lastReviewComparison.libraryCells.length
+          ? lastReviewComparison.libraryCells
+          : [{ token: lastReviewEntry && lastReviewEntry.alg ? lastReviewEntry.alg : "No alg saved", status: "neutral", colSpan: 1 }];
+      const lastReviewPerformedCells =
+        lastReviewComparison && lastReviewComparison.performedCells.length
+          ? lastReviewComparison.performedCells
+          : [{ token: "--", status: "mismatch", colSpan: 1 }];
+      const lastReviewColumnCount = Math.max(
+        1,
+        lastReviewComparison ? lastReviewComparison.columnCount : 0,
+        lastReviewLibraryCells.reduce((total, cell) => total + (Number(cell.colSpan) || 1), 0),
+        lastReviewPerformedCells.reduce((total, cell) => total + (Number(cell.colSpan) || 1), 0)
+      );
       const lastReviewPieceLabel = lastReviewEntry && lastReviewEntry.piece_type
         ? `${lastReviewEntry.piece_type.charAt(0).toUpperCase()}${lastReviewEntry.piece_type.slice(1)}`
         : "";
@@ -6663,39 +6817,48 @@ class App extends React.Component {
                           <strong>{lastReviewEntry.memo_word || "--"}</strong>
                           <span>{lastReviewEntry.description || "No comm notation saved"}</span>
                         </div>
-                        <div className="drill_last_comm_alg_compare">
-                          <span>Alg:</span>
-                          <strong>
-                            {(lastReviewComparison && lastReviewComparison.libraryTokens.length
-                              ? lastReviewComparison.libraryTokens
-                              : [lastReviewEntry.alg || "No alg saved"]
-                            ).map((token, index) => (
-                              <span key={`last-library-${index}-${token}`} className="drill_last_comm_move">
-                                {token}
+                        <div
+                          className="drill_last_comm_alg_table"
+                          style={{ "--drill-last-comm-columns": lastReviewColumnCount }}
+                        >
+                          <div className="drill_last_comm_alg_table_label">Library alg</div>
+                          <div className="drill_last_comm_alg_table_row">
+                            {lastReviewLibraryCells.map((cell, index) => (
+                              <span
+                                key={`last-library-${index}-${cell.token}`}
+                                className={`drill_last_comm_move_cell ${cell.token ? "" : "drill_last_comm_move_cell_blank"}`}
+                                style={{ gridColumn: `span ${cell.colSpan || 1}` }}
+                              >
+                                {cell.token}
                               </span>
                             ))}
-                          </strong>
-                          <span>You did:</span>
-                          <strong className={lastReviewComparison && lastReviewComparison.matches ? "drill_last_comm_alg_match" : ""}>
-                            {lastReviewComparison && lastReviewComparison.performedTokens.length ? (
-                              lastReviewComparison.performedTokens.map((move, index) => (
-                                <span
-                                  key={`last-performed-${index}-${move.token}`}
-                                  className={`drill_last_comm_move ${
-                                    lastReviewComparison.matches
-                                      ? "drill_last_comm_move_match"
-                                      : move.status === "mismatch"
-                                        ? "drill_last_comm_move_mismatch"
-                                        : ""
-                                  }`}
-                                >
-                                  {move.token}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="drill_last_comm_move drill_last_comm_move_mismatch">--</span>
-                            )}
-                          </strong>
+                          </div>
+                          <div
+                            className={`drill_last_comm_alg_table_row ${
+                              lastReviewComparison && lastReviewComparison.matches
+                                ? "drill_last_comm_alg_table_row_match"
+                                : ""
+                            }`}
+                          >
+                            {lastReviewPerformedCells.map((cell, index) => (
+                              <span
+                                key={`last-performed-${index}-${cell.token}`}
+                                className={`drill_last_comm_move_cell ${
+                                  lastReviewComparison && lastReviewComparison.matches
+                                    ? "drill_last_comm_move_match"
+                                    : cell.status === "mismatch"
+                                      ? "drill_last_comm_move_mismatch"
+                                      : cell.token
+                                        ? ""
+                                        : "drill_last_comm_move_cell_blank"
+                                }`}
+                                style={{ gridColumn: `span ${cell.colSpan || 1}` }}
+                              >
+                                {cell.token}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="drill_last_comm_alg_table_label">You did</div>
                         </div>
                       </div>
                       <button
@@ -8577,19 +8740,35 @@ class App extends React.Component {
                   x
                 </button>
               </div>
-              <input
-                type="text"
-                className="settings_input memo_audit_search"
-                aria-label="Search memo audit"
-                value={this.state.memoAuditSearch}
-                onChange={(event) =>
-                  this.setState({
-                    memoAuditSearch: event.target.value,
-                    memoAuditEditingCell: null,
-                    memoAuditDraftMemo: "",
-                  })
-                }
-              />
+              <div className="memo_audit_controls">
+                <input
+                  type="text"
+                  className="settings_input memo_audit_search"
+                  aria-label="Search memo audit"
+                  value={this.state.memoAuditSearch}
+                  onChange={(event) =>
+                    this.setState({
+                      memoAuditSearch: event.target.value,
+                      memoAuditEditingCell: null,
+                      memoAuditDraftMemo: "",
+                    })
+                  }
+                />
+                <label className="memo_audit_checkbox">
+                  <input
+                    type="checkbox"
+                    checked={this.state.memoAuditMismatchesOnly}
+                    onChange={(event) =>
+                      this.setState({
+                        memoAuditMismatchesOnly: event.target.checked,
+                        memoAuditEditingCell: null,
+                        memoAuditDraftMemo: "",
+                      })
+                    }
+                  />
+                  <span>Mismatches Only</span>
+                </label>
+              </div>
               {this.state.memoAuditNotice ? (
                 <div className="study_library_notice">{this.state.memoAuditNotice}</div>
               ) : null}

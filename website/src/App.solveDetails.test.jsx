@@ -569,12 +569,14 @@ describe("solve details view data", () => {
       { id: "corner-xb", piece_type: "corner", case_code: "XB", memo_word: "xeno" },
       { id: "edge-cd", piece_type: "edge", case_code: "CD", memo_word: "banana" },
       { id: "corner-cd", piece_type: "corner", case_code: "CD", memo_word: "banana" },
+      { id: "edge-ai", piece_type: "edge", case_code: "AI", memo_word: "solo" },
     ];
 
     const allRows = app.buildMemoAuditRows(entries);
     const searchedRows = app.buildMemoAuditRows(entries, "b");
 
     expect(allRows.find((row) => row.caseCode === "BA").isMismatch).toBe(true);
+    expect(allRows.find((row) => row.caseCode === "AI").isMismatch).toBe(false);
     expect(searchedRows.map((row) => row.caseCode)).toEqual(["BA", "AB", "XB", "CD"]);
   });
 
@@ -795,12 +797,20 @@ describe("solve details view data", () => {
     const app = new App();
 
     expect(app.compareAlgReviewMoveSequences("U D R", ["D", "U", "R"]).matches).toBe(true);
-    expect(app.compareAlgReviewMoveSequences("r U", ["M'", "R", "U"]).matches).toBe(true);
+    const wideMatch = app.compareAlgReviewMoveSequences("r U", ["M'", "R", "U"]);
+    expect(wideMatch.matches).toBe(true);
+    expect(wideMatch.libraryCells.map((cell) => ({ token: cell.token, colSpan: cell.colSpan }))).toEqual([
+      { token: "r", colSpan: 2 },
+      { token: "U", colSpan: 1 },
+    ]);
+    expect(wideMatch.performedCells.map((cell) => cell.token)).toEqual(["M'", "R", "U"]);
 
     const mismatch = app.compareAlgReviewMoveSequences("R U R'", ["R", "U", "R"]);
 
     expect(mismatch.matches).toBe(false);
     expect(mismatch.performedTokens.map((move) => move.status)).toEqual(["match", "match", "mismatch"]);
+    expect(mismatch.libraryCells.map((cell) => cell.token)).toEqual(["R", "U", "R'"]);
+    expect(mismatch.performedCells.map((cell) => cell.token)).toEqual(["R", "U", "R"]);
   });
 
   it("recognizes smart-cube slice pairs across Alg Review move-stream updates", () => {
