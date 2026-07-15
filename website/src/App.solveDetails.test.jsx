@@ -101,6 +101,8 @@ describe("solve details view data", () => {
     const app = new App();
 
     expect(app.compactRepeatedTurns("U2 L R' U2 R L'")).toBe("U2 M' B2 M");
+    expect(app.compactRepeatedTurns("L M' R'")).toBe("M2");
+    expect(app.compactRepeatedTurns("L' M R")).toBe("M2");
   });
 
   it("preserves explicit wide moves instead of leaking rotations across later slice moves", () => {
@@ -764,6 +766,108 @@ describe("solve details view data", () => {
 
     expect(app.state.drillCurrentMoves).toEqual([]);
   });
+
+  it("moves Alg Review back to the previous comm for a fresh retry", () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    app.resetAlgReviewAttemptCube = jest.fn();
+    const entry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "alpha", category: "Set" };
+    const nextEntry = { id: "edge-cd", case_code: "CD", piece_type: "edge", memo_word: "charlie", category: "Set" };
+    const thirdEntry = { id: "edge-ef", case_code: "EF", piece_type: "edge", memo_word: "echo", category: "Set" };
+    app.state = {
+      ...app.state,
+      drillMode: "alg-review",
+      drillQueue: [entry, nextEntry, thirdEntry],
+      drillCurrentIndex: 1,
+      drillCurrentEntry: nextEntry,
+      drillNextEntry: thirdEntry,
+      drillExecutingEntry: null,
+      drillCompletedCount: 1,
+      drillSkippedCount: 0,
+      drillCurrentMoves: ["R"],
+      drillLastCommEntry: entry,
+      drillLastCommMoves: ["R"],
+      cube_moves: ["R"],
+      algReviewAttemptRecords: [{ entryId: "edge-ab", skipped: false }],
+    };
+
+    app.backAlgReviewEntry();
+
+    expect(app.resetAlgReviewAttemptCube).toHaveBeenCalled();
+    expect(app.state.drillCurrentIndex).toBe(0);
+    expect(app.state.drillCurrentEntry).toBe(entry);
+    expect(app.state.drillNextEntry).toBe(nextEntry);
+    expect(app.state.drillCurrentMoves).toEqual([]);
+    expect(app.state.drillLastCommEntry).toBeNull();
+    expect(app.state.drillCompletedCount).toBe(0);
+    expect(app.state.drillStatusMessage).toBe("Back to alpha");
+  });
+
+  it("force-refreshes Drill entries from the library when starting", async () => {
+    const app = new App();
+    app.ensureBundledAlgLibraryLoaded = jest.fn(() => Promise.resolve());
+    const staleEntry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "old", alg: "R" };
+    const freshEntry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "new", alg: "R" };
+    app.loadAlgReviewOptions = jest.fn(() => Promise.resolve({ entries: [freshEntry], groups: [] }));
+    app.state = {
+      ...app.state,
+      drillMode: "alg-review",
+      algReviewPieceType: "edge",
+      algReviewGroup: "all",
+      algReviewEntries: [staleEntry],
+    };
+
+    const entries = await app.getFilteredDrillEntries({ forceRefresh: true });
+
+    expect(app.loadAlgReviewOptions).toHaveBeenCalledWith("edge");
+    expect(entries).toEqual([freshEntry]);
+  });
+
+  it("hydrates saved Alg Review progress before resuming", async () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    const staleEntry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "old", alg: "R" };
+    const freshEntry = { id: "edge-ab", case_code: "AB", piece_type: "edge", memo_word: "new", alg: "R" };
+    app.hydrateAlgReviewProgressEntries = jest.fn((progress) =>
+      Promise.resolve({
+        ...progress,
+        queue: [freshEntry],
+        currentEntry: freshEntry,
+        nextEntry: null,
+      })
+    );
+    app.state = {
+      ...app.state,
+      algReviewProgress: {
+        pieceType: "edge",
+        group: "all",
+        queue: [staleEntry],
+        currentIndex: 0,
+        currentEntry: staleEntry,
+        nextEntry: null,
+      },
+    };
+
+    await app.resumeAlgReviewProgress();
+
+    expect(app.hydrateAlgReviewProgressEntries).toHaveBeenCalled();
+    expect(app.state.drillSessionActive).toBe(true);
+    expect(app.state.drillCurrentEntry.memo_word).toBe("new");
+    expect(app.state.drillQueue[0].memo_word).toBe("new");
+    expect(app.state.drillLoading).toBe(false);
+  });
   it("keeps Alg Review targets canonical while orienting live attempts", () => {
     normalizeForOrientation.mockImplementation((_scramble, solve, orientation) => {
       const tokens = String(solve || "")
@@ -864,6 +968,7 @@ describe("solve details view data", () => {
     expect(app.getAlgReviewOrientedMoves(["L'", "R", "r"], { display: true })).toEqual(["M", "Rw"]);
     expect(app.formatAlgReviewCurrentMoves(["L'", "R", "r"])).toEqual(["M", "Rw"]);
     expect(app.formatAlgReviewCurrentMoves(["R", "R", "U", "U'"])).toEqual(["R2"]);
+    expect(app.formatAlgReviewCurrentMoves(["L", "M'", "R'"], { pieceType: "edge" })).toEqual(["M2"]);
     expect(app.getAlgReviewOrientedMoves(["L'", "R"], { display: true, pieceType: "corner" })).toEqual(["L'", "R"]);
     expect(app.formatAlgReviewCurrentMoves(["L'", "R"], { pieceType: "corner" })).toEqual(["L'", "R"]);
     expect(app.getAlgReviewOrientedMoves(["R", "L", "R'"], {
@@ -891,6 +996,8 @@ describe("solve details view data", () => {
     const app = new App();
 
     expect(app.compareAlgReviewMoveSequences("U D R", ["D", "U", "R"]).matches).toBe(true);
+    expect(app.compareAlgReviewMoveSequences("M2", ["L", "M'", "R'"]).matches).toBe(true);
+    expect(app.buildAlgReviewComparisonSequence(["L", "M'", "R'"]).canonicalTokens).toEqual(["M2"]);
     const wideMatch = app.compareAlgReviewMoveSequences("r U", ["M'", "R", "U"]);
     expect(wideMatch.matches).toBe(true);
     expect(wideMatch.libraryCells.map((cell) => ({ token: cell.token, colSpan: cell.colSpan }))).toEqual([

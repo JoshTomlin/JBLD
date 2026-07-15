@@ -2125,7 +2125,109 @@ class App extends React.Component {
     return output.join(" ");
   };
 
-  compactRepeatedTurns = (algText, { convertSlices = true } = {}) => {
+  getCommutingSliceRunConfig = (axis) => ({
+    x: { negative: "L", slice: "M", positive: "R", pairSign: 1 },
+    y: { negative: "D", slice: "E", positive: "U", pairSign: 1 },
+    z: { negative: "B", slice: "S", positive: "F", pairSign: -1 },
+  }[axis] || null);
+
+  parseCommutingSliceRunToken = (token) => {
+    const normalizedToken = String(token || "").trim().replace(/[\u2018\u2019]/g, "'");
+    const match = normalizedToken.match(/^([LMRDUESFB])(2'?|'?)?$/);
+    if (!match) {
+      return null;
+    }
+
+    const base = match[1];
+    return {
+      base,
+      amount: this.getAlgReviewComparisonAmount(match[2] || ""),
+      axis: this.getAlgReviewComparisonAxis(base),
+    };
+  };
+
+  reduceCommutingSliceRunAmounts = (axis, amounts) => {
+    const config = this.getCommutingSliceRunConfig(axis);
+    if (!config) {
+      return amounts;
+    }
+
+    const nextAmounts = {
+      negative: ((Number(amounts.negative) || 0) % 4 + 4) % 4,
+      slice: ((Number(amounts.slice) || 0) % 4 + 4) % 4,
+      positive: ((Number(amounts.positive) || 0) % 4 + 4) % 4,
+    };
+
+    if (nextAmounts.negative && nextAmounts.positive && (nextAmounts.negative + nextAmounts.positive) % 4 === 0) {
+      const pairAmount = config.pairSign === -1
+        ? (4 - nextAmounts.positive) % 4
+        : nextAmounts.positive;
+      nextAmounts.slice = (nextAmounts.slice + pairAmount) % 4;
+      nextAmounts.negative = 0;
+      nextAmounts.positive = 0;
+    }
+
+    return nextAmounts;
+  };
+
+  simplifyCommutingSliceRunTokens = (tokens = []) => {
+    const output = [];
+    let index = 0;
+
+    while (index < tokens.length) {
+      const firstMove = this.parseCommutingSliceRunToken(tokens[index]);
+      if (!firstMove || !firstMove.axis) {
+        output.push(tokens[index]);
+        index += 1;
+        continue;
+      }
+
+      const run = [];
+      while (index < tokens.length) {
+        const move = this.parseCommutingSliceRunToken(tokens[index]);
+        if (!move || move.axis !== firstMove.axis) {
+          break;
+        }
+        run.push(move);
+        index += 1;
+      }
+
+      const config = this.getCommutingSliceRunConfig(firstMove.axis);
+      if (!config) {
+        output.push(...run.map((move) => this.getAlgReviewComparisonToken(move)));
+        continue;
+      }
+
+      const amounts = run.reduce(
+        (acc, move) => {
+          if (move.base === config.negative) {
+            acc.negative = (acc.negative + move.amount) % 4;
+          } else if (move.base === config.slice) {
+            acc.slice = (acc.slice + move.amount) % 4;
+          } else if (move.base === config.positive) {
+            acc.positive = (acc.positive + move.amount) % 4;
+          }
+          return acc;
+        },
+        { negative: 0, slice: 0, positive: 0 }
+      );
+      const reducedAmounts = this.reduceCommutingSliceRunAmounts(firstMove.axis, amounts);
+      [
+        [config.negative, reducedAmounts.negative],
+        [config.slice, reducedAmounts.slice],
+        [config.positive, reducedAmounts.positive],
+      ].forEach(([base, amount]) => {
+        const suffix = this.getAlgReviewComparisonSuffix(amount);
+        if (suffix !== null) {
+          output.push(`${base}${suffix}`);
+        }
+      });
+    }
+
+    return output;
+  };
+
+  compactRepeatedTurns = (algText, { convertSlices = true, reduceCommutingSlices = true } = {}) => {
     const displayText = convertSlices === "preserve"
       ? this.normalizeDisplayAlgText(algText)
       : convertSlices
@@ -2135,7 +2237,8 @@ class App extends React.Component {
       return "";
     }
 
-    const tokens = displayText.split(/\s+/).filter(Boolean);
+    const rawTokens = displayText.split(/\s+/).filter(Boolean);
+    const tokens = reduceCommutingSlices ? this.simplifyCommutingSliceRunTokens(rawTokens) : rawTokens;
     const compacted = [];
     const getTurnParts = (token) => {
       if (!token) {
@@ -2315,6 +2418,22 @@ class App extends React.Component {
       y: ["D", "E", "U"],
       z: ["B", "S", "F"],
     };
+    const roleForBase = (axis, base) => {
+      const config = this.getCommutingSliceRunConfig(axis);
+      if (!config) {
+        return null;
+      }
+      if (base === config.negative) {
+        return "negative";
+      }
+      if (base === config.slice) {
+        return "slice";
+      }
+      if (base === config.positive) {
+        return "positive";
+      }
+      return null;
+    };
     const canonicalAtoms = [];
     let index = 0;
 
@@ -2335,13 +2454,40 @@ class App extends React.Component {
         index += 1;
       }
 
+      const config = this.getCommutingSliceRunConfig(axis);
+      const sourceIndicesByRole = { negative: [], slice: [], positive: [] };
+      const amounts = run.reduce(
+        (acc, move) => {
+          const role = roleForBase(axis, move.base);
+          if (!role) {
+            return acc;
+          }
+          acc[role] = (acc[role] + move.amount) % 4;
+          sourceIndicesByRole[role].push(...(move.sourceIndices || []));
+          return acc;
+        },
+        { negative: 0, slice: 0, positive: 0 }
+      );
+      const reducedAmounts = this.reduceCommutingSliceRunAmounts(axis, amounts);
+      if (
+        config &&
+        amounts.negative &&
+        amounts.positive &&
+        reducedAmounts.negative === 0 &&
+        reducedAmounts.positive === 0
+      ) {
+        sourceIndicesByRole.slice.push(...sourceIndicesByRole.negative, ...sourceIndicesByRole.positive);
+        sourceIndicesByRole.negative = [];
+        sourceIndicesByRole.positive = [];
+      }
+
       axisBaseOrder[axis].forEach((base) => {
-        const matchingMoves = run.filter((move) => move.base === base);
-        if (!matchingMoves.length) {
+        const role = roleForBase(axis, base);
+        const amount = role ? reducedAmounts[role] : 0;
+        if (!role) {
           return;
         }
 
-        const amount = matchingMoves.reduce((total, move) => total + move.amount, 0) % 4;
         const suffix = this.getAlgReviewComparisonSuffix(amount);
         if (suffix === null) {
           return;
@@ -2349,10 +2495,7 @@ class App extends React.Component {
 
         canonicalAtoms.push({
           token: `${base}${suffix}`,
-          sourceIndices: matchingMoves.reduce(
-            (indices, move) => [...indices, ...(move.sourceIndices || [])],
-            []
-          ),
+          sourceIndices: sourceIndicesByRole[role],
         });
       });
     }
@@ -3683,14 +3826,22 @@ class App extends React.Component {
     });
   };
 
-  resumeAlgReviewProgress = () => {
-    const progress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
-    if (!progress || !Array.isArray(progress.queue)) {
+  resumeAlgReviewProgress = async () => {
+    const savedProgress = this.state.algReviewProgress || this.parseJsonStorage("algReviewProgress", null);
+    if (!savedProgress || !Array.isArray(savedProgress.queue)) {
       return;
     }
 
+    this.setState({ drillLoading: true });
+    let progress = savedProgress;
+    try {
+      progress = await this.hydrateAlgReviewProgressEntries(savedProgress);
+    } catch (error) {
+      console.warn("Failed to refresh Alg Review progress entries", error);
+    }
     const processedMoveCount = this.setDrillProcessedMoveCursor();
     this.setState({
+      drillLoading: false,
       drillMode: "alg-review",
       algReviewPieceType: progress.pieceType || "edge",
       algReviewGroup: progress.group || "all",
@@ -3807,12 +3958,13 @@ class App extends React.Component {
     }
   };
 
-  getFilteredDrillEntries = async () => {
+  getFilteredDrillEntries = async (options = {}) => {
     await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
+    const forceRefresh = Boolean(options.forceRefresh);
 
     if (this.state.drillMode === "alg-review") {
       let entries = Array.isArray(this.state.algReviewEntries) ? this.state.algReviewEntries : [];
-      if (!entries.length || entries.some((entry) => entry.piece_type !== this.state.algReviewPieceType)) {
+      if (forceRefresh || !entries.length || entries.some((entry) => entry.piece_type !== this.state.algReviewPieceType)) {
         const loaded = await this.loadAlgReviewOptions(this.state.algReviewPieceType);
         entries = loaded.entries;
       }
@@ -3825,7 +3977,7 @@ class App extends React.Component {
 
     const pieceType = this.getDrillFlowPieceType();
     let entries = Array.isArray(this.state.drillFlowEntries) ? this.state.drillFlowEntries : [];
-    if (!entries.length || entries.some((entry) => entry.piece_type !== pieceType)) {
+    if (forceRefresh || !entries.length || entries.some((entry) => entry.piece_type !== pieceType)) {
       const loaded = await this.loadDrillFlowOptions(pieceType);
       entries = loaded.entries;
     }
@@ -3937,7 +4089,10 @@ class App extends React.Component {
 
   formatAlgReviewCurrentMoves = (moves = [], options = {}) => {
     const orientedMoves = this.getAlgReviewOrientedMoves(moves, { ...options, display: true });
-    const compactedMoves = this.compactRepeatedTurns(orientedMoves.join(" "), { convertSlices: "preserve" });
+    const compactedMoves = this.compactRepeatedTurns(orientedMoves.join(" "), {
+      convertSlices: "preserve",
+      reduceCommutingSlices: this.getAlgReviewPieceType(options) !== "corner",
+    });
     return this.splitAlgReviewMoves(compactedMoves);
   };
 
@@ -4186,6 +4341,75 @@ class App extends React.Component {
     return records;
   };
 
+  refreshDrillEntriesFromLibrary = async (entries = []) => {
+    const list = Array.isArray(entries) ? entries : [];
+    const refs = this.buildAlgLibraryCaseRefsFromEntries(list);
+    if (!refs.length) {
+      return list;
+    }
+
+    const libraryEntries = await getAlgLibraryEntriesForCases(refs);
+    const libraryByCase = new Map(
+      (Array.isArray(libraryEntries) ? libraryEntries : []).map((entry) => [
+        this.buildSolveDetailsCaseKey(entry.piece_type, entry.case_code),
+        entry,
+      ])
+    );
+
+    return list.map((entry) => {
+      if (!entry) {
+        return entry;
+      }
+      const pieceType = entry.piece_type || entry.pieceType;
+      const caseCode = entry.case_code || entry.caseCode;
+      const latestEntry = libraryByCase.get(this.buildSolveDetailsCaseKey(pieceType, caseCode));
+      return latestEntry ? { ...entry, ...latestEntry } : entry;
+    });
+  };
+
+  hydrateAlgReviewProgressEntries = async (progress) => {
+    if (!progress || !Array.isArray(progress.queue)) {
+      return progress;
+    }
+
+    const allEntries = [
+      ...progress.queue,
+      progress.currentEntry,
+      progress.nextEntry,
+      ...(Array.isArray(progress.reviewEntries) ? progress.reviewEntries : []),
+      progress.lastCommEntry,
+    ].filter(Boolean);
+    const refreshedEntries = await this.refreshDrillEntriesFromLibrary(allEntries);
+    const refreshedByCase = new Map(
+      refreshedEntries.map((entry) => [
+        this.buildSolveDetailsCaseKey(entry.piece_type || entry.pieceType, entry.case_code || entry.caseCode),
+        entry,
+      ])
+    );
+    const refreshEntry = (entry) => {
+      if (!entry) {
+        return entry;
+      }
+      const pieceType = entry.piece_type || entry.pieceType;
+      const caseCode = entry.case_code || entry.caseCode;
+      const refreshedEntry = refreshedByCase.get(this.buildSolveDetailsCaseKey(pieceType, caseCode));
+      return refreshedEntry ? { ...entry, ...refreshedEntry } : entry;
+    };
+    const queue = progress.queue.map(refreshEntry);
+    const currentIndex = Number.isFinite(Number(progress.currentIndex)) ? Number(progress.currentIndex) : 0;
+
+    return {
+      ...progress,
+      queue,
+      currentEntry: queue[currentIndex] || refreshEntry(progress.currentEntry) || null,
+      nextEntry: queue[currentIndex + 1] || refreshEntry(progress.nextEntry) || null,
+      reviewEntries: Array.isArray(progress.reviewEntries)
+        ? progress.reviewEntries.map(refreshEntry)
+        : [],
+      lastCommEntry: refreshEntry(progress.lastCommEntry) || null,
+    };
+  };
+
   retryDrillEntry = () => {
     const retryEntry = this.state.drillExecutingEntry || this.state.drillCurrentEntry;
     if (!retryEntry) {
@@ -4219,6 +4443,56 @@ class App extends React.Component {
       drillPromptStartedAt: Date.now(),
       drillAttemptStartedAt: null,
     }));
+  };
+
+  backAlgReviewEntry = () => {
+    if (this.state.drillMode !== "alg-review") {
+      return;
+    }
+
+    const queue = Array.isArray(this.state.drillQueue) ? this.state.drillQueue : [];
+    const currentIndex = Number(this.state.drillCurrentIndex) || 0;
+    if (currentIndex <= 0 || !queue[currentIndex - 1]) {
+      return;
+    }
+
+    this.resetAlgReviewAttemptCube();
+    const processedMoveCount = this.setDrillProcessedMoveCursor();
+    this.setState((currentState) => {
+      const previousIndex = Math.max((Number(currentState.drillCurrentIndex) || 0) - 1, 0);
+      const previousEntry = queue[previousIndex] || null;
+      const records = Array.isArray(currentState.algReviewAttemptRecords)
+        ? currentState.algReviewAttemptRecords
+        : [];
+      const latestRecord = records[records.length - 1] || null;
+      const latestRecordMatchesPrevious =
+        latestRecord && latestRecord.entryId === this.getAlgReviewEntryKey(previousEntry);
+      const decrementSkipped = latestRecordMatchesPrevious && latestRecord.skipped;
+      const decrementCompleted = !decrementSkipped && currentState.drillCompletedCount > 0;
+
+      return {
+        drillCurrentIndex: previousIndex,
+        drillCurrentEntry: previousEntry,
+        drillNextEntry: queue[previousIndex + 1] || null,
+        drillExecutingEntry: null,
+        drillExecutionStartIndex: null,
+        drillProcessedMoveCount: processedMoveCount,
+        drillCompletedCount: decrementCompleted
+          ? Math.max((currentState.drillCompletedCount || 0) - 1, 0)
+          : currentState.drillCompletedCount,
+        drillSkippedCount: decrementSkipped
+          ? Math.max((currentState.drillSkippedCount || 0) - 1, 0)
+          : currentState.drillSkippedCount,
+        drillCurrentMoves: [],
+        drillLastCommEntry: null,
+        drillLastCommMoves: [],
+        drillStatusMessage: previousEntry ? `Back to ${this.buildAlgReviewPromptText(previousEntry)}` : "",
+        algReviewPeekVisible: false,
+        drillPromptStartedAt: Date.now(),
+        drillAttemptStartedAt: null,
+        drillCurrentRetryCount: 0,
+      };
+    });
   };
 
   toggleAlgReviewPeek = () => {
@@ -4627,7 +4901,7 @@ class App extends React.Component {
     });
 
     try {
-      const filteredEntries = await this.getFilteredDrillEntries();
+      const filteredEntries = await this.getFilteredDrillEntries({ forceRefresh: true });
       const queue = this.buildDrillQueue(filteredEntries, {
         weightByLastSeen: this.state.drillMode === "alg-review",
       });
@@ -6967,20 +7241,9 @@ class App extends React.Component {
       const lastReviewComparison = lastReviewEntry
         ? this.compareAlgReviewMoveSequences(lastReviewEntry.alg || "", lastReviewMoves)
         : null;
-      const lastReviewLibraryCells =
-        lastReviewComparison && lastReviewComparison.libraryCells.length
-          ? lastReviewComparison.libraryCells
-          : [{ token: lastReviewEntry && lastReviewEntry.alg ? lastReviewEntry.alg : "No alg saved", status: "neutral", colSpan: 1 }];
-      const lastReviewPerformedCells =
-        lastReviewComparison && lastReviewComparison.performedCells.length
-          ? lastReviewComparison.performedCells
-          : [{ token: "--", status: "mismatch", colSpan: 1 }];
-      const lastReviewColumnCount = Math.max(
-        1,
-        lastReviewComparison ? lastReviewComparison.columnCount : 0,
-        lastReviewLibraryCells.reduce((total, cell) => total + (Number(cell.colSpan) || 1), 0),
-        lastReviewPerformedCells.reduce((total, cell) => total + (Number(cell.colSpan) || 1), 0)
-      );
+      const lastReviewMatchedLibrary = Boolean(lastReviewComparison && lastReviewComparison.matches);
+      const lastReviewLibraryAlg = lastReviewEntry && lastReviewEntry.alg ? lastReviewEntry.alg : "No alg saved";
+      const lastReviewPerformedAlg = lastReviewMoves.length ? lastReviewMoves.join(" ") : "--";
       const lastReviewPieceLabel = lastReviewEntry && lastReviewEntry.piece_type
         ? `${lastReviewEntry.piece_type.charAt(0).toUpperCase()}${lastReviewEntry.piece_type.slice(1)}`
         : "";
@@ -7022,6 +7285,14 @@ class App extends React.Component {
                 <div className={`drill_prompt_actions ${reviewMode ? "drill_prompt_actions_review" : "drill_prompt_actions_active"}`}>
                   {reviewMode ? (
                     <React.Fragment>
+                      <button
+                        type="button"
+                        className="drill_action_button drill_action_button_secondary"
+                        onClick={this.backAlgReviewEntry}
+                        disabled={(this.state.drillCurrentIndex || 0) <= 0}
+                      >
+                        Back
+                      </button>
                       <button type="button" className="drill_action_button drill_action_button_secondary" onClick={this.retryDrillEntry}>
                         Retry
                       </button>
@@ -7073,7 +7344,15 @@ class App extends React.Component {
                 <span>{reviewMode ? `${algReviewRetries} retries` : `${this.state.drillReviewEntries.length} review`}</span>
               </div>
               {reviewMode ? (
-                <div className={`drill_last_comm_panel ${lastReviewEntry ? "" : "drill_last_comm_panel_empty"}`}>
+                <div
+                  className={`drill_last_comm_panel ${
+                    lastReviewEntry
+                      ? lastReviewMatchedLibrary
+                        ? "drill_last_comm_panel_match"
+                        : "drill_last_comm_panel_mismatch"
+                      : "drill_last_comm_panel_empty"
+                  }`}
+                >
                   {lastReviewEntry ? (
                     <React.Fragment>
                       <div className="drill_last_comm_details">
@@ -7085,48 +7364,11 @@ class App extends React.Component {
                           <strong>{lastReviewEntry.memo_word || "--"}</strong>
                           <span>{lastReviewEntry.description || "No comm notation saved"}</span>
                         </div>
-                        <div
-                          className="drill_last_comm_alg_table"
-                          style={{ "--drill-last-comm-columns": lastReviewColumnCount }}
-                        >
-                          <div className="drill_last_comm_alg_table_label">Library alg</div>
-                          <div className="drill_last_comm_alg_table_row">
-                            {lastReviewLibraryCells.map((cell, index) => (
-                              <span
-                                key={`last-library-${index}-${cell.token}`}
-                                className={`drill_last_comm_move_cell ${cell.token ? "" : "drill_last_comm_move_cell_blank"}`}
-                                style={{ gridColumn: `span ${cell.colSpan || 1}` }}
-                              >
-                                {cell.token}
-                              </span>
-                            ))}
-                          </div>
-                          <div
-                            className={`drill_last_comm_alg_table_row ${
-                              lastReviewComparison && lastReviewComparison.matches
-                                ? "drill_last_comm_alg_table_row_match"
-                                : ""
-                            }`}
-                          >
-                            {lastReviewPerformedCells.map((cell, index) => (
-                              <span
-                                key={`last-performed-${index}-${cell.token}`}
-                                className={`drill_last_comm_move_cell ${
-                                  lastReviewComparison && lastReviewComparison.matches
-                                    ? "drill_last_comm_move_match"
-                                    : cell.status === "mismatch"
-                                      ? "drill_last_comm_move_mismatch"
-                                      : cell.token
-                                        ? ""
-                                        : "drill_last_comm_move_cell_blank"
-                                }`}
-                                style={{ gridColumn: `span ${cell.colSpan || 1}` }}
-                              >
-                                {cell.token}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="drill_last_comm_alg_table_label">You did</div>
+                        <div className="drill_last_comm_alg_lines">
+                          <span>Library alg</span>
+                          <code>{lastReviewLibraryAlg}</code>
+                          <span>You did</span>
+                          <code>{lastReviewPerformedAlg}</code>
                         </div>
                       </div>
                       <button

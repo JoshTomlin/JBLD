@@ -3964,7 +3964,7 @@ textarea {
 }
 
 .drill_prompt_actions_review {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .drill_peek_panel {
@@ -4035,7 +4035,7 @@ textarea {
   }
 
   .drill_prompt_actions_review {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 6px;
   }
 
@@ -4123,6 +4123,16 @@ textarea {
   text-align: center;
 }
 
+.drill_last_comm_panel_match {
+  background: rgba(5, 46, 22, 0.78);
+  border-color: rgba(34, 197, 94, 0.42);
+}
+
+.drill_last_comm_panel_mismatch {
+  background: rgba(69, 10, 10, 0.74);
+  border-color: rgba(248, 113, 113, 0.46);
+}
+
 .drill_last_comm_grid {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
@@ -4192,55 +4202,28 @@ textarea {
   text-align: left;
 }
 
-.drill_last_comm_alg_table {
+.drill_last_comm_alg_lines {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: baseline;
 }
 
-.drill_last_comm_alg_table_label {
-  color: var(--text-faint);
+.drill_last_comm_alg_lines span {
+  color: rgba(219, 234, 254, 0.72);
   font-size: 0.62rem;
   letter-spacing: 0.12em;
-  line-height: 1.1;
-  text-align: center;
   text-transform: uppercase;
 }
 
-.drill_last_comm_alg_table_row {
-  display: grid;
-  grid-template-columns: repeat(var(--drill-last-comm-columns), minmax(0, 1fr));
-  gap: 3px;
-  align-items: stretch;
-}
-
-.drill_last_comm_move_cell {
+.drill_last_comm_alg_lines code {
   min-width: 0;
-  min-height: 20px;
-  padding: 2px 3px;
-  border-radius: 5px;
-  background: rgba(15, 23, 42, 0.7);
   color: var(--text-soft);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.76rem;
   font-weight: 650;
-  line-height: 1.25;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.drill_last_comm_move_match {
-  color: #86efac;
-}
-
-.drill_last_comm_move_mismatch {
-  color: #fca5a5;
-}
-
-.drill_last_comm_move_cell_blank {
-  background: rgba(15, 23, 42, 0.24);
-  color: transparent;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .drill_last_comm_edit {
@@ -4292,7 +4275,7 @@ textarea {
   bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   width: min(520px, calc(100% - 36px));
   transform: translateX(-50%);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .drill_screen_review_mode .drill_current_moves_bar {
@@ -4363,14 +4346,16 @@ textarea {
     font-size: 0.72rem;
   }
 
-  .drill_last_comm_alg_table_row {
-    grid-template-columns: repeat(var(--drill-last-comm-columns), minmax(0, 1fr));
-    gap: 2px;
+  .drill_last_comm_alg_lines {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 3px 6px;
   }
 
-  .drill_last_comm_move_cell {
-    min-height: 18px;
-    padding: 2px;
+  .drill_last_comm_alg_lines span {
+    font-size: 0.56rem;
+  }
+
+  .drill_last_comm_alg_lines code {
     font-size: 0.68rem;
   }
 
@@ -4393,7 +4378,7 @@ textarea {
   }
 
   .drill_screen_review_mode .drill_prompt_actions_review .drill_action_button {
-    padding: 0 5px;
-    font-size: 0.68rem;
+    padding: 0 4px;
+    font-size: 0.62rem;
   }
 }
