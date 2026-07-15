@@ -163,9 +163,17 @@ function scoreCycleBreakSticker(sticker, letterPairs, preferences, order) {
   return 100 + facePreferenceScore(sticker) + (pieceIndex >= 0 ? pieceIndex / 100 : 1);
 }
 
-function pickCycleBreakSticker(slotMap, buffer, stickers, order, letterPairs, preferences) {
+function pickCycleBreakSticker(
+  slotMap,
+  buffer,
+  stickers,
+  order,
+  letterPairs,
+  preferences,
+  excludedPieces = [buffer]
+) {
   const candidates = stickers
-    .filter((sticker) => !isSamePiece(sticker, buffer))
+    .filter((sticker) => !excludedPieces.some((piece) => isSamePiece(sticker, piece)))
     .filter((sticker) => !isSolvedForStickers(slotMap, stickersForPiece(sticker)));
 
   if (!candidates.length) {
@@ -218,20 +226,39 @@ export function traceMemoTargetsFromSlotMap({
   let workingMap = { ...slotMap };
   const targets = [];
   const cycleBreaks = [];
+  let activeCycleSticker = null;
   let guard = 0;
 
   while (hasUnsolvedStickers(stickers, workingMap) && guard < 200) {
     guard += 1;
+    const bufferSticker = workingMap[buffer];
+    const closesActiveCycle =
+      activeCycleSticker &&
+      bufferSticker &&
+      bufferSticker !== activeCycleSticker &&
+      isSamePiece(bufferSticker, activeCycleSticker);
+    const targetPieceIsSolved =
+      bufferSticker && isSolvedForStickers(workingMap, stickersForPiece(bufferSticker));
 
     if (
-      workingMap[buffer] &&
-      workingMap[buffer] !== buffer &&
-      !isSamePiece(workingMap[buffer], buffer)
+      bufferSticker &&
+      bufferSticker !== buffer &&
+      !isSamePiece(bufferSticker, buffer) &&
+      !closesActiveCycle &&
+      !targetPieceIsSolved
     ) {
-      const targetSticker = workingMap[buffer];
+      const targetSticker = bufferSticker;
+      if (!activeCycleSticker) {
+        activeCycleSticker = targetSticker;
+      }
       targets.push(stickerToLetter(targetSticker, letterPairs));
       workingMap = swapStickers(workingMap, buffer, targetSticker);
       continue;
+    }
+
+    const excludedPieces = closesActiveCycle ? [buffer, activeCycleSticker] : [buffer];
+    if (!closesActiveCycle) {
+      activeCycleSticker = null;
     }
 
     const cycleBreakSticker = pickCycleBreakSticker(
@@ -240,13 +267,15 @@ export function traceMemoTargetsFromSlotMap({
       stickers,
       pieces,
       letterPairs,
-      cycleBreakPreferences
+      cycleBreakPreferences,
+      excludedPieces
     );
     if (!cycleBreakSticker) {
       break;
     }
 
     const cycleBreakLetter = stickerToLetter(cycleBreakSticker, letterPairs);
+    activeCycleSticker = cycleBreakSticker;
     targets.push(cycleBreakLetter);
     cycleBreaks.push(cycleBreakLetter);
     workingMap = swapStickers(workingMap, buffer, cycleBreakSticker);

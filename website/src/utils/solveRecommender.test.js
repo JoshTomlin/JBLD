@@ -78,6 +78,28 @@ describe("solveRecommender", () => {
     expect(result.solved).toBe(true);
   });
 
+  it("cycle-breaks instead of targeting another sticker on the active piece", () => {
+    const pieces = ["UF", "UR", "UB", "UL", "DF"];
+    const slotMap = solvedMapForPieces(pieces);
+    slotMap.UF = "UB";
+    slotMap.UB = "BU";
+    slotMap.UL = "DF";
+    slotMap.DF = "UF";
+
+    const result = traceMemoTargetsFromSlotMap({
+      slotMap,
+      buffer: "UF",
+      pieces,
+      letterPairs: { UF: "C", UB: "Q", BU: "A", UL: "D", DF: "U" },
+      cycleBreakPreferences: ["A", "D", "U"],
+    });
+
+    expect(result.targets[0]).toBe("Q");
+    expect(result.targets[1]).toBe("D");
+    expect(result.targets).not.toContain("A");
+    expect(result.cycleBreaks[0]).toBe("D");
+  });
+
   it("cycle-breaks instead of targeting another sticker from the buffer piece", () => {
     const pieces = ["UF", "UR", "UB", "UL"];
     const slotMap = solvedMapForPieces(pieces);
