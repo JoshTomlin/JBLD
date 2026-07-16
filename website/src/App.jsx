@@ -155,7 +155,7 @@ class App extends React.Component {
       memoAuditSaving: false,
       memoAuditNotice: null,
       drillTab: "setup",
-      drillMode: "memo-flow",
+      drillMode: "alg-review",
       drillPieceTypes: ["corner"],
       drillFlowGroup: "all",
       drillFlowGroups: [],
@@ -163,6 +163,7 @@ class App extends React.Component {
       drillStatsEntries: [],
       drillStatsLoading: false,
       drillStatsPieceType: "all",
+      drillLastSeenMinimumDays: 0,
       drillDisplayMode: "next",
       drillLoading: false,
       drillSessionActive: false,
@@ -4014,17 +4015,36 @@ class App extends React.Component {
     return ageMs / (24 * 60 * 60 * 1000);
   };
 
-  getDrillLastSeenThresholdCounts = (records = [], now = Date.now()) => {
+  getDrillLastSeenBucketCounts = (records = [], now = Date.now()) => {
     const values = (Array.isArray(records) ? records : [])
       .map((record) => this.getDrillCurrentLastSeenAgeDays(record, now))
       .filter((value) => Number.isFinite(value));
 
     return {
       total: values.length,
-      overDay: values.filter((value) => value > 1).length,
+      today: values.filter((value) => value < 1).length,
+      thisWeek: values.filter((value) => value <= 7).length,
       overWeek: values.filter((value) => value > 7).length,
       overMonth: values.filter((value) => value > 30).length,
     };
+  };
+
+  getDrillLastSeenMinimumDays = () => {
+    const value = Number(this.state.drillLastSeenMinimumDays);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  };
+
+  filterDrillEntriesByLastSeenMinimum = (entries = [], minimumDays = this.getDrillLastSeenMinimumDays()) => {
+    const threshold = Number(minimumDays);
+    const normalizedThreshold = Number.isFinite(threshold) && threshold > 0 ? threshold : 0;
+    const sourceEntries = Array.isArray(entries) ? entries : [];
+    if (normalizedThreshold <= 0) {
+      return sourceEntries;
+    }
+
+    return sourceEntries.filter(
+      (entry) => this.getDrillCurrentLastSeenAgeDays(entry) >= normalizedThreshold
+    );
   };
 
   getDrillLastSeenBoxPlot = (records = []) => {
@@ -4261,10 +4281,11 @@ class App extends React.Component {
         entries = loaded.entries;
       }
 
-      return entries.filter((entry) => {
+      const groupedEntries = entries.filter((entry) => {
         const group = entry.category || "Unsorted";
         return this.state.algReviewGroup === "all" || group === this.state.algReviewGroup;
       });
+      return this.filterDrillEntriesByLastSeenMinimum(groupedEntries);
     }
 
     const pieceType = this.getDrillFlowPieceType();
@@ -4274,10 +4295,11 @@ class App extends React.Component {
       entries = loaded.entries;
     }
 
-    return entries.filter((entry) => {
+    const groupedEntries = entries.filter((entry) => {
       const group = entry.category || "Unsorted";
       return this.state.drillFlowGroup === "all" || group === this.state.drillFlowGroup;
     });
+    return this.filterDrillEntriesByLastSeenMinimum(groupedEntries);
   };
 
   splitAlgReviewMoves = (algText = "") =>
@@ -7543,7 +7565,7 @@ class App extends React.Component {
         drillStatsRecords,
         this.state.drillStatsPieceType
       );
-      const drillLastSeenCounts = this.getDrillLastSeenThresholdCounts(filteredDrillStatsRecords);
+      const drillLastSeenCounts = this.getDrillLastSeenBucketCounts(filteredDrillStatsRecords);
       const drillRustiestRecords = this.getDrillRustiestRecords(filteredDrillStatsRecords, 5);
       const lastReviewEntry = reviewMode ? this.state.drillLastCommEntry : null;
       const lastReviewMoves = reviewMode && Array.isArray(this.state.drillLastCommMoves)
@@ -7792,6 +7814,24 @@ class App extends React.Component {
                       </select>
                     </label>
                   </div>
+                  <label className="drill_select_label drill_last_seen_filter">
+                    Last Seen More Than
+                    <span className="drill_number_suffix">
+                      <input
+                        type="number"
+                        className="drill_select drill_number_input"
+                        min="0"
+                        step="1"
+                        value={this.state.drillLastSeenMinimumDays}
+                        onChange={(event) =>
+                          this.setState({
+                            drillLastSeenMinimumDays: Math.max(0, Number(event.target.value) || 0),
+                          })
+                        }
+                      />
+                      <span>days ago</span>
+                    </span>
+                  </label>
                   <div className="drill_prompt_mode_panel">
                     <span className="drill_filter_label">Prompt Mode</span>
                     <div className="drill_mode_toggle">
@@ -7885,18 +7925,22 @@ class App extends React.Component {
                   {drillLastSeenCounts.total ? (
                     <React.Fragment>
                       <article className="drill_stats_card">
-                        <div className="drill_stats_card_title">Not Seen For</div>
+                        <div className="drill_stats_card_title">Last Seen</div>
                         <div className="drill_last_seen_counts">
                           <div className="drill_last_seen_count">
-                            <span>Over 1 Day</span>
-                            <strong>{drillLastSeenCounts.overDay}</strong>
+                            <span>Today</span>
+                            <strong>{drillLastSeenCounts.today}</strong>
                           </div>
                           <div className="drill_last_seen_count">
-                            <span>Over 1 Week</span>
+                            <span>This Week</span>
+                            <strong>{drillLastSeenCounts.thisWeek}</strong>
+                          </div>
+                          <div className="drill_last_seen_count">
+                            <span>&gt; 1 Week</span>
                             <strong>{drillLastSeenCounts.overWeek}</strong>
                           </div>
                           <div className="drill_last_seen_count">
-                            <span>Over 1 Month</span>
+                            <span>&gt; 1 Month</span>
                             <strong>{drillLastSeenCounts.overMonth}</strong>
                           </div>
                         </div>

@@ -3809,6 +3809,25 @@ textarea {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.drill_last_seen_filter {
+  width: min(260px, 100%);
+}
+
+.drill_number_suffix {
+  display: grid;
+  grid-template-columns: minmax(0, 92px) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.drill_number_input {
+  text-align: center;
+}
+
 .drill_page_header,
 .drill_recent_header,
 .drill_recent_footer,
@@ -4019,7 +4038,7 @@ button.comm_recent_card {
 
 .drill_last_seen_counts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 

@@ -599,9 +599,9 @@ describe("solve details view data", () => {
     };
 
     const record = app.buildDrillAttemptRecord(entry, { performedAlg: "R U R'", matched: true });
-    const lastSeenCounts = app.getDrillLastSeenThresholdCounts([
+    const lastSeenCounts = app.getDrillLastSeenBucketCounts([
       { lastSeenAt: "2026-07-14T12:00:00.000Z" },
-      { lastSeenAt: "2026-07-13T00:00:00.000Z" },
+      { lastSeenAt: "2026-07-08T00:00:00.000Z" },
       { lastSeenAt: "2026-07-01T00:00:00.000Z" },
       { lastSeenAt: "2026-06-01T00:00:00.000Z" },
     ]);
@@ -617,7 +617,8 @@ describe("solve details view data", () => {
     });
     expect(lastSeenCounts).toMatchObject({
       total: 4,
-      overDay: 3,
+      today: 1,
+      thisWeek: 2,
       overWeek: 2,
       overMonth: 1,
     });
@@ -638,13 +639,14 @@ describe("solve details view data", () => {
 
     const twistRecords = app.filterDrillStatsRecordsByType(records, "twist");
     const allRecords = app.filterDrillStatsRecordsByType(records, "all");
-    const twistCounts = app.getDrillLastSeenThresholdCounts(twistRecords);
+    const twistCounts = app.getDrillLastSeenBucketCounts(twistRecords);
 
     expect(twistRecords.map((record) => record.id)).toEqual(["twist-ab"]);
     expect(allRecords).toHaveLength(5);
     expect(twistCounts).toMatchObject({
       total: 1,
-      overDay: 1,
+      today: 0,
+      thisWeek: 1,
       overWeek: 0,
       overMonth: 0,
     });
@@ -879,6 +881,49 @@ describe("solve details view data", () => {
 
     expect(app.loadAlgReviewOptions).toHaveBeenCalledWith("edge");
     expect(entries).toEqual([freshEntry]);
+  });
+
+  it("filters Drill entries to algs last seen at least the selected number of days ago", async () => {
+    const app = new App();
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2026-07-15T00:00:00.000Z").getTime());
+    app.ensureBundledAlgLibraryLoaded = jest.fn(() => Promise.resolve());
+    const tooRecent = {
+      id: "edge-new",
+      case_code: "AB",
+      piece_type: "edge",
+      category: "Set",
+      last_seen_at: "2026-07-09T00:00:00.000Z",
+    };
+    const exactBoundary = {
+      id: "edge-boundary",
+      case_code: "CD",
+      piece_type: "edge",
+      category: "Set",
+      last_seen_at: "2026-07-08T00:00:00.000Z",
+    };
+    const older = {
+      id: "edge-old",
+      case_code: "EF",
+      piece_type: "edge",
+      category: "Set",
+      last_seen_at: "2026-07-01T00:00:00.000Z",
+    };
+    app.loadAlgReviewOptions = jest.fn(() =>
+      Promise.resolve({ entries: [tooRecent, exactBoundary, older], groups: ["Set"] })
+    );
+    app.state = {
+      ...app.state,
+      drillMode: "alg-review",
+      algReviewPieceType: "edge",
+      algReviewGroup: "Set",
+      drillLastSeenMinimumDays: 7,
+      algReviewEntries: [],
+    };
+
+    const entries = await app.getFilteredDrillEntries({ forceRefresh: true });
+
+    expect(entries.map((entry) => entry.id)).toEqual(["edge-boundary", "edge-old"]);
+    nowSpy.mockRestore();
   });
 
   it("hydrates saved Alg Review progress before resuming", async () => {
