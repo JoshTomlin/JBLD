@@ -58,6 +58,7 @@ jest.mock("cubing/notation", () => ({
 
 import App from "./App";
 import { normalizeForOrientation } from "./utils/localCommParser";
+import { buildRecommendedSolve } from "./utils/solveRecommender";
 
 describe("solve details view data", () => {
   beforeEach(() => {
@@ -419,6 +420,60 @@ describe("solve details view data", () => {
     expect(app.state.selectedSolveDetails).toEqual(solve);
     expect(app.state.parsed_solve_txt).toBe("parsed solve text");
     expect(app.state.loadingSolveDetails).toBe(true);
+  });
+
+  it("recalculates a recommendation when a highlighted cycle break changes", () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+      if (callback) {
+        callback();
+      }
+    };
+    app.scheduleSolveRecommendation = jest.fn();
+    const solve = { id: "solve-1", scramble: "R U" };
+    app.state = {
+      ...app.state,
+      selectedSolveDetails: solve,
+      solveRecommendationCycleBreakOverrides: {
+        edges: ["UR", "UL"],
+        corners: ["UBL"],
+      },
+    };
+
+    app.handleSolveRecommendationCycleBreakChange("edges", 0, "UB");
+
+    expect(app.state.solveRecommendationCycleBreakOverrides).toEqual({
+      edges: ["UB"],
+      corners: ["UBL"],
+    });
+    expect(app.scheduleSolveRecommendation).toHaveBeenCalledWith(solve, {
+      edges: ["UB"],
+      corners: ["UBL"],
+    });
+  });
+
+  it("passes cycle-break overrides into the recommendation builder", () => {
+    jest.useFakeTimers();
+    const app = new App();
+    app.setState = (update) => {
+      const nextState = typeof update === "function" ? update(app.state, app.props) : update;
+      app.state = { ...app.state, ...nextState };
+    };
+    const solve = { id: "solve-1", scramble: "R U" };
+    const overrides = { edges: ["UB"], corners: [] };
+    buildRecommendedSolve.mockReturnValue({ edgePairs: ["AB"], cornerPairs: [] });
+
+    app.scheduleSolveRecommendation(solve, overrides);
+    jest.runOnlyPendingTimers();
+
+    expect(buildRecommendedSolve).toHaveBeenCalledWith(
+      solve,
+      expect.any(Object),
+      { cycleBreakOverrides: overrides }
+    );
+    jest.useRealTimers();
   });
 
   it("stores recognition and exec times on saved comm stats", () => {

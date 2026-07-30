@@ -239,6 +239,7 @@ class App extends React.Component {
       solveRecommendationLoading: false,
       solveRecommendation: null,
       solveRecommendationError: null,
+      solveRecommendationCycleBreakOverrides: { edges: [], corners: [] },
       parse_settings:
         localStorage.getItem("setting") === null
           ? {
@@ -1781,6 +1782,7 @@ class App extends React.Component {
       category = "Forgot Memo";
     }
     this.solveCommEditorDraftBuffer = null;
+    const emptyCycleBreakOverrides = { edges: [], corners: [] };
     this.setState({
       showLastSolveDetails: true,
       historySessionMenuOpen: false,
@@ -1797,11 +1799,12 @@ class App extends React.Component {
       solveRecommendationLoading: Boolean(solve && solve.scramble),
       solveRecommendation: null,
       solveRecommendationError: null,
+      solveRecommendationCycleBreakOverrides: emptyCycleBreakOverrides,
       parsed_solve_txt: (solve && solve.txt_solve) || "No parsed solve text available yet.",
     });
 
     this.loadSolveDetailsCommLibrary(solve);
-    this.scheduleSolveRecommendation(solve);
+    this.scheduleSolveRecommendation(solve, emptyCycleBreakOverrides);
 
     if (!solve || !solve.id) {
       return;
@@ -1819,7 +1822,10 @@ class App extends React.Component {
           loadingSolveDetails: false,
         });
         this.loadSolveDetailsCommLibrary(detailedSolve);
-        this.scheduleSolveRecommendation(detailedSolve);
+        this.scheduleSolveRecommendation(
+          detailedSolve,
+          this.state.solveRecommendationCycleBreakOverrides
+        );
       })
       .catch((error) => {
         console.warn("Failed to load solve details from server", error);
@@ -1827,7 +1833,10 @@ class App extends React.Component {
       });
   };
 
-  scheduleSolveRecommendation = (solve) => {
+  scheduleSolveRecommendation = (
+    solve,
+    cycleBreakOverrides = this.state.solveRecommendationCycleBreakOverrides
+  ) => {
     const requestId = this.solveRecommendationRequestId + 1;
     this.solveRecommendationRequestId = requestId;
 
@@ -1850,7 +1859,9 @@ class App extends React.Component {
     const schedule = typeof window !== "undefined" && window.setTimeout ? window.setTimeout : setTimeout;
     schedule(() => {
       try {
-        const recommendation = buildRecommendedSolve(solve, parseSettings);
+        const recommendation = buildRecommendedSolve(solve, parseSettings, {
+          cycleBreakOverrides,
+        });
         if (requestId !== this.solveRecommendationRequestId) {
           return;
         }
@@ -1871,6 +1882,31 @@ class App extends React.Component {
         });
       }
     }, 0);
+  };
+
+  handleSolveRecommendationCycleBreakChange = (pieceType, cycleBreakIndex, sticker) => {
+    if (!["edges", "corners"].includes(pieceType) || !Number.isInteger(cycleBreakIndex)) {
+      return;
+    }
+
+    const currentOverrides = this.state.solveRecommendationCycleBreakOverrides || {
+      edges: [],
+      corners: [],
+    };
+    const nextTypeOverrides = [
+      ...(Array.isArray(currentOverrides[pieceType]) ? currentOverrides[pieceType] : []),
+    ];
+    nextTypeOverrides[cycleBreakIndex] = sticker;
+
+    const nextOverrides = {
+      ...currentOverrides,
+      [pieceType]: nextTypeOverrides.slice(0, cycleBreakIndex + 1),
+    };
+
+    this.setState(
+      { solveRecommendationCycleBreakOverrides: nextOverrides },
+      () => this.scheduleSolveRecommendation(this.state.selectedSolveDetails, nextOverrides)
+    );
   };
 
   createSessionOnServer = async (name) => {
@@ -10129,11 +10165,72 @@ class App extends React.Component {
                         (() => {
                           const recommendation = this.state.solveRecommendation;
                           const formatItems = (items) => Array.isArray(items) && items.length ? items.join(", ") : "--";
+                          const renderTargetPairs = (pieceType, pairTargets, fallbackPairs) => {
+                            if (!Array.isArray(pairTargets) || !pairTargets.length) {
+                              return <strong>{formatItems(fallbackPairs)}</strong>;
+                            }
+
+                            return (
+                              <strong className="solve_recommendation_targets">
+                                {pairTargets.map((pair, pairIndex) => (
+                                  <span
+                                    key={`${pieceType}-recommendation-pair-${pairIndex}`}
+                                    className="solve_recommendation_pair"
+                                  >
+                                    {pair.map((target, targetIndex) =>
+                                      target.isCycleBreak ? (
+                                        <select
+                                          key={`${pieceType}-cycle-break-${target.cycleBreakIndex}`}
+                                          className="solve_recommendation_cycle_break"
+                                          value={target.sticker}
+                                          aria-label={`Change ${pieceType} cycle break ${target.letter}`}
+                                          title="Cycle break — tap to change it"
+                                          onChange={(event) =>
+                                            this.handleSolveRecommendationCycleBreakChange(
+                                              pieceType,
+                                              target.cycleBreakIndex,
+                                              event.target.value
+                                            )
+                                          }
+                                        >
+                                          {(Array.isArray(target.choices) ? target.choices : []).map((choice) => (
+                                            <option
+                                              key={`${pieceType}-${target.cycleBreakIndex}-${choice.sticker}`}
+                                              value={choice.sticker}
+                                            >
+                                              {choice.letter}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <span
+                                          key={`${pieceType}-target-${pairIndex}-${targetIndex}`}
+                                          className="solve_recommendation_target"
+                                        >
+                                          {target.letter}
+                                        </span>
+                                      )
+                                    )}
+                                  </span>
+                                ))}
+                              </strong>
+                            );
+                          };
+                          const hasCycleBreaks = Boolean(
+                            recommendation.cycleBreakDetails &&
+                            ((recommendation.cycleBreakDetails.edges || []).length ||
+                              (recommendation.cycleBreakDetails.corners || []).length)
+                          );
                           return (
                             <div className="solve_recommendation_grid">
+                              {hasCycleBreaks ? (
+                                <div className="solve_recommendation_hint">
+                                  Highlighted letters are cycle breaks. Tap one to use the target you actually chose.
+                                </div>
+                              ) : null}
                               <div className="solve_recommendation_line">
                                 <span>Edges</span>
-                                <strong>{formatItems(recommendation.edgePairs)}</strong>
+                                {renderTargetPairs("edges", recommendation.edgePairTargets, recommendation.edgePairs)}
                               </div>
                               <div className="solve_recommendation_line">
                                 <span>Flips</span>
@@ -10141,7 +10238,7 @@ class App extends React.Component {
                               </div>
                               <div className="solve_recommendation_line">
                                 <span>Corners</span>
-                                <strong>{formatItems(recommendation.cornerPairs)}</strong>
+                                {renderTargetPairs("corners", recommendation.cornerPairTargets, recommendation.cornerPairs)}
                               </div>
                               <div className="solve_recommendation_line">
                                 <span>Twists</span>
@@ -10151,7 +10248,12 @@ class App extends React.Component {
                                 <span>Parity</span>
                                 <strong>{recommendation.parity ? recommendation.parity.label : "--"}</strong>
                               </div>
-                              {recommendation.notes.map((note, index) => (
+                              {recommendation.solved === false ? (
+                                <div className="solve_recommendation_note solve_recommendation_error">
+                                  The recommendation could not finish tracing every piece.
+                                </div>
+                              ) : null}
+                              {(recommendation.notes || []).map((note, index) => (
                                 <div key={`recommendation-note-${index}`} className="solve_recommendation_note">
                                   {note}
                                 </div>

@@ -2911,6 +2911,51 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.solve_recommendation_targets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.solve_recommendation_pair {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+}
+
+.solve_recommendation_target {
+  display: inline-flex;
+  min-width: 0.72rem;
+  justify-content: center;
+}
+
+.solve_recommendation_cycle_break {
+  width: 2.05rem;
+  min-height: 1.65rem;
+  margin: 0 1px;
+  padding: 0 0.15rem;
+  border: 1px solid rgba(251, 191, 36, 0.72);
+  border-radius: 5px;
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+  font: inherit;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.solve_recommendation_cycle_break:focus {
+  outline: 2px solid rgba(251, 191, 36, 0.38);
+  outline-offset: 1px;
+}
+
+.solve_recommendation_hint {
+  color: #fcd34d;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .solve_recommendation_note {
   color: var(--text-faint);
   font-size: 0.78rem;

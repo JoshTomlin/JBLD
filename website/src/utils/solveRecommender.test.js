@@ -37,13 +37,21 @@ function solvedMapForPieces(pieces) {
   }, {});
 }
 
+function placePiece(slotMap, slot, piece, orientation = 0) {
+  const rotateLeft = (value, amount) => value.slice(amount) + value.slice(0, amount);
+  const orientedPiece = rotateLeft(piece, orientation);
+  for (let index = 0; index < slot.length; index += 1) {
+    slotMap[rotateLeft(slot, index)] = rotateLeft(orientedPiece, index);
+  }
+}
+
 describe("solveRecommender", () => {
   it("traces a buffer-led edge cycle into letter targets", () => {
     const pieces = ["UF", "UR", "UB", "UL"];
     const slotMap = solvedMapForPieces(pieces);
-    slotMap.UF = "UR";
-    slotMap.UR = "UB";
-    slotMap.UB = "UF";
+    placePiece(slotMap, "UF", "UR");
+    placePiece(slotMap, "UR", "UB");
+    placePiece(slotMap, "UB", "UF");
 
     const result = traceMemoTargetsFromSlotMap({
       slotMap,
@@ -61,9 +69,9 @@ describe("solveRecommender", () => {
   it("uses configured cycle-break priority when the buffer is solved", () => {
     const pieces = ["UF", "UR", "UB", "UL", "DF"];
     const slotMap = solvedMapForPieces(pieces);
-    slotMap.UB = "UL";
-    slotMap.UL = "DF";
-    slotMap.DF = "UB";
+    placePiece(slotMap, "UB", "UL");
+    placePiece(slotMap, "UL", "DF");
+    placePiece(slotMap, "DF", "UB");
 
     const result = traceMemoTargetsFromSlotMap({
       slotMap,
@@ -75,38 +83,50 @@ describe("solveRecommender", () => {
 
     expect(result.targets[0]).toBe("D");
     expect(result.cycleBreaks).toEqual(["D"]);
+    expect(result.targets).toEqual(["D", "U", "A", "D"]);
     expect(result.solved).toBe(true);
   });
 
-  it("cycle-breaks instead of targeting another sticker on the active piece", () => {
-    const pieces = ["UF", "UR", "UB", "UL", "DF"];
+  it("swaps whole cubies so oriented cycles cannot get stuck repeating one target", () => {
+    const pieces = ["UF", "UR", "UB", "UL", "DF", "DR", "DB", "DL", "FR", "FL", "BR", "BL"];
     const slotMap = solvedMapForPieces(pieces);
-    slotMap.UF = "UB";
-    slotMap.UB = "BU";
-    slotMap.UL = "DF";
-    slotMap.DF = "UF";
+    Object.assign(slotMap, {
+      UF: "BU", FU: "UB",
+      UR: "LB", RU: "BL",
+      UB: "BR", BU: "RB",
+      UL: "RU", LU: "UR",
+      DF: "UL", FD: "LU",
+      DR: "DF", RD: "FD",
+      FR: "UF", RF: "FU",
+      FL: "DR", LF: "RD",
+      BR: "FR", RB: "RF",
+      BL: "LF", LB: "FL",
+    });
 
     const result = traceMemoTargetsFromSlotMap({
       slotMap,
       buffer: "UF",
       pieces,
-      letterPairs: { UF: "C", UB: "Q", BU: "A", UL: "D", DF: "U" },
-      cycleBreakPreferences: ["A", "D", "U"],
+      letterPairs: {
+        UB: "A", UR: "B", UF: "C", UL: "D", LU: "E", LF: "F", LD: "G", LB: "H",
+        FU: "I", FR: "J", FD: "K", FL: "L", RU: "M", RB: "N", RD: "O", RF: "P",
+        BU: "Q", BL: "R", BD: "S", BR: "T", DF: "U", DR: "V", DB: "W", DL: "X",
+      },
+      cycleBreakPreferences: ["B", "A", "D"],
     });
 
-    expect(result.targets[0]).toBe("Q");
-    expect(result.targets[1]).toBe("D");
-    expect(result.targets).not.toContain("A");
-    expect(result.cycleBreaks[0]).toBe("D");
+    expect(result.targets).toEqual(["Q", "N", "P", "B", "H", "L", "V", "U", "D", "M"]);
+    expect(result.cycleBreaks).toEqual(["B"]);
+    expect(result.targets.length).toBeLessThan(20);
+    expect(result.solved).toBe(true);
   });
 
-  it("cycle-breaks instead of targeting another sticker from the buffer piece", () => {
+  it("traces other cycles even when the buffer piece starts flipped", () => {
     const pieces = ["UF", "UR", "UB", "UL"];
     const slotMap = solvedMapForPieces(pieces);
-    slotMap.UF = "FU";
-    slotMap.FU = "UF";
-    slotMap.UB = "UL";
-    slotMap.UL = "UB";
+    placePiece(slotMap, "UF", "UF", 1);
+    placePiece(slotMap, "UB", "UL");
+    placePiece(slotMap, "UL", "UB");
 
     const result = traceMemoTargetsFromSlotMap({
       slotMap,
@@ -116,16 +136,16 @@ describe("solveRecommender", () => {
       cycleBreakPreferences: ["A", "D"],
     });
 
-    expect(result.targets[0]).toBe("A");
-    expect(result.targets).not.toContain("I");
-    expect(result.cycleBreaks[0]).toBe("A");
+    expect(result.targets).toEqual(["A", "D", "A"]);
+    expect(result.cycleBreaks).toEqual(["A"]);
+    expect(result.solved).toBe(true);
   });
 
   it("does not use already solved pieces as cycle breaks", () => {
     const pieces = ["UF", "UR", "UB", "UL"];
     const slotMap = solvedMapForPieces(pieces);
-    slotMap.UB = "UL";
-    slotMap.UL = "UB";
+    placePiece(slotMap, "UB", "UL");
+    placePiece(slotMap, "UL", "UB");
 
     const result = traceMemoTargetsFromSlotMap({
       slotMap,
@@ -137,6 +157,39 @@ describe("solveRecommender", () => {
 
     expect(result.targets[0]).toBe("A");
     expect(result.cycleBreaks).toEqual(["A"]);
+    expect(result.solved).toBe(true);
+  });
+
+  it("uses an explicit cycle-break override and exposes the valid alternatives", () => {
+    const pieces = ["UF", "UR", "UB", "UL", "DF"];
+    const slotMap = solvedMapForPieces(pieces);
+    placePiece(slotMap, "UB", "UL");
+    placePiece(slotMap, "UL", "DF");
+    placePiece(slotMap, "DF", "UB");
+
+    const result = traceMemoTargetsFromSlotMap({
+      slotMap,
+      buffer: "UF",
+      pieces,
+      letterPairs: { UF: "C", UR: "B", UB: "A", UL: "D", DF: "U" },
+      cycleBreakPreferences: ["D", "A"],
+      cycleBreakOverrides: ["UB"],
+    });
+
+    expect(result.targets).toEqual(["A", "D", "U", "A"]);
+    expect(result.cycleBreaks).toEqual(["A"]);
+    expect(result.targetDetails[0]).toMatchObject({
+      letter: "A",
+      sticker: "UB",
+      isCycleBreak: true,
+      cycleBreakIndex: 0,
+    });
+    expect(result.targetDetails[0].choices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sticker: "UB", letter: "A" }),
+        expect.objectContaining({ sticker: "UL", letter: "D" }),
+      ])
+    );
     expect(result.solved).toBe(true);
   });
 });

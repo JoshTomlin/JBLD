@@ -85,6 +85,12 @@ function isSolvedForStickers(slotMap, stickers) {
   return stickers.every((sticker) => slotMap[sticker] === sticker);
 }
 
+function isPiecePermutationSolved(slotMap, piece) {
+  return stickersForPiece(piece).every((sticker) =>
+    isSamePiece(slotMap[sticker], sticker)
+  );
+}
+
 function isOrientationOnlyPiece(slotMap, piece) {
   const stickers = stickersForPiece(piece);
   return (
@@ -163,56 +169,71 @@ function scoreCycleBreakSticker(sticker, letterPairs, preferences, order) {
   return 100 + facePreferenceScore(sticker) + (pieceIndex >= 0 ? pieceIndex / 100 : 1);
 }
 
-function pickCycleBreakSticker(
+function getCycleBreakCandidates(
   slotMap,
-  buffer,
   stickers,
   order,
   letterPairs,
   preferences,
-  excludedPieces = [buffer]
+  excludedPieces
 ) {
   const candidates = stickers
     .filter((sticker) => !excludedPieces.some((piece) => isSamePiece(sticker, piece)))
-    .filter((sticker) => !isSolvedForStickers(slotMap, stickersForPiece(sticker)));
-
-  if (!candidates.length) {
-    return null;
-  }
+    .filter((sticker) => !isPiecePermutationSolved(slotMap, sticker));
 
   return candidates.sort((a, b) => {
     const scoreDiff =
       scoreCycleBreakSticker(a, letterPairs, preferences, order) -
       scoreCycleBreakSticker(b, letterPairs, preferences, order);
     return scoreDiff || String(a).localeCompare(String(b));
-  })[0];
-}
-
-function markOrientationOnlyPiecesSolved(slotMap, pieces) {
-  const next = { ...slotMap };
-  pieces.forEach((piece) => {
-    stickersForPiece(piece).forEach((sticker) => {
-      next[sticker] = sticker;
-    });
   });
-  return next;
 }
 
-function swapStickers(slotMap, a, b) {
+function swapPiecesAtStickers(slotMap, a, b) {
   const next = { ...slotMap };
-  const currentA = next[a];
-  next[a] = next[b];
-  next[b] = currentA;
+  const stickerCount = Math.min(a.length, b.length);
+
+  for (let index = 0; index < stickerCount; index += 1) {
+    const stickerA = rotateLeft(a, index);
+    const stickerB = rotateLeft(b, index);
+    const currentA = next[stickerA];
+    next[stickerA] = next[stickerB];
+    next[stickerB] = currentA;
+  }
+
   return next;
 }
 
-function hasUnsolvedStickers(stickers, slotMap) {
-  for (const sticker of stickers) {
-    if (slotMap[sticker] !== sticker) {
+function hasUnsolvedPieces(pieces, slotMap) {
+  for (const piece of pieces) {
+    if (!isPiecePermutationSolved(slotMap, piece)) {
       return true;
     }
   }
   return false;
+}
+
+function normalizeCycleBreakOverride(value) {
+  if (value && typeof value === "object") {
+    return String(value.sticker || value.letter || "").trim();
+  }
+  return String(value || "").trim();
+}
+
+function buildSlotMapSignature(stickers, slotMap) {
+  return stickers.map((sticker) => slotMap[sticker] || "?").join("|");
+}
+
+function selectCycleBreakOverride(candidates, requestedOverride, letterPairs) {
+  return (
+    candidates.find((sticker) => sticker === requestedOverride) ||
+    candidates.find(
+      (sticker) =>
+        requestedOverride &&
+        String(stickerToLetter(sticker, letterPairs)).toUpperCase() === requestedOverride.toUpperCase()
+    ) ||
+    candidates[0]
+  );
 }
 
 export function traceMemoTargetsFromSlotMap({
@@ -221,70 +242,98 @@ export function traceMemoTargetsFromSlotMap({
   pieces,
   letterPairs = {},
   cycleBreakPreferences = defaultCycleBreakLetters,
+  cycleBreakOverrides = [],
 }) {
   const stickers = pieces.flatMap(stickersForPiece);
   let workingMap = { ...slotMap };
   const targets = [];
+  const targetDetails = [];
   const cycleBreaks = [];
-  let activeCycleSticker = null;
+  const cycleBreakDetails = [];
+  const seenStates = new Set();
   let guard = 0;
 
-  while (hasUnsolvedStickers(stickers, workingMap) && guard < 200) {
+  while (hasUnsolvedPieces(pieces, workingMap) && guard < 200) {
     guard += 1;
+    const stateSignature = buildSlotMapSignature(stickers, workingMap);
+    if (seenStates.has(stateSignature)) {
+      break;
+    }
+    seenStates.add(stateSignature);
+
     const bufferSticker = workingMap[buffer];
-    const closesActiveCycle =
-      activeCycleSticker &&
-      bufferSticker &&
-      bufferSticker !== activeCycleSticker &&
-      isSamePiece(bufferSticker, activeCycleSticker);
     const targetPieceIsSolved =
-      bufferSticker && isSolvedForStickers(workingMap, stickersForPiece(bufferSticker));
+      bufferSticker && isPiecePermutationSolved(workingMap, bufferSticker);
 
     if (
       bufferSticker &&
-      bufferSticker !== buffer &&
       !isSamePiece(bufferSticker, buffer) &&
-      !closesActiveCycle &&
       !targetPieceIsSolved
     ) {
       const targetSticker = bufferSticker;
-      if (!activeCycleSticker) {
-        activeCycleSticker = targetSticker;
-      }
-      targets.push(stickerToLetter(targetSticker, letterPairs));
-      workingMap = swapStickers(workingMap, buffer, targetSticker);
+      const targetLetter = stickerToLetter(targetSticker, letterPairs);
+      targets.push(targetLetter);
+      targetDetails.push({
+        letter: targetLetter,
+        sticker: targetSticker,
+        isCycleBreak: false,
+        cycleBreakIndex: null,
+        choices: [],
+      });
+      workingMap = swapPiecesAtStickers(workingMap, buffer, targetSticker);
       continue;
     }
 
-    const excludedPieces = closesActiveCycle ? [buffer, activeCycleSticker] : [buffer];
-    if (!closesActiveCycle) {
-      activeCycleSticker = null;
-    }
-
-    const cycleBreakSticker = pickCycleBreakSticker(
+    const candidates = getCycleBreakCandidates(
       workingMap,
-      buffer,
       stickers,
       pieces,
       letterPairs,
       cycleBreakPreferences,
-      excludedPieces
+      [buffer]
     );
+    const cycleBreakIndex = cycleBreakDetails.length;
+    const requestedOverride = normalizeCycleBreakOverride(cycleBreakOverrides[cycleBreakIndex]);
+    const cycleBreakSticker = selectCycleBreakOverride(
+      candidates,
+      requestedOverride,
+      letterPairs
+    );
+
     if (!cycleBreakSticker) {
       break;
     }
 
     const cycleBreakLetter = stickerToLetter(cycleBreakSticker, letterPairs);
-    activeCycleSticker = cycleBreakSticker;
+    const choices = candidates.map((sticker) => ({
+      sticker,
+      letter: stickerToLetter(sticker, letterPairs),
+    }));
     targets.push(cycleBreakLetter);
+    targetDetails.push({
+      letter: cycleBreakLetter,
+      sticker: cycleBreakSticker,
+      isCycleBreak: true,
+      cycleBreakIndex,
+      choices,
+    });
     cycleBreaks.push(cycleBreakLetter);
-    workingMap = swapStickers(workingMap, buffer, cycleBreakSticker);
+    cycleBreakDetails.push({
+      index: cycleBreakIndex,
+      letter: cycleBreakLetter,
+      sticker: cycleBreakSticker,
+      choices,
+    });
+    workingMap = swapPiecesAtStickers(workingMap, buffer, cycleBreakSticker);
   }
 
   return {
     targets,
+    targetDetails,
     cycleBreaks,
-    solved: !hasUnsolvedStickers(stickers, workingMap),
+    cycleBreakDetails,
+    solved: !hasUnsolvedPieces(pieces, workingMap),
+    remainingSlotMap: workingMap,
   };
 }
 
@@ -330,16 +379,26 @@ function oddParityTarget(targets) {
   return targets.length % 2 === 1 ? targets[targets.length - 1] : null;
 }
 
-function buildPieceRecommendation({ slotMap, pieces, buffer, letterPairs, cycleBreakPreferences, type }) {
-  const orientationOnlyPieces = pieces.filter((piece) => isOrientationOnlyPiece(slotMap, piece));
-  const traceMap = markOrientationOnlyPiecesSolved(slotMap, orientationOnlyPieces);
+function buildPieceRecommendation({
+  slotMap,
+  pieces,
+  buffer,
+  letterPairs,
+  cycleBreakPreferences,
+  cycleBreakOverrides,
+  type,
+}) {
   const trace = traceMemoTargetsFromSlotMap({
-    slotMap: traceMap,
+    slotMap,
     buffer,
     pieces,
     letterPairs,
     cycleBreakPreferences,
+    cycleBreakOverrides,
   });
+  const orientationOnlyPieces = pieces.filter((piece) =>
+    isOrientationOnlyPiece(trace.remainingSlotMap, piece)
+  );
 
   const specialLabels = orientationOnlyPieces.map((piece) =>
     stickerToLetter(
@@ -355,7 +414,7 @@ function buildPieceRecommendation({ slotMap, pieces, buffer, letterPairs, cycleB
   };
 }
 
-export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
+export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}, options = {}) {
   const settings = {
     ...maybeSettings,
     ...solveOrSetting,
@@ -366,6 +425,7 @@ export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
   const cornerBuffer = settings.CORNER_BUFFER || "UFR";
   const letterPairs = parseLetterPairs(settings);
   const cycleBreakPreferences = parseCycleBreakPreference(settings);
+  const cycleBreakOverrides = options.cycleBreakOverrides || {};
   const { scrambleTokens } = normalizeForOrientation(scramble, "", orientation);
   const cube = new KPuzzle(cubeDefinition);
   scrambleTokens.forEach((move) => applyMove(cube, move));
@@ -377,6 +437,7 @@ export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
     buffer: edgeBuffer,
     letterPairs,
     cycleBreakPreferences,
+    cycleBreakOverrides: cycleBreakOverrides.edges || [],
     type: "edge",
   });
   const corners = buildPieceRecommendation({
@@ -385,6 +446,7 @@ export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
     buffer: cornerBuffer,
     letterPairs,
     cycleBreakPreferences,
+    cycleBreakOverrides: cycleBreakOverrides.corners || [],
     type: "corner",
   });
 
@@ -394,6 +456,16 @@ export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
   const hasParity = Boolean(edgeParityTarget || cornerParityTarget);
   const edgePairs = pairTargets(withoutOddParityTarget(edges.targets));
   const cornerPairs = pairTargets(withoutOddParityTarget(corners.targets));
+  const edgePairTargets = [];
+  const cornerPairTargets = [];
+  const edgeTargetDetails = withoutOddParityTarget(edges.targetDetails);
+  const cornerTargetDetails = withoutOddParityTarget(corners.targetDetails);
+  for (let index = 0; index < edgeTargetDetails.length; index += 2) {
+    edgePairTargets.push(edgeTargetDetails.slice(index, index + 2));
+  }
+  for (let index = 0; index < cornerTargetDetails.length; index += 2) {
+    cornerPairTargets.push(cornerTargetDetails.slice(index, index + 2));
+  }
   const flips = formatSpecialLabels(edges.specialLabels, "Flip");
   const twists = formatSpecialLabels(corners.specialLabels, "Twist");
   const notes = [];
@@ -419,6 +491,8 @@ export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
     cornerTargets: corners.targets,
     edgePairs,
     cornerPairs,
+    edgePairTargets,
+    cornerPairTargets,
     flips,
     twists,
     parity: hasParity
@@ -432,6 +506,10 @@ export function buildRecommendedSolve(solveOrSetting = {}, maybeSettings = {}) {
     cycleBreaks: {
       edges: edges.cycleBreaks,
       corners: corners.cycleBreaks,
+    },
+    cycleBreakDetails: {
+      edges: edges.cycleBreakDetails,
+      corners: corners.cycleBreakDetails,
     },
     solved: edges.solved && corners.solved,
     notes,
