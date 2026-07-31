@@ -55,10 +55,13 @@ jest.mock("./localCommParser", () => {
 });
 
 const {
+  buildCommentDisplay,
   getOrientationData,
+  isThreeCornerRotationParse,
   isSingleCommParse,
   normalizeForOrientation,
   parseSolvedToComm,
+  shouldCombineConsecutiveCornerComms,
   similarityRatio,
   toCanonicalStickerName,
 } = require("./localCommParser");
@@ -204,19 +207,92 @@ describe("localCommParser", () => {
     expect(comm).toEqual(["UF", "UR", "UFR", "UBR"]);
   });
 
-  it("detects non-buffer edge flips without falling back to floating", () => {
-    const { comm, pieceType } = parseSolvedToComm(
+  it("omits the buffer letter from an edge flip label", () => {
+    const parsed = parseSolvedToComm(
       {
-        UR: ["RU", "UR"],
-        RU: ["UR", "RU"],
         UF: ["FU", "UF"],
         FU: ["UF", "FU"],
+        DL: ["LD", "DL"],
+        LD: ["DL", "LD"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+    const display = buildCommentDisplay(
+      parsed.comm,
+      parsed.pieceType,
+      true,
+      JSON.parse(baseSetting.LETTER_PAIRS_DICT),
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(parsed.pieceType).toEqual({ edge: true, corner: false, parity: false });
+    expect(parsed.comm).toEqual(["DL", "flip"]);
+    expect(display.parseText).toBe("X Flip");
+  });
+
+  it("labels a buffer corner twist by the destination of its white or yellow sticker", () => {
+    const parsed = parseSolvedToComm(
+      {
+        UFR: ["FRU", "UFR"],
+        FRU: ["RUF", "FRU"],
+        RUF: ["UFR", "RUF"],
+        DLB: ["BDL", "DLB"],
+        LBD: ["DLB", "LBD"],
+        BDL: ["LBD", "BDL"],
+      },
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+    const display = buildCommentDisplay(
+      parsed.comm,
+      parsed.pieceType,
+      true,
+      JSON.parse(baseSetting.LETTER_PAIRS_DICT),
+      { edgeBuffer: "UF", cornerBuffer: "UFR" }
+    );
+
+    expect(parsed.pieceType).toEqual({ edge: false, corner: true, parity: false });
+    expect(parsed.comm).toEqual(["LDB", "twist"]);
+    expect(display.parseText).toBe("H Twist");
+  });
+
+  it("recognizes three twisted corners including the buffer as one combined twist", () => {
+    const parsed = parseSolvedToComm(
+      {
+        UFR: ["FRU", "UFR"],
+        FRU: ["RUF", "FRU"],
+        RUF: ["UFR", "RUF"],
+        URB: ["RBU", "URB"],
+        RBU: ["BUR", "RBU"],
+        BUR: ["URB", "BUR"],
+        DLB: ["LBD", "DLB"],
+        LBD: ["BDL", "LBD"],
+        BDL: ["DLB", "BDL"],
       },
       { edgeBuffer: "UF", cornerBuffer: "UFR" }
     );
 
-    expect(pieceType).toEqual({ edge: true, corner: false, parity: false });
-    expect(comm).toEqual(["UF", "UR", "flip"]);
+    expect(parsed.pieceType).toEqual({ edge: false, corner: true, parity: false });
+    expect(parsed.comm).toEqual(["BLD", "BUR", "twist"]);
+    expect(parsed.specialPieceCount).toBe(3);
+    expect(isThreeCornerRotationParse(parsed)).toBe(true);
+    expect(
+      shouldCombineConsecutiveCornerComms(
+        {
+          comm: ["UFR", "UBR", "DBL"],
+          pieceType: { edge: false, corner: true, parity: false },
+        },
+        parsed
+      )
+    ).toBe(true);
+    expect(
+      shouldCombineConsecutiveCornerComms(
+        {
+          comm: ["UFR", "UBR", "DFR"],
+          pieceType: { edge: false, corner: true, parity: false },
+        },
+        parsed
+      )
+    ).toBe(false);
   });
 
   it("detects non-buffer corner twists without falling back to floating", () => {

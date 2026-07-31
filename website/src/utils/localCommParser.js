@@ -697,6 +697,14 @@ function changedStickersAreOrientationOnly(lastSolvedPieces, stickers) {
   });
 }
 
+function withoutBufferTarget(targets, buffer) {
+  if (!buffer || !targets.some(({ piece }) => isSamePiece(piece, buffer))) {
+    return targets;
+  }
+
+  return targets.filter(({ piece }) => !isSamePiece(piece, buffer));
+}
+
 function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
   const changedStickers = Object.keys(lastSolvedPieces);
   if (!changedStickers.length) {
@@ -714,12 +722,17 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
     const uniquePieces = sortPiecesByOrder(uniquePiecesForStickers(edgeStickers), reidEdgeOrder);
 
     if (uniquePieces.length === 2) {
-      const labels = uniquePieces
-        .map((piece) => toCanonicalStickerName(pickEdgeFlipLabelSticker(piece)))
+      const flipTargets = uniquePieces.map((piece) => ({
+        piece,
+        label: toCanonicalStickerName(pickEdgeFlipLabelSticker(piece)),
+      }));
+      const labels = withoutBufferTarget(flipTargets, buffers.edgeBuffer)
+        .map(({ label }) => label)
         .sort((a, b) => String(a).localeCompare(String(b)));
       return {
         comm: labels.concat("flip"),
         pieceType: { edge: true, corner: false, parity: false },
+        specialPieceCount: uniquePieces.length,
       };
     }
   }
@@ -740,25 +753,28 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
 
     if (
       uniquePieces.length === 3 &&
-      !isSamePieceInList(buffers.cornerBuffer, uniquePieces) &&
       changedStickersAreOrientationOnly(lastSolvedPieces, cornerStickers)
     ) {
-      const labels = buildTwistTargets(uniquePieces)
+      const labels = withoutBufferTarget(
+        buildTwistTargets(uniquePieces),
+        buffers.cornerBuffer
+      )
         .map(({ label }) => label)
         .sort((a, b) => String(a).localeCompare(String(b)));
 
       return {
         comm: labels.concat("twist"),
         pieceType: { edge: false, corner: true, parity: false },
+        specialPieceCount: uniquePieces.length,
+        specialPieces: uniquePieces.map((piece) =>
+          toCanonicalStickerName(pickRepresentativeSticker([piece], reidCornerOrder))
+        ),
       };
     }
 
     if (uniquePieces.length === 2) {
       const twistTargets = buildTwistTargets(uniquePieces);
-      const visibleTargets =
-        buffers.cornerBuffer && twistTargets.some(({ piece }) => isSamePiece(piece, buffers.cornerBuffer))
-          ? twistTargets.filter(({ piece }) => !isSamePiece(piece, buffers.cornerBuffer))
-          : twistTargets;
+      const visibleTargets = withoutBufferTarget(twistTargets, buffers.cornerBuffer);
       const labels = visibleTargets
         .map(({ label }) => label)
         .sort((a, b) => String(a).localeCompare(String(b)));
@@ -766,6 +782,7 @@ function detectNonBufferSpecialCase(lastSolvedPieces, buffers = {}) {
       return {
         comm: labels.concat("twist"),
         pieceType: { edge: false, corner: true, parity: false },
+        specialPieceCount: uniquePieces.length,
       };
     }
   }
@@ -917,7 +934,7 @@ export function parseSolvedToComm(lastSolvedPieces, buffers) {
   };
 }
 
-function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, buffers, parityLabelToken = null) {
+export function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, buffers, parityLabelToken = null) {
   const mapToken = (token) =>
     parseToLetterPair && token !== "flip" && token !== "twist"
       ? letterPairs[toCanonicalStickerName(token)] || toCanonicalStickerName(token)
@@ -954,7 +971,12 @@ function buildCommentDisplay(comm, pieceType, parseToLetterPair, letterPairs, bu
       : null;
 
   if (specialType) {
-    const relevantTargets = mappedComm.filter((token) => token !== "flip" && token !== "twist");
+    const rawTargets = comm.filter((token) => token !== "flip" && token !== "twist");
+    const buffer = isEdge ? buffers.edgeBuffer : buffers.cornerBuffer;
+    const visibleTargets = buffer
+      ? rawTargets.filter((token) => !isSamePiece(token, buffer))
+      : rawTargets;
+    const relevantTargets = visibleTargets.map(mapToken);
     const label = specialType === "rotation" ? "Twist" : "Flip";
     const orderedTargets = relevantTargets
       .slice()
@@ -1050,14 +1072,33 @@ function isSpecialCommParse(parsed) {
   return comm.includes("flip") || comm.includes("twist");
 }
 
-function isThreeCornerRotationParse(parsed) {
+export function isThreeCornerRotationParse(parsed) {
   const comm = Array.isArray(parsed?.comm) ? parsed.comm : [];
   const labels = comm.filter((token) => token !== "twist");
-  return Boolean(parsed?.pieceType?.corner) && comm.includes("twist") && labels.length >= 3;
+  const specialPieceCount = Number(parsed?.specialPieceCount) || labels.length;
+  return (
+    Boolean(parsed?.pieceType?.corner) &&
+    comm.includes("twist") &&
+    specialPieceCount >= 3
+  );
 }
 
 function shouldLookAheadForCombinedCornerRotation(parsed) {
   return Boolean(parsed?.pieceType?.corner) && !isSpecialCommParse(parsed);
+}
+
+export function shouldCombineConsecutiveCornerComms(firstParsed, combinedParsed) {
+  if (
+    !shouldLookAheadForCombinedCornerRotation(firstParsed) ||
+    !isThreeCornerRotationParse(combinedParsed)
+  ) {
+    return false;
+  }
+
+  const combinedPieces = Array.isArray(combinedParsed?.specialPieces)
+    ? combinedParsed.specialPieces
+    : [];
+  return combinedPieces.length === 3 && commCoversSamePieces(firstParsed.comm, combinedPieces);
 }
 
 function isParityCommParse(parsed) {
@@ -1359,7 +1400,16 @@ export function buildLocalCommAnalysis(setting) {
       }
 
       if (candidateSegment.accepted) {
-        if (isThreeCornerRotationParse(candidateSegment.parsed)) {
+        if (
+          isThreeCornerRotationParse(candidateSegment.parsed) &&
+          (
+            !acceptedSegment ||
+            shouldCombineConsecutiveCornerComms(
+              acceptedSegment.parsed,
+              candidateSegment.parsed
+            )
+          )
+        ) {
           acceptedSegment = candidateSegment;
           acceptedEnd = end;
           break;
