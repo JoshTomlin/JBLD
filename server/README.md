@@ -1,74 +1,48 @@
-Hi,
-After [last year](https://www.speedsolving.com/threads/3bld-dnf-analyzer-new-software-i-made.76945/) software attempt of making a more efficient way to train 3bld, here is this year version!
-I worked on a new version for the last couple of months and focused mainly on analyzing 3bld solves.
+# Legacy Python parser and API
 
-main features:
-- separating the solve commutators
-- tracking the commutator and converting to letter pairs
-- converting parallel layers to slice moves
-- customizable letter pairs
-- customizable buffers
-- recognize twist, flips and cycles outside the buffer
-- recognize mistakes in solve, points to last place execution was right  
-- expand commutators to their full alg, after cancelling moves
-- compatible with solves from cubedb.net and alg.cubing.net
-- can generate url link to cubdb.net
-- works on 3style, M2, OP
+> Status: retained for reference. The current CI and GitHub Pages deployment do not build, run, or test this service.
 
-[github repo](https://github.com/RotoHands/3BLD_parser)
-### example solve - smart cube (UF, UFR, Speffz)
-<details>
-  <summary>unparsed</summary>
+The `server/` folder contains the original permutation-based solve parser behind a Flask API. It can reconstruct solves, generate text and CubeDB output, calculate parser metrics, and persist sessions in PostgreSQL.
 
-<p>
-R2 U' B2 F2 L2 U' R2 D F2 U2 B2 R' D' L' D F' D2 B2 D2 L2 //scramble
+The React PWA now performs parsing and persistence in the browser. It still contains compatibility hooks for this API, but the GitHub Pages deployment has no server endpoint and uses the local parser.
 
-U' F' B U B U' F B' R B' R' U U' D R' U' D B B U D' R' U D' 
-R U' R' U D' F U F' U' D R' F R F' B U' U' F B' R F' R U' U'
-L D U' F' U' F U D' L' U' U D' F U' D R' U' R U D' F' D R F' 
-L' F R' L D' L D L' D' L' D R L' F' L F R' L U' D' R' U U R'
-D R U U R' D' R2 U D D R U R' D R U' R' D D R' U R' D' R U 
-U R' D R U R R' D' R D R' D' R U U R' D R D' R' D R U U
-</p>
-</details>
+## Request flow
 
-<details>
-  <summary>parsed</summary>
+1. `flask_analyze_server.py` receives JSON and maps solve settings into the process environment expected by the original parser.
+2. `BLD_Parser.py` applies the scramble and recorded moves to a sticker permutation.
+3. Changes in cube state are used to identify commutator boundaries and classify edges, corners, parity, flips, twists, and mistakes.
+4. The parser emits a human-readable reconstruction and an optional CubeDB URL.
+5. `DB_LOGS.py` calculates aggregate metrics, while `solve_store.py` writes normalized session, solve, commutator, and move rows to PostgreSQL when configured.
 
-<p>
-R2 U' B2 F2 L2 U' R2 D F2 U2 B2 R' D' L' D F' D2 B2 D2 L2 //scramble
+## Implemented endpoints
 
-//edges
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/parse` | Parse a solve payload and optionally persist it when `SAVE_SOLVE` is enabled |
+| `OPTIONS` | `/options` | Capability and CORS probe used by the retained frontend compatibility code |
+| `GET` | `/api/sessions?user_id=...` | Load a user's sessions and solve summaries |
+| `POST` | `/api/sessions` | Create a session |
+| `GET` | `/api/solves/<solve_id>?user_id=...` | Load one persisted solve with commutator and move details |
 
-U' S R B R' S' R B' R' U // SQ   10/10
- 
-U' D R' E' R R E R' U D' // UR   10/20
- 
-R U' R' E R U R' E' // JF   8/28
- 
-R' F R S R' R' S' R F' R // EO   10/38
- 
-U' U' L E' L' U' L E L' U' // PB   10/48
- 
-E R E' R' U' R E R' D y // TB   9/57
- 
-R F' L' F M' F' L F L' x' // KG   9/66
- 
-D' L' D M D' L D M' // HK   8/74
+## Main files
 
+| Path | Purpose |
+| --- | --- |
+| [`flask_analyze_server.py`](flask_analyze_server.py) | Flask routes and request adapter |
+| [`BLD_Parser.py`](BLD_Parser.py) | Cube permutation, solve segmentation, case classification, timings, and reconstruction output |
+| [`bld_comm_parser.py`](bld_comm_parser.py) | Expansion and simplification of commutator notation |
+| [`DB_LOGS.py`](DB_LOGS.py) | Solve metrics and request logging |
+| [`solve_store.py`](solve_store.py) | PostgreSQL schema and normalized session/solve persistence |
+| [`example_solves/`](example_solves/) | Historical parser input examples |
 
-//corners
+## Why this is not the current path
 
-U' D' R' U U R' D R U U R' D' R2 U D // VN   15/89
- 
-D R U R' D R U' R' D D // LH   10/99
- 
-R' U R' D' R U U R' D R U R // OF   12/111
- 
-R' D' R D R' D' R U U R' D R D' R' D R U U // CA twist   18/129
- 
-</p>
-</details>
+- The current deployment workflow builds only `website/` and publishes static files to GitHub Pages.
+- Browser parsing avoids a network round trip and keeps solve data local.
+- The request adapter changes process-wide environment variables for each solve, reflecting the parser's command-line origins. That design is not safe for concurrent requests without refactoring.
+- The server dependencies and execution path are not covered by the current frontend test or deployment workflow.
+- [`runtime.txt`](runtime.txt) records Python 3.6.14, while [`Dockerfile`](Dockerfile) uses Python 3.9; this version drift should be resolved before reviving the service.
 
-### A bit more details
-checkout this [post](https://www.speedsolving.com/threads/smart-cube-bld-analyzer.84773/)
+The repository-level Compose, PostgreSQL, and Nginx files describe the intended historical topology. They are not presented as a verified setup for the current application.
+
+See [Legacy and experimental components](../docs/LEGACY.md) for the wider status of the API, database, Docker, Supabase, and BLE bridge code.
