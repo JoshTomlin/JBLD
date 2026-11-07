@@ -21,6 +21,16 @@ jest.mock("./utils/solveRecommender", () => ({
   buildRecommendedSolve: jest.fn(),
 }));
 
+jest.mock("./utils/localDatabase", () => ({
+  ...jest.requireActual("./utils/localDatabase"),
+  bootstrapLegacyStorageIntoDatabase: jest.fn(),
+  bootstrapFallbackAlgLibrary: jest.fn(() => Promise.resolve()),
+  bootstrapPracticeStorageIntoDatabase: jest.fn(),
+  getAlgLibraryEntries: jest.fn(),
+  persistDatasetToDatabase: jest.fn(() => Promise.resolve()),
+  persistPracticeSolvesToDatabase: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock("gan-web-bluetooth", () => ({
   connectGanCube: jest.fn(),
 }));
@@ -59,6 +69,13 @@ jest.mock("cubing/notation", () => ({
 import App from "./App";
 import { normalizeForOrientation } from "./utils/localCommParser";
 import { buildRecommendedSolve } from "./utils/solveRecommender";
+import {
+  bootstrapLegacyStorageIntoDatabase,
+  bootstrapPracticeStorageIntoDatabase,
+  getAlgLibraryEntries,
+  persistPracticeSolvesToDatabase,
+} from "./utils/localDatabase";
+import { renderToStaticMarkup } from "react-dom/server";
 
 describe("solve details view data", () => {
   beforeEach(() => {
@@ -1373,5 +1390,302 @@ describe("large local storage resilience", () => {
 
     setItemSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+});
+
+describe("practice history, backups and statistics", () => {
+  const makeSolves = (count, practice = true) => Array.from({ length: count }, (_, i) => ({
+    id: `solve-${i}`,
+    date: i + 1,
+    time_solve: i + 1,
+    memo_time: (i + 1) / 4,
+    exe_time: (i + 1) * 3 / 4,
+    DNF: false,
+    ...(practice ? { practice_type: i % 2 ? "corners" : "edges" } : {}),
+    comm_stats: [{ phase: "edge", parse_text: "AB", recog_time: 0.2 }],
+    move_timeline: [{ notation: "R", time_offset: 0.1 }],
+  }));
+
+  const createApp = () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      app.state = { ...app.state, ...(typeof update === "function" ? update(app.state, app.props) : update) };
+      if (callback) callback();
+    };
+    app.ensureBundledAlgLibraryLoaded = jest.fn(() => Promise.resolve());
+    app.initialStatsFromLocalstorage = jest.fn();
+    app.refreshAlgLibrarySummary = jest.fn(() => Promise.resolve());
+    app.syncSessionsWithCloud = jest.fn(() => Promise.resolve());
+    return app;
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+    jest.clearAllMocks();
+    persistPracticeSolvesToDatabase.mockReset().mockResolvedValue(undefined);
+    getAlgLibraryEntries.mockResolvedValue({ entries: [{ id: "alg-1", case_code: "AB" }], totalCount: 1 });
+  });
+
+  it("saves all attempts to the database even when the recovery cache is limited", async () => {
+    const app = createApp();
+    const solves = makeSolves(450);
+    app.practiceStorageHydrated = true;
+    await app.persistPracticeSolves(solves);
+    expect(persistPracticeSolvesToDatabase).toHaveBeenCalledWith(solves);
+    expect(app.state.practiceSolves).toHaveLength(450);
+    expect(JSON.parse(localStorage.getItem("practiceSolves"))).toHaveLength(300);
+    expect(localStorage.getItem("practiceSolvesPending")).toBeNull();
+  });
+
+  it("keeps practice history when localStorage is full", async () => {
+    const app = createApp();
+    const solves = makeSolves(450);
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const storage = jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    try {
+      expect(await app.persistPracticeSolves(solves)).toBe(true);
+      expect(persistPracticeSolvesToDatabase).toHaveBeenCalledWith(solves);
+      expect(app.state.practiceSolves).toHaveLength(450);
+    } finally {
+      storage.mockRestore();
+      warn.mockRestore();
+    }
+  });
+
+  it("retains a complete recovery snapshot after a failed database save", async () => {
+    const app = createApp();
+    app.practiceStorageHydrated = true;
+    const solves = makeSolves(450);
+    persistPracticeSolvesToDatabase.mockRejectedValue(new Error("Database unavailable"));
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(await app.persistPracticeSolves(solves)).toBe(false);
+      const reloaded = createApp();
+      expect(reloaded.practiceSolvesCache).toEqual(solves);
+      expect(reloaded.practiceRecovery.complete).toBe(true);
+      expect(app.state.connectionNotice).toMatch(/database is unavailable/);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("hydrates full history and retains attempts completed during startup", async () => {
+    const fullHistory = makeSolves(450);
+    localStorage.setItem("practiceSolves", JSON.stringify(fullHistory.slice(-300)));
+    const app = createApp();
+    const session = { id: "session-1", solves: [] };
+    bootstrapLegacyStorageIntoDatabase.mockResolvedValue({ sessions: [session], activeSessionId: session.id });
+    let finishHydration;
+    let signalHydrationStarted;
+    const hydrationStarted = new Promise((resolve) => { signalHydrationStarted = resolve; });
+    bootstrapPracticeStorageIntoDatabase.mockImplementation(() => new Promise((resolve) => {
+      finishHydration = resolve;
+      signalHydrationStarted();
+    }));
+    const hydration = app.bootstrapLocalPersistence();
+    app.localPersistenceReady = hydration;
+    app.localDatabaseWritePromise = hydration;
+    await hydrationStarted;
+    const newSolve = { ...fullHistory[0], id: "new-solve" };
+    const save = app.persistPracticeSolves([...app.practiceSolvesCache, newSolve]);
+    finishHydration(fullHistory);
+    await save;
+    expect(app.state.practiceSolves).toEqual([...fullHistory, newSolve]);
+    expect(persistPracticeSolvesToDatabase).toHaveBeenCalledWith([...fullHistory, newSolve]);
+    expect(app.practiceStorageHydrated).toBe(true);
+  });
+
+  it("exports and restores all practice attempts and their reconstruction", async () => {
+    const app = createApp();
+    const solves = makeSolves(450);
+    await app.persistPracticeSolves(solves);
+    app.downloadBlobFile = jest.fn();
+    await app.exportSolveBackup();
+    const blob = app.downloadBlobFile.mock.calls[0][0];
+    const text = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsText(blob);
+    });
+    const backup = JSON.parse(text);
+    expect(backup.version).toBe(3);
+    expect(backup.practiceSolves).toEqual(solves);
+    expect(backup.algLibrary.entries).toHaveLength(1);
+
+    localStorage.clear();
+    const restored = createApp();
+    await restored.importSolveBackup({ target: { files: [{ name: "backup.json", text: async () => text }] } });
+    expect(restored.state.practiceSolves).toEqual(solves);
+    expect(persistPracticeSolvesToDatabase).toHaveBeenLastCalledWith(solves);
+    expect(restored.state.connectionNotice).toMatch(/Backup restored/);
+  });
+
+  it("preserves practice history for old backups and clears it for an explicit empty list", async () => {
+    const app = createApp();
+    const solves = makeSolves(2);
+    await app.persistPracticeSolves(solves);
+    const oldBackup = { version: 2, sessions: [{ id: "old-session", solves: [] }] };
+    const restore = async (backup) => app.importSolveBackup({
+      target: { files: [{ name: "backup.json", text: async () => JSON.stringify(backup) }] },
+    });
+    await restore(oldBackup);
+    expect(app.state.practiceSolves).toEqual(solves);
+    await restore({ ...oldBackup, version: 3, practiceSolves: [] });
+    expect(app.state.practiceSolves).toEqual([]);
+    expect(persistPracticeSolvesToDatabase).toHaveBeenLastCalledWith([]);
+  });
+
+  it("rejects malformed practice history before altering existing data", async () => {
+    const app = createApp();
+    const solves = makeSolves(2);
+    await app.persistPracticeSolves(solves);
+    app.persistSessionStorage = jest.fn();
+    await app.importSolveBackup({ target: { files: [{ name: "bad.json", text: async () => JSON.stringify({
+      sessions: [{ id: "session-1", solves: [] }], practiceSolves: [null],
+    }) }] } });
+    expect(app.persistSessionStorage).not.toHaveBeenCalled();
+    expect(app.state.practiceSolves).toEqual(solves);
+    expect(app.state.connectionNotice).toMatch(/invalid practice history/);
+  });
+
+  it("persists edits and deletions to the practice dataset", async () => {
+    const app = createApp();
+    const solves = makeSolves(2);
+    await app.persistPracticeSolves(solves);
+    app.state.selectedSolveDetails = solves[0];
+    app.updateActiveSessionSolves = jest.fn();
+    app.updateCurrentSolveRecord((solve) => ({ ...solve, dnf_reason: "Wrong Memo", DNF: true }));
+    await app.localDatabaseWritePromise;
+    expect(app.state.practiceSolves[0].dnf_reason).toBe("Wrong Memo");
+    app.updateCurrentSolveRecord(() => null);
+    await app.localDatabaseWritePromise;
+    expect(app.state.practiceSolves).toEqual([solves[1]]);
+    expect(app.updateActiveSessionSolves).not.toHaveBeenCalled();
+  });
+
+  it("clears durable practice history during a full reset", async () => {
+    const app = createApp();
+    await app.persistPracticeSolves(makeSolves(2));
+    const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
+    app.handle_scramble = jest.fn();
+    try {
+      await app.resetLocalAppData();
+      expect(persistPracticeSolvesToDatabase).toHaveBeenLastCalledWith([]);
+      expect(app.practiceSolvesCache).toEqual([]);
+      expect(app.state.practiceSolves).toEqual([]);
+    } finally {
+      confirm.mockRestore();
+    }
+  });
+
+  it("computes statistics from complete sessions after cache compaction", () => {
+    const app = createApp();
+    const solves = makeSolves(450, false);
+    const session = { id: "large-session", solves };
+    app.sessionStorageCache = { sessions: [session], activeSessionId: session.id };
+    localStorage.setItem("solves", "[]");
+    const stats = app.initialAverages();
+    expect(stats.current).toBe(450);
+    expect(stats.aoAll).toBe(225.5);
+    expect(stats.ao50).toBe(425.5);
+    expect(stats.memo).toBe(56.38);
+    expect(stats.bao12.time).toBe(6.5);
+  });
+
+  const visibleValues = (app, selector) => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(app.desktop_layout());
+    return Object.fromEntries([...container.querySelectorAll(selector)].map((tile) => [
+      tile.querySelector("span").textContent, tile.querySelector("strong").textContent,
+    ]));
+  };
+
+  it("shows rolling averages, means and split averages under their correct labels", () => {
+    const app = createApp();
+    const solves = makeSolves(50, false);
+    app.initialAverages(solves);
+    app.state.activeView = "stats";
+    app.state.solves_stats = solves;
+    expect(visibleValues(app, ".stats_tile")).toEqual({ Ao5: "48.00", Ao12: "44.50", Ao50: "25.50", Mean: "25.50" });
+    expect(visibleValues(app, ".breakdown_card")).toMatchObject({ "Memo Avg": "6.38", "Exec Avg": "19.13" });
+  });
+
+  it("uses the last five practice attempts including DNFs and waits for five attempts", () => {
+    const app = createApp();
+    app.state.activeView = "practice";
+    app.state.practiceTab = "stats";
+    app.state.practiceSolves = makeSolves(4);
+    expect(visibleValues(app, ".stats_tile").Ao5).toBe("--");
+    app.state.practiceSolves = makeSolves(6);
+    app.state.practiceSolves[5].DNF = "true";
+    expect(visibleValues(app, ".stats_tile").Ao5).toBe("4.00");
+    app.state.practiceSolves[4].DNF = true;
+    expect(visibleValues(app, ".stats_tile").Ao5).toBe("DNF");
+  });
+});
+
+describe("history result controls", () => {
+  const setup = (practice = false) => {
+    window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+    const app = new App();
+    app.setState = (update, callback) => {
+      app.state = { ...app.state, ...(typeof update === "function" ? update(app.state) : update) };
+      if (callback) callback();
+    };
+    const solve = { id: "result-test", date: 1, time_solve: 42.83, memo_time: 17.1, exe_time: 25.73, DNF: true, ...(practice ? { practice_type: "edges" } : {}) };
+    let records = [solve];
+    app.updateActiveSessionSolves = jest.fn((update) => { records = update(records); });
+    app.practiceStorageHydrated = true;
+    app.practiceSolvesCache = records;
+    app.persistPracticeSolves = jest.fn((solves) => { records = solves; app.practiceSolvesCache = solves; });
+    return { app, solve, records: () => records };
+  };
+
+  it.each([false, true])("annotates history without opening details (practice=%s)", async (practice) => {
+    const { app, solve, records } = setup(practice);
+    app.openSolveResultEditor(solve, "reason");
+    app.updateSolveResultEditor({ category: "Wrong Exec", stage: "Corner" });
+    await app.saveSolveResultEditor({ preventDefault: jest.fn() });
+    expect(records()[0]).toMatchObject({ DNF: true, dnf_reason: "Wrong Corner Exec" });
+    expect(app.state.showLastSolveDetails).toBe(false);
+    app.openSolveResultEditor(records()[0], "reason");
+    app.updateSolveResultEditor({ category: "" });
+    await app.saveSolveResultEditor({ preventDefault: jest.fn() });
+    expect(records()[0]).toMatchObject({ DNF: true, dnf_reason: "" });
+    app.openSolveResultEditor(records()[0]);
+    app.updateSolveResultEditor({ result: "plus2" });
+    await app.saveSolveResultEditor({ preventDefault: jest.fn() });
+    expect(records()[0]).toMatchObject({ DNF: false, time_solve: 44.83, exe_time: 25.73 });
+  });
+
+  it("keeps the editor open until its result write finishes", async () => {
+    const { app, solve } = setup();
+    let finish;
+    app.localDatabaseWritePromise = new Promise((resolve) => { finish = resolve; });
+    app.openSolveResultEditor(solve);
+    const saving = app.saveSolveResultEditor({ preventDefault: jest.fn() });
+    expect(app.state.solveResultSaving).toBe(true);
+    expect(app.state.solveResultEditor).not.toBeNull();
+    finish();
+    await saving;
+    expect(app.state.solveResultEditor).toBeNull();
+    expect(app.state.solveResultSaving).toBe(false);
+  });
+
+  it("rendering the legacy table leaves chronological history intact", () => {
+    const { app, solve } = setup();
+    const records = [solve, { ...solve, id: "second", date: 2 }];
+    app.renderTableData(records);
+    expect(records.map((record) => record.id)).toEqual(["result-test", "second"]);
+  });
+
+  it("clearing a reason in the legacy handler also preserves an automatic DNF", () => {
+    const { app, solve, records } = setup();
+    app.state.selectedSolveDetails = solve;
+    app.clearSelectedSolveDnfReason();
+    expect(records()[0].DNF).toBe(true);
   });
 });

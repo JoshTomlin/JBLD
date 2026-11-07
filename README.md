@@ -1,6 +1,6 @@
 # JBLD
 
-JBLD is a local-first timer and analysis tool for blindfolded Rubik's Cube solving. It records a solve from a Bluetooth smart cube, reconstructs the move sequence, separates it into blind-solving cases, and shows where time or execution was lost.
+JBLD is a local-first timer and analysis tool for 3-style blindfolded Rubik's Cube solving. It records a solve from a Bluetooth smart cube, reconstructs the move sequence, separates it into blind-solving cases, and shows where time or execution was lost.
 
 [Live app](https://joshtomlin.github.io/JBLD/) | [Historical video demo](https://www.youtube.com/watch?v=wQnM1zwroVU) | [Original TrainBLD announcement](https://www.speedsolving.com/threads/trainbld-new-web-timer-that-reconstructs-your-3bld-solves.85466/)
 

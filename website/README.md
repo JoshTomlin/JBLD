@@ -94,3 +94,9 @@ PGlite stores the canonical browser dataset in IndexedDB. The schema separates s
 Clearing the site's browser data removes this local history. Use the application's export tools when moving data between browsers or devices.
 
 See [Architecture: persistence](../docs/ARCHITECTURE.md#persistence) for the complete data flow.
+
+## Graphite and teal UI
+
+`src/theme.css` applies the shared typography, colour and compact layout rules. Solve details keep algorithms and timing columns aligned, with the recorded scramble available in a dialog. History times open OK/+2/DNF controls; the DNF badge opens reason and stage annotation. Clearing a reason preserves the result. Result penalties are reversible and do not change recorded memo/execution splits.
+
+Normal solve result metadata is stored in the database's `result_json` column; practice records retain it in their complete JSON records. Both are included in backups. `scripts/prepare-database-runtime.js` copies the installed PGlite native modules and binaries to versioned public assets before start/build. The service worker caches the binaries for offline use.

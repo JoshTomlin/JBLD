@@ -49,6 +49,14 @@ cd website
 npm test -- --watchAll=false --runInBand
 ```
 
+Run the real PGlite practice-storage integration checks with Node 22:
+
+```bash
+npm run test:storage
+```
+
+These checks cover migration, histories larger than the recovery cache, reopening the database, failed-write rollback, recovery snapshots, and resets.
+
 Run one suite while working on parser behaviour:
 
 ```bash

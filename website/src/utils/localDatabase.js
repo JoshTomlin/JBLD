@@ -1,3 +1,5 @@
+import { isDnfValue } from "./solveAverages";
+import { pgliteVersion } from "../data/databaseRuntime";
 import {
   getAlgLibraryCaseLookupCodes,
   getDefaultAlgLibraryMemoWord,
@@ -6,7 +8,7 @@ import {
 } from "./algLibrarySpecialCases";
 
 const DATABASE_PATH = "idb://jbld-local-db";
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 8;
 const LOCAL_APP_META_KEY = "jbld-local-app-meta";
 const LOCAL_ALG_LIBRARY_KEY = "jbld-local-alg-library";
 const DEFAULT_ALG_LAST_SEEN_AT = "2026-01-01T00:00:00.000Z";
@@ -98,9 +100,18 @@ function describeModuleShape(moduleExports) {
 
 async function loadPGliteConstructor() {
   const loadErrors = [];
+  if (typeof document !== "undefined") {
+    try {
+      const url = new URL(`${process.env.PUBLIC_URL || "."}/pglite/${pgliteVersion}/index.js`, document.baseURI);
+      const moduleExports = await import(/* webpackIgnore: true */ url.href);
+      return moduleExports.PGlite;
+    } catch (error) {
+      loadErrors.push(`native browser runtime: ${error.message}`);
+    }
+  }
 
   try {
-    // Use Webpack's CommonJS resolution path so CRA 4 does not need to parse import.meta from the ESM build.
+    // Node tools use CommonJS; browsers load the native ESM runtime above.
     // eslint-disable-next-line global-require, import/no-dynamic-require
     const requiredModule = require("@electric-sql/pglite/dist/index.cjs");
     const requiredConstructor = resolvePGliteConstructor(requiredModule);
@@ -386,6 +397,9 @@ function toIsoDate(value, fallback = new Date().toISOString()) {
 }
 
 function toTimestamp(value, fallback = Date.now()) {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value.getTime();
+  }
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
@@ -467,8 +481,8 @@ function buildSolveRow(solve, sessionId) {
     move_count: moveCount,
     alg_count: commStats.filter((comm) => comm && comm.phase !== "unknown").length,
     tps: Number.isFinite(execTime) && execTime > 0 ? Number((moveCount / execTime).toFixed(3)) : null,
-    success: !Boolean(solve && solve.DNF),
-    dnf: Boolean(solve && solve.DNF),
+    success: !isDnfValue(solve && solve.DNF),
+    dnf: isDnfValue(solve && solve.DNF),
     scramble: solve && solve.scramble ? solve.scramble : "",
     solve_alg: solveAlg,
     txt_solve: solve && solve.txt_solve ? solve.txt_solve : "",
@@ -479,6 +493,11 @@ function buildSolveRow(solve, sessionId) {
     parity_count: specialCounts.parity,
     flip_count: specialCounts.flip,
     twist_count: specialCounts.twist,
+    result_json: JSON.stringify({
+      dnf_reason: solve.dnf_reason || "",
+      result_penalty: Number(solve.result_penalty) === 2 ? 2 : 0,
+      unpenalized_time: solve.unpenalized_time ?? null,
+    }),
     comm_stats_json: JSON.stringify(commStats),
     move_timeline_json: JSON.stringify(moveTimeline),
   };
@@ -551,6 +570,7 @@ function fromSolveRow(row) {
     memo_time: row.time_memo,
     exe_time: row.time_exec,
     fluidness: row.fluidness,
+    ...safeJsonParse(row.result_json, {}),
     DNF: Boolean(row.dnf),
     scramble: row.scramble || "",
     solve: row.solve_alg || "",
@@ -644,6 +664,8 @@ async function runMigrations(db) {
       move_timeline_json TEXT NOT NULL DEFAULT '[]'
     );
 
+    ALTER TABLE solves ADD COLUMN IF NOT EXISTS result_json TEXT NOT NULL DEFAULT '{}';
+
     CREATE TABLE IF NOT EXISTS comm_cases (
       id TEXT PRIMARY KEY,
       canonical_key TEXT NOT NULL UNIQUE,
@@ -652,6 +674,12 @@ async function runMigrations(db) {
       canonical_label TEXT,
       special_type TEXT,
       raw_example_json TEXT NOT NULL DEFAULT '[]'
+    );
+
+    CREATE TABLE IF NOT EXISTS practice_solves (
+      id TEXT PRIMARY KEY,
+      position INTEGER NOT NULL,
+      record_json TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS solve_comms (
@@ -829,11 +857,11 @@ export async function persistDatasetToDatabase({ sessions, activeSessionId }) {
           id, session_id, recorded_at, updated_at, time_total, time_memo, time_exec, fluidness,
           move_count, alg_count, tps, success, dnf, scramble, solve_alg, txt_solve, link,
           cube_orientation, parse_error, parse_version, parity_count, flip_count, twist_count,
-          comm_stats_json, move_timeline_json
+          comm_stats_json, move_timeline_json, result_json
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12, $13, $14, $15, $16, $17,
-          $18, $19, $20, $21, $22, $23, $24, $25
+          $18, $19, $20, $21, $22, $23, $24, $25, $26
         )`,
         [
           solve.id,
@@ -861,6 +889,7 @@ export async function persistDatasetToDatabase({ sessions, activeSessionId }) {
           solve.twist_count,
           solve.comm_stats_json,
           solve.move_timeline_json,
+          solve.result_json,
         ]
       );
     }
@@ -939,11 +968,79 @@ export async function bootstrapLegacyStorageIntoDatabase({ sessions, activeSessi
     existingSessions.rows && existingSessions.rows[0] && Number(existingSessions.rows[0].count);
 
   if (rowCount > 0) {
+    // Older database versions dropped result annotations. Recover them from the
+    // existing browser cache on upgrade, and recover newer edits interrupted
+    // before their asynchronous database write completed.
+    const storedResults = new Map((await db.query("SELECT id, result_json, updated_at FROM solves")).rows.map((row) => [row.id, row]));
+    for (const session of sessions || []) {
+      for (const solve of session.solves || []) {
+        if (!solve.id || !("dnf_reason" in solve || "result_penalty" in solve)) continue;
+        const stored = storedResults.get(String(solve.id));
+        if (!stored || (stored.result_json !== "{}" && toTimestamp(stored.updated_at) >= toTimestamp(solve.updatedAt || solve.date))) continue;
+        await db.query(
+          `UPDATE solves SET result_json = $2,
+             time_total = CASE WHEN updated_at < $5::timestamptz THEN $3 ELSE time_total END,
+             dnf = CASE WHEN updated_at < $5::timestamptz THEN $4 ELSE dnf END,
+             success = CASE WHEN updated_at < $5::timestamptz THEN NOT $4 ELSE success END,
+             updated_at = GREATEST(updated_at, $5::timestamptz)
+           WHERE id = $1 AND (result_json = '{}' OR updated_at < $5::timestamptz)`,
+          [String(solve.id), JSON.stringify({
+            dnf_reason: solve.dnf_reason || "",
+            result_penalty: Number(solve.result_penalty) === 2 ? 2 : 0,
+            unpenalized_time: solve.unpenalized_time ?? null,
+          }), Number(solve.time_solve) || 0, isDnfValue(solve.DNF), toIsoDate(solve.updatedAt || solve.date)]
+        );
+      }
+    }
     return loadDatasetFromDatabase();
   }
 
   await persistDatasetToDatabase({ sessions, activeSessionId });
   return loadDatasetFromDatabase();
+}
+
+export async function loadPracticeSolvesFromDatabase() {
+  const db = await getDatabase();
+  const result = await db.query("SELECT record_json FROM practice_solves ORDER BY position ASC");
+  return result.rows.map((row) => JSON.parse(row.record_json));
+}
+
+export async function persistPracticeSolvesToDatabase(practiceSolves) {
+  const db = await getDatabase();
+  // Keep the full records, including reconstruction, move timings and practice type.
+  // A transaction also makes replacing history with an empty backup/reset atomic.
+  await db.transaction(async (tx) => {
+    await tx.exec("DELETE FROM practice_solves");
+    for (const [position, solve] of practiceSolves.entries()) {
+      const id = String(solve.id || `practice-${solve.date || 0}-${position}`);
+      await tx.query(
+        "INSERT INTO practice_solves (id, position, record_json) VALUES ($1, $2, $3)",
+        [id, position, JSON.stringify({ ...solve, id })]
+      );
+    }
+    await tx.query(
+      `INSERT INTO app_meta (key, value_json) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value_json = EXCLUDED.value_json`,
+      ["practice_storage_migrated", "true"]
+    );
+  });
+}
+
+export async function bootstrapPracticeStorageIntoDatabase(legacySolves = [], recovery = null) {
+  const db = await getDatabase();
+  const migrated = await db.query("SELECT value_json FROM app_meta WHERE key = $1", [
+    "practice_storage_migrated",
+  ]);
+  if (!migrated.rows.length || recovery) {
+    const storedSolves = await loadPracticeSolvesFromDatabase();
+    const recoveredSolves = recovery && !recovery.complete
+      ? [...new Map([...storedSolves, ...legacySolves].map((solve, index) => [
+          solve.id || `practice-${solve.date || 0}-${index}`, solve,
+        ])).values()]
+      : legacySolves;
+    await persistPracticeSolvesToDatabase(recoveredSolves);
+  }
+  return loadPracticeSolvesFromDatabase();
 }
 
 export async function queryLocalDatabase(sql, params = []) {
@@ -1056,6 +1153,21 @@ export async function importAlgLibraryEntries(entries = []) {
     });
     writeFallbackAlgLibraryEntries([...entriesById.values()]);
   }
+}
+
+// Older builds used the localStorage fallback when CRA could not load PGlite.
+// Restore those edits after seeding defaults, once, without deleting the cache.
+export async function bootstrapFallbackAlgLibrary() {
+  const db = await getDatabase();
+  const key = "fallback_alg_library_migrated";
+  if (await getLocalAppMetaValue(key, false)) return;
+  const entries = readFallbackAlgLibraryEntries();
+  if (entries.length) {
+    await importAlgLibraryEntries(entries);
+    const copied = await db.query("SELECT id FROM alg_library_entries WHERE id = ANY($1::text[])", [entries.map((entry) => entry.id)]);
+    if (copied.rows.length !== entries.length) throw new Error("The existing algorithm library could not be migrated.");
+  }
+  await setLocalAppMetaValue(key, true);
 }
 
 export async function replaceBundledAlgLibraryEntries(entries = []) {
@@ -1226,7 +1338,7 @@ export async function getAlgLibraryEntries(options = {}) {
          FROM alg_library_entries
          WHERE ($1 = 'all' OR piece_type = $1)
            AND (
-             $2 IS NULL
+             $2::text IS NULL
              OR LOWER(case_code) LIKE $2
              OR LOWER(description) LIKE $2
              OR LOWER(alg) LIKE $2
@@ -1242,7 +1354,7 @@ export async function getAlgLibraryEntries(options = {}) {
          FROM alg_library_entries
          WHERE ($1 = 'all' OR piece_type = $1)
            AND (
-             $2 IS NULL
+             $2::text IS NULL
              OR LOWER(case_code) LIKE $2
              OR LOWER(description) LIKE $2
              OR LOWER(alg) LIKE $2

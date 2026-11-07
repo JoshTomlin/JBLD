@@ -1,4 +1,9 @@
-const { computeSessionAggregateStats, averageValues } = require("./solveAverages");
+const {
+  computeSessionAggregateStats,
+  computeSessionBestStats,
+  calculateTrimmedAverage,
+  averageValues,
+} = require("./solveAverages");
 
 describe("solveAverages", () => {
   const helpers = {
@@ -89,5 +94,64 @@ describe("solveAverages", () => {
     expect(result.current).toBe(10);
     expect(result.aoAll).toBe(10);
     expect(result.success).toBe("1/2");
+  });
+
+  const solvesFor = (times) => times.map((time) => ({
+    time_solve: time,
+    DNF: time === "DNF",
+    memo_time: Number(time) / 4,
+    exe_time: Number(time) * 3 / 4,
+  }));
+
+  it("uses the latest five attempts and trims one best/worst result", () => {
+    const result = computeSessionAggregateStats(solvesFor([999, 1, 10, 20, 30, 100]));
+    expect(result.ao5).toBe(20);
+    expect(result.current).toBe(100);
+    expect(computeSessionAggregateStats(solvesFor([10, 20, 30, 40])).ao5).toBe("");
+  });
+
+  it("includes DNFs in the rolling window and permits only one in an Ao5", () => {
+    const solves = solvesFor([1, 10, 20, 30, 40, "DNF"]);
+    solves[5].DNF = "true";
+    expect(computeSessionAggregateStats(solves).ao5).toBe(30);
+    solves[4].DNF = true;
+    expect(computeSessionAggregateStats(solves).ao5).toBe("DNF");
+    expect(computeSessionAggregateStats(solvesFor(["DNF", "DNF", "DNF", "DNF", "DNF"])).ao5).toBe("DNF");
+  });
+
+  it("calculates Ao50 from 50 attempts with three trimmed at each end", () => {
+    const solves = solvesFor([9999, ...Array.from({ length: 50 }, (_, i) => i + 1)]);
+    const result = computeSessionAggregateStats(solves);
+    expect(result.ao50).toBe(25.5);
+    expect(result.aoAll).not.toBe(result.ao50);
+    expect(computeSessionAggregateStats(solves.slice(-49)).ao50).toBe("");
+    solves.slice(-3).forEach((solve) => { solve.DNF = true; });
+    expect(computeSessionAggregateStats(solves).ao50).toBe(25.5);
+    solves[solves.length - 4].DNF = true;
+    expect(computeSessionAggregateStats(solves).ao50).toBe("DNF");
+  });
+
+  it("keeps means and split averages separate from the latest solve", () => {
+    const result = computeSessionAggregateStats(solvesFor([10, 20, 60, "DNF"]));
+    expect(result.current).toBe("DNF(DNF)");
+    expect(result.aoAll).toBe(30);
+    expect(result.memo).toBe(7.5);
+    expect(result.exe).toBe(22.5);
+    expect(result.mo3).toBe("DNF");
+  });
+
+  it("treats missing and invalid times as failed attempts in rolling averages", () => {
+    expect(calculateTrimmedAverage(solvesFor([1, 10, 20, 30, null]))).toBe(20);
+    expect(calculateTrimmedAverage(solvesFor([1, 10, 20, null, "invalid"]))).toBe("DNF");
+    expect(computeSessionAggregateStats([]).ao50).toBe("");
+  });
+
+  it("recalculates best windows for each session, including after deletion", () => {
+    const first = computeSessionBestStats(solvesFor([1, 10, 20, 30, 100]));
+    expect(first.bao5.time).toBe(20);
+    expect(first.best.time).toBe(1);
+    const second = computeSessionBestStats(solvesFor([50, 60, 70, 80, 90]));
+    expect(second.bao5.time).toBe(70);
+    expect(computeSessionBestStats(solvesFor([50, 60, 70, 80])).bao5.time).toBe(10000);
   });
 });

@@ -33,11 +33,12 @@
   },
   "scripts": {
     "postinstall": "node scripts/postinstall-fixes.js",
-    "prestart": "node scripts/write-build-meta.js",
-    "prebuild": "node scripts/write-build-meta.js",
+    "prestart": "node scripts/write-build-meta.js && node scripts/prepare-database-runtime.js",
+    "prebuild": "node scripts/write-build-meta.js && node scripts/prepare-database-runtime.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:storage": "node --test scripts/practice-storage.test.cjs",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

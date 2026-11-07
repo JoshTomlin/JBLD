@@ -107,11 +107,16 @@ The returned model includes target details and the valid alternatives for each c
 - sessions and solves;
 - canonical commutator cases;
 - commutators executed in each solve;
-- algorithm-library entries and last-seen dates.
+- algorithm-library entries and last-seen dates;
+- complete practice-attempt records, including practice type, reconstruction, move timings, and DNF notes.
 
 Existing `localStorage` data is migrated into PGlite. Small settings and compact recovery caches remain in `localStorage`, while larger solve history lives in the database.
 
 This browser database is the current source of truth. Clearing the application's site data removes it, so cross-device movement relies on the application's import and export tools.
+
+Existing practice history is migrated from `localStorage` on first startup. The browser database retains the complete history; the smaller recovery cache does not limit it. Pending practice saves keep a separate recovery snapshot until the database commits them. Backup version 3 exports and restores practice history alongside sessions, settings, and the algorithm library. Restoring an older backup preserves existing practice history; an explicit empty practice list clears it.
+
+Session statistics use the complete loaded history, including after the `localStorage` session cache is compacted. Ao5, Ao12, and Ao50 use the latest 5, 12, and 50 attempts respectively, including DNFs, and trim 5% at each end rounded up. A DNF remaining after trimming makes the average DNF. Session and practice means and memo/execution averages use successful attempts with finite values. Practice uses the same average calculations as normal sessions.
 
 ## Algorithm library and review
 

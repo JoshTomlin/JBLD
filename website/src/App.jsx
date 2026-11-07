@@ -8,12 +8,20 @@ import { connectGanCube } from "gan-web-bluetooth";
 import Setting from "./component/Settings";
 import "bootstrap/dist/css/bootstrap.css";
 import Timer from "./component/Timer";
+import Dialog from "./component/Dialog";
+import { applySolveResult, getSolveResult, parseDnfReason, formatDnfReason } from "./utils/solveResult";
 import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
 import { buildLocalCommAnalysis, normalizeForOrientation } from "./utils/localCommParser";
 import { buildLocalSolveResult } from "./utils/localSolveParser";
 import { buildRecommendedSolve } from "./utils/solveRecommender";
-import { computeSessionAggregateStats, isDnfValue } from "./utils/solveAverages";
+import {
+  calculateMeanOfThree,
+  calculateTrimmedAverage,
+  computeSessionAggregateStats,
+  computeSessionBestStats,
+  isDnfValue,
+} from "./utils/solveAverages";
 import { extractRecordedSolveData } from "./utils/extractRecordedSolve";
 import { expandCommNotation, hasCommNotation } from "./utils/commNotation";
 import {
@@ -33,6 +41,8 @@ import {
 } from "./utils/supabaseSync";
 import {
   bootstrapLegacyStorageIntoDatabase,
+  bootstrapFallbackAlgLibrary,
+  bootstrapPracticeStorageIntoDatabase,
   getAlgLibraryEntries,
   getAlgLibraryEntriesForCases,
   getAlgLibrarySummary,
@@ -42,6 +52,7 @@ import {
   loadDatasetFromDatabase,
   markAlgLibraryEntriesSeen,
   persistDatasetToDatabase,
+  persistPracticeSolvesToDatabase,
   queryLocalDatabase,
   replaceBundledAlgLibraryEntries,
   setLocalAppMetaValue,
@@ -95,6 +106,17 @@ class App extends React.Component {
     this.deferredInstallPrompt = null;
     this.localDatabaseWritePromise = Promise.resolve();
     this.sessionStorageCache = null;
+    this.practiceStorageHydrated = false;
+    this.practiceRecovery = this.parseJsonStorage("practiceSolvesPending", null);
+    if (!this.practiceRecovery || !Array.isArray(this.practiceRecovery.solves)) {
+      this.practiceRecovery = null;
+    }
+    this.practiceSolvesCache = this.practiceRecovery
+      ? this.practiceRecovery.solves
+      : this.parseJsonStorage("practiceSolves", []);
+    if (!Array.isArray(this.practiceSolvesCache)) {
+      this.practiceSolvesCache = [];
+    }
     this.algReviewTargetSignatureCache = new Map();
     this.algReviewAttemptCube = null;
     this.algReviewAttemptMoves = [];
@@ -106,6 +128,10 @@ class App extends React.Component {
       showSettings: false,
       showBackupMenu: false,
       showLastSolveDetails: false,
+      solveResultEditor: null,
+      solveResultSaving: false,
+      showSolveScramble: false,
+      solveScrambleCopied: false,
       loadingSolveDetails: false,
       loadingSolveDetailsCommLibrary: false,
       gan: false,
@@ -119,6 +145,7 @@ class App extends React.Component {
         mo3: "",
         ao5: "",
         ao12: "",
+        ao50: "",
         bmo3: { time: 10000, solves: {}, num: 0 },
         bao5: { time: 10000, solves: {}, num: 0 },
         bao12: { time: 10000, solves: {}, num: 0 },
@@ -195,7 +222,7 @@ class App extends React.Component {
       algReviewEditorDraft: null,
       algReviewEditorSaving: false,
       algReviewPromotingAlg: false,
-      practiceSolves: this.parseJsonStorage("practiceSolves", []),
+      practiceSolves: this.practiceSolvesCache,
       practiceScrambleType: "edges",
       practiceTab: "solve",
       renderTable: null,
@@ -276,7 +303,9 @@ class App extends React.Component {
     window.addEventListener("offline", this.handleNetworkChange);
     window.addEventListener("beforeinstallprompt", this.handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", this.handleAppInstalled);
-    this.bootstrapLocalPersistence()
+    this.localPersistenceReady = this.bootstrapLocalPersistence();
+    this.localDatabaseWritePromise = this.localPersistenceReady.catch(() => null);
+    this.localPersistenceReady
       .catch((error) => {
         console.warn("Local database bootstrap failed, using localStorage cache", error);
       })
@@ -359,6 +388,8 @@ class App extends React.Component {
 
   exportSolveBackup = async (options = {}) => {
     const { closeMenu = true, showNotice = true, fileLabel = "" } = options;
+    await this.localPersistenceReady?.catch(() => null);
+    await this.localDatabaseWritePromise;
     const { sessions, activeSessionId } = this.ensureSessionStorage();
     const algLibraryResult = await getAlgLibraryEntries({
       pieceType: "all",
@@ -370,11 +401,12 @@ class App extends React.Component {
       : [];
     const exportedAt = new Date().toISOString();
     const payload = {
-      version: 2,
+      version: 3,
       exportedAt,
       appLastUpdated: APP_LAST_UPDATED_LABEL,
       activeSessionId,
       sessions,
+      practiceSolves: this.practiceSolvesCache,
       parseSettings: this.state.parse_settings || null,
       algLibrary: {
         version: 1,
@@ -397,7 +429,7 @@ class App extends React.Component {
         showMenu: closeMenu ? false : this.state.showMenu,
         showBackupMenu: false,
         connectionNotice: showNotice
-          ? `Backup exported with ${algLibraryEntries.length} Alg Library entries included. Keep the JSON file somewhere safe outside the browser.`
+          ? `Backup exported with ${this.practiceSolvesCache.length} practice attempts and ${algLibraryEntries.length} Alg Library entries included. Keep the JSON file somewhere safe outside the browser.`
           : this.state.connectionNotice,
       });
     }
@@ -419,6 +451,7 @@ class App extends React.Component {
     }
 
     try {
+      await this.localPersistenceReady?.catch(() => null);
       const rawText = await file.text();
       const backup = JSON.parse(rawText);
       const sessions = Array.isArray(backup && backup.sessions) ? backup.sessions : null;
@@ -436,6 +469,13 @@ class App extends React.Component {
         throw new Error("Backup file does not contain any sessions.");
       }
 
+      const hasPracticeSolves = Object.prototype.hasOwnProperty.call(backup, "practiceSolves");
+      if (hasPracticeSolves && (!Array.isArray(backup.practiceSolves) || backup.practiceSolves.some(
+        (solve) => !solve || typeof solve !== "object" || !["edges", "corners"].includes(solve.practice_type)
+      ))) {
+        throw new Error("Backup contains invalid practice history.");
+      }
+
       if (parseSettings) {
         localStorage.setItem("setting", JSON.stringify(parseSettings));
       }
@@ -445,6 +485,14 @@ class App extends React.Component {
       }
 
       this.persistSessionStorage(sessions, activeSessionId);
+      // Older backups have no practice field; leave the existing history intact.
+      if (hasPracticeSolves) {
+        const saved = await this.persistPracticeSolves(backup.practiceSolves, { replaceAll: true });
+        if (!saved) {
+          throw new Error("Practice history could not be saved to the database.");
+        }
+      }
+      await this.localDatabaseWritePromise;
       this.setState(
         {
           parse_settings: parseSettings || this.state.parse_settings,
@@ -651,6 +699,7 @@ class App extends React.Component {
   };
 
   bootstrapLocalPersistence = async () => {
+    const legacyPracticeSolves = this.practiceSolvesCache;
     const legacyDataset = this.ensureSessionStorage({ skipDatabaseMirror: true });
     const dataset = await bootstrapLegacyStorageIntoDatabase({
       sessions: legacyDataset.sessions,
@@ -661,6 +710,17 @@ class App extends React.Component {
       this.persistSessionStorage(dataset.sessions, dataset.activeSessionId, {
         skipDatabaseMirror: true,
       });
+    }
+
+    const storedPracticeSolves = await bootstrapPracticeStorageIntoDatabase(legacyPracticeSolves, this.practiceRecovery);
+    // A solve can finish while the database starts. Append those new attempts to
+    // the full database history rather than replacing it with the recovery cache.
+    const newPracticeSolves = this.practiceSolvesCache.slice(legacyPracticeSolves.length);
+    this.practiceSolvesCache = [...storedPracticeSolves, ...newPracticeSolves];
+    this.practiceStorageHydrated = true;
+    this.setState({ practiceSolves: this.practiceSolvesCache });
+    if (!newPracticeSolves.length) {
+      this.safeRemoveLocalStorageItem("practiceSolvesPending");
     }
 
     if (typeof window !== "undefined") {
@@ -674,6 +734,8 @@ class App extends React.Component {
     }
 
     await this.ensureBundledAlgLibraryLoaded();
+    await bootstrapFallbackAlgLibrary();
+    await this.refreshAlgLibrarySummary();
     return dataset;
   };
 
@@ -1498,7 +1560,8 @@ class App extends React.Component {
     );
   };
   ensureSessionStorage = (options = {}) => {
-    const { skipDatabaseMirror = false } = options;
+    // Reading history must not queue an older database snapshot ahead of edits.
+    const { skipDatabaseMirror = true } = options;
     const cachedStorage = this.sessionStorageCache;
     const hasCachedSessions =
       cachedStorage && Array.isArray(cachedStorage.sessions) && cachedStorage.sessions.length > 0;
@@ -3038,7 +3101,8 @@ class App extends React.Component {
     if (!solve) {
       return "--";
     }
-    return this.convert_sec_to_format(solve.time_solve);
+    const time = this.convert_sec_to_format(solve.time_solve);
+    return `${isDnfValue(solve.DNF) ? `DNF (${time})` : time}${Number(solve.result_penalty) === 2 ? " +2" : ""}`;
   };
 
   getTimerDisplayMs = (latestSolve) => {
@@ -3735,6 +3799,7 @@ class App extends React.Component {
     this.solveCommEditorDraftBuffer = null;
     this.setState({
       showLastSolveDetails: false,
+      showSolveScramble: false,
       loadingSolveDetails: false,
       loadingSolveDetailsCommLibrary: false,
       selectedSolveDetails: null,
@@ -3761,16 +3826,24 @@ class App extends React.Component {
   };
 
   updateCurrentSolveRecord = (updater, options = {}) => {
+    return this.updateSolveRecord(this.state.selectedSolveDetails, updater, options);
+  };
+
+  updateSolveRecord = (selectedSolve, updater, options = {}) => {
     const { closeModal = false } = options;
-    const selectedSolve = this.state.selectedSolveDetails;
-    if (!selectedSolve) {
+    if (!selectedSolve) return;
+
+    if (selectedSolve.practice_type && !this.practiceStorageHydrated && this.localPersistenceReady) {
+      this.localPersistenceReady.then(() => this.updateSolveRecord(selectedSolve, updater, options)).catch(() => {
+        this.setState({ connectionNotice: "Practice history is still unavailable. Export a backup before editing it." });
+      });
       return;
     }
 
     let nextSelectedSolve = null;
     let updated = false;
 
-    this.updateActiveSessionSolves((solveStats) =>
+    const updateSolves = (solveStats) =>
       solveStats.reduce((nextSolves, solve) => {
         if (!updated && this.isSameSolveRecord(solve, selectedSolve)) {
           updated = true;
@@ -3784,8 +3857,13 @@ class App extends React.Component {
 
         nextSolves.push(solve);
         return nextSolves;
-      }, [])
-    );
+      }, []);
+
+    if (selectedSolve.practice_type) {
+      this.persistPracticeSolves(updateSolves(this.practiceSolvesCache));
+    } else {
+      this.updateActiveSessionSolves(updateSolves);
+    }
 
     if (!updated) {
       return;
@@ -3796,7 +3874,10 @@ class App extends React.Component {
       return;
     }
 
-    this.setState({ selectedSolveDetails: nextSelectedSolve });
+    if (this.isSameSolveRecord(selectedSolve, this.state.selectedSolveDetails)) {
+      this.setState({ selectedSolveDetails: nextSelectedSolve });
+    }
+    return this.localDatabaseWritePromise;
   };
 
   deleteSelectedSolve = () => {
@@ -3824,7 +3905,7 @@ class App extends React.Component {
 
     this.updateCurrentSolveRecord((solve) => ({
       ...solve,
-      DNF: Boolean(reason),
+      DNF: isDnfValue(solve.DNF) || Boolean(reason),
       dnf_reason: reason,
     }));
   };
@@ -3838,7 +3919,6 @@ class App extends React.Component {
       () => {
         this.updateCurrentSolveRecord((solve) => ({
           ...solve,
-          DNF: false,
           dnf_reason: "",
         }));
       }
@@ -3870,6 +3950,75 @@ class App extends React.Component {
           this.saveSelectedSolveDnfReason();
         }
       }
+    );
+  };
+
+  openSolveResultEditor = (solve, mode = "result") => {
+    this.setState({
+      solveResultEditor: {
+        solve,
+        mode,
+        result: getSolveResult(solve),
+        ...parseDnfReason(solve.dnf_reason || ""),
+      },
+    });
+  };
+
+  updateSolveResultEditor = (patch) => {
+    this.setState((state) => ({ solveResultEditor: { ...state.solveResultEditor, ...patch } }));
+  };
+
+  saveSolveResultEditor = async (event) => {
+    event.preventDefault();
+    const editor = this.state.solveResultEditor;
+    if (!editor || this.state.solveResultSaving) return;
+    this.setState({ solveResultSaving: true });
+    await this.updateSolveRecord(editor.solve, (solve) => editor.mode === "reason"
+      ? { ...solve, dnf_reason: formatDnfReason(editor.category, editor.stage), updatedAt: Date.now() }
+      : applySolveResult(solve, editor.result));
+    await this.localDatabaseWritePromise;
+    this.setState({ solveResultEditor: null, solveResultSaving: false });
+  };
+
+  copySelectedSolveScramble = async () => {
+    const scramble = this.state.selectedSolveDetails && this.state.selectedSolveDetails.scramble;
+    if (!scramble) return;
+    try {
+      await navigator.clipboard.writeText(scramble);
+      this.setState({ solveScrambleCopied: "Copied" });
+    } catch (_error) {
+      this.setState({ solveScrambleCopied: "Copy unavailable. Select the scramble to copy it." });
+    }
+  };
+
+  renderHistorySolve = (solve, pool = []) => {
+    const dnf = isDnfValue(solve.DNF);
+    const plusTwo = Number(solve.result_penalty) === 2;
+    const rank = this.getSolveRankInSession(solve, pool);
+    return (
+      <article key={solve.id || solve.date} className="history_card history_card_interactive">
+        <div className="history_solve_row">
+          <button type="button" className="history_time_button" aria-label={`Adjust result ${this.formatSolveResultLabel(solve)}`}
+            onClick={() => this.openSolveResultEditor(solve)}>
+            {this.convert_sec_to_format(solve.time_solve)}{plusTwo ? <small> +2</small> : null}<span aria-hidden="true">⌄</span>
+          </button>
+          <span className="history_card_subtitle history_split_times">
+            Memo {this.convert_sec_to_format(solve.memo_time)} · Exec {this.convert_sec_to_format(solve.exe_time)}
+          </span>
+        </div>
+        <div className="history_solve_row history_solve_row_meta">
+          {dnf ? (
+            <button type="button" className="history_dnf_button" onClick={() => this.openSolveResultEditor(solve, "reason")}
+              aria-label={`DNF reason for ${this.formatSolveResultLabel(solve)}`}>
+              <span className="history_dnf_badge">DNF</span><span>{solve.dnf_reason || "Add reason"}</span>
+            </button>
+          ) : <span className="history_card_subtitle">{plusTwo ? "+2 penalty" : `Success${rank ? ` · #${rank}` : ""}`}</span>}
+          <button type="button" className="history_details_button" onClick={() => this.openSolveDetails(solve)}
+            aria-label={`Open solve details ${this.formatSolveResultLabel(solve)}`}>
+            {this.formatDateLine(solve.date)} <span aria-hidden="true">›</span>
+          </button>
+        </div>
+      </article>
     );
   };
 
@@ -3943,9 +4092,9 @@ class App extends React.Component {
           <span>{description || "No comm notation saved"}</span>
         </div>
         <div className="comm_recent_alg_rows">
-          <span>ALG</span>
+          <span>Library</span>
           <strong className="comm_recent_alg_value">{libraryAlg || "--"}</strong>
-          <span>DID</span>
+          <span>Used</span>
           <strong className="comm_recent_alg_value">{performedAlg || "--"}</strong>
         </div>
         <div className="comm_recent_footer">
@@ -5640,7 +5789,7 @@ class App extends React.Component {
       title: this.formatSolveResultLabel(solve),
       solveNumber,
       date: this.formatDateLine(solve.date),
-      memoExecLabel: `${formatTimeValue(solve.memo_time)} | ${formatTimeValue(solve.exe_time)}`,
+      memoExecLabel: `Memo ${formatTimeValue(solve.memo_time)} · Exec ${formatTimeValue(solve.exe_time)}`,
       metrics: [
         { label: "Algs", value: String(commStats.length) },
         { label: "Moves", value: formatMoveCount(solveMoveCount) },
@@ -6237,93 +6386,21 @@ class App extends React.Component {
     return time_str;
   };
 
-  calc_average = (arr) => {
-    let average;
-    let dnf_arr = arr.map(({ DNF }) => isDnfValue(DNF));
-    let times_arr = arr
-      .map(({ time_solve }) => time_solve)
-      .map((x) => parseFloat(x));
+  calc_average = (arr) => calculateTrimmedAverage(arr);
+  calc_mo3 = (arr) => calculateMeanOfThree(arr);
 
-    const sum = (previousValue, currentValue) => previousValue + currentValue;
+  initialAveragesNoSolves = () => this.initialAverages([]);
 
-    if (dnf_arr.filter((x) => x === true).length >= 2) {
-      average = "DNF";
-      return average;
-    }
-    if (dnf_arr.filter((x) => x === true).length === 1) {
-      times_arr.splice(dnf_arr.indexOf(true), 1);
-      times_arr.splice(times_arr.indexOf(Math.min(...times_arr)), 1);
-      average = parseFloat(
-        (times_arr.reduce(sum) / times_arr.length).toFixed(2)
-      );
-    } else {
-      times_arr.splice(times_arr.indexOf(Math.min(...times_arr)), 1);
-      times_arr.splice(times_arr.indexOf(Math.max(...times_arr)), 1);
-      average = parseFloat(
-        (times_arr.reduce(sum) / times_arr.length).toFixed(2)
-      );
-    }
-    return average;
-  };
-  calc_mo3 = (arr) => {
-    let mo3 = 0;
-    let len = arr.length;
-    let mo3_arr = arr.slice(len - 3, len);
-    for (var i = 0; i < 3; i++) {
-      if (isDnfValue(mo3_arr[i]["DNF"])) {
-        mo3 = "DNF";
-        return mo3;
-      } else {
-        mo3 += parseFloat(mo3_arr[i]["time_solve"]);
-      }
-    }
-    mo3 = parseFloat((mo3 / 3).toFixed(2));
-    return mo3;
-  };
-
-  initialAveragesNoSolves = () => {
-    let averages = {
-      best: { time: 10000, solve: {} },
-      mo3: "",
-      ao5: "",
-      ao12: "",
-      bmo3: { time: 10000, solves: {}, num: 0 },
-      bao5: { time: 10000, solves: {}, num: 0 },
-      bao12: { time: 10000, solves: {}, num: 0 },
-      aoAll: "",
-      memo: "",
-      exe: "",
-      fluid: "",
-      success: "",
+  initialAverages = (solveStats) => {
+    const { activeSession } = this.ensureSessionStorage({ skipDatabaseMirror: true });
+    const solves = solveStats || (activeSession && activeSession.solves) || [];
+    const averages = {
+      ...computeSessionAggregateStats(solves, { formatSeconds: this.convert_sec_to_format }),
+      ...computeSessionBestStats(solves),
     };
-    localStorage.setItem("averages", JSON.stringify(averages));
-    this.setState({ averages: averages });
-  };
-  initialAverages = () => {
-    if (localStorage.getItem("averages") === null) {
-      this.initialAveragesNoSolves();
-    } else {
-      let averages = JSON.parse(localStorage.getItem("averages"));
-      let solve_stats = JSON.parse(localStorage.getItem("solves"));
-      const aggregateStats = computeSessionAggregateStats(solve_stats, {
-        calcMo3: this.calc_mo3,
-        calcAverage: this.calc_average,
-        formatSeconds: this.convert_sec_to_format,
-      });
-
-      averages["current"] = aggregateStats.current;
-      averages["mo3"] = aggregateStats.mo3;
-      averages["ao5"] = aggregateStats.ao5;
-      averages["ao12"] = aggregateStats.ao12;
-      averages["aoAll"] = aggregateStats.aoAll;
-      averages["memo"] = aggregateStats.memo;
-      averages["exe"] = aggregateStats.exe;
-      averages["fluid"] = aggregateStats.fluid;
-      averages["success"] = aggregateStats.success;
-
-      localStorage.setItem("averages", JSON.stringify(averages));
-      this.setState({ averages: averages });
-    }
+    this.safeSetJsonStorage("averages", averages);
+    this.setState({ averages });
+    return averages;
   };
   plus_two_last_solve = () => {
     this.updateActiveSessionSolves((solve_stats) => {
@@ -6397,8 +6474,7 @@ class App extends React.Component {
       </React.Fragment>
     );
     let len = solve_stats.length;
-    solve_stats.reverse();
-    let rows = solve_stats.map((solve, index) => {
+    let rows = [...solve_stats].reverse().map((solve, index) => {
       const {
         DNF,
         exe_time,
@@ -6441,7 +6517,6 @@ class App extends React.Component {
         </tr>
       );
     });
-    solve_stats.reverse();
     let new_table = (
       <React.Fragment>
         <tr>{header_elem}</tr>
@@ -6488,130 +6563,16 @@ class App extends React.Component {
     let url_csv = window.URL.createObjectURL(data);
     return url_csv;
   };
-  calc_best_average = () => {
-    let solve_stats = JSON.parse(localStorage.getItem("solves"));
-    let cur_averages = JSON.parse(localStorage.getItem("averages"));
-    if (cur_averages["mo3"] != "" && cur_averages["mo3"] != "DNF") {
-      if (cur_averages["mo3"] < cur_averages["bmo3"]["time"]) {
-        cur_averages["bmo3"]["time"] = cur_averages["mo3"];
-        cur_averages["bmo3"]["num"] = solve_stats.length - 2;
-
-        cur_averages["bmo3"]["solves"] = solve_stats.slice(
-          solve_stats.length - 3,
-          solve_stats.length
-        );
-      }
-    }
-
-    if (cur_averages["ao5"] != "" && cur_averages["ao5"] != "DNF") {
-      if (cur_averages["ao5"] < cur_averages["bao5"]["time"]) {
-        cur_averages["bao5"]["time"] = cur_averages["ao5"];
-        cur_averages["bao5"]["num"] = solve_stats.length - 4;
-        cur_averages["bao5"]["solves"] = solve_stats.slice(
-          solve_stats.length - 5,
-          solve_stats.length
-        );
-      }
-    }
-    if (cur_averages["ao12"] != "" && cur_averages["ao12"] != "DNF") {
-      if (cur_averages["ao12"] < cur_averages["bao12"]["time"]) {
-        cur_averages["bao12"]["time"] = cur_averages["ao12"];
-        cur_averages["bao12"]["num"] = solve_stats.length - 11;
-
-        cur_averages["bao12"]["solves"] = solve_stats.slice(
-          solve_stats.length - 12,
-          solve_stats.length
-        );
-      }
-    }
-    if (solve_stats.length > 0) {
-      console.log("heree");
-      console.log(solve_stats[solve_stats.length - 1]);
-      if (
-        solve_stats[solve_stats.length - 1] != "" &&
-        !isDnfValue(solve_stats[solve_stats.length - 1]["DNF"])
-      ) {
-        if (
-          solve_stats[solve_stats.length - 1]["time_solve"] <
-          cur_averages["best"]["time"]
-        ) {
-          cur_averages["best"]["time"] =
-            solve_stats[solve_stats.length - 1]["time_solve"];
-          cur_averages["best"]["num"] = solve_stats.length;
-
-          cur_averages["best"]["solve"] = solve_stats[solve_stats.length - 1];
-        }
-      }
-    }
-    localStorage.setItem("averages", JSON.stringify(cur_averages));
-    this.setState({ averages: cur_averages });
-  };
-
-  calc_best_average_after_delete = () => {
-    let solve_stats = JSON.parse(localStorage.getItem("solves"));
-    let cur_averages = JSON.parse(localStorage.getItem("averages"));
-    let cur = { best: 10000, mo3: 10000, ao5: 10000, ao12: 10000 };
-    let best = {
-      best: { time: 10000, num: 0, solve: {} },
-      mo3: { time: 10000, num: 0, solves: {} },
-      ao5: { time: 10000, num: 0, solves: {} },
-      ao12: { time: 10000, num: 0, solves: {} },
-    };
-
-    let len = solve_stats.length;
-    for (var i = 0; i < solve_stats.length; i++) {
-      if (i + 1 <= len) {
-        cur["best"] = solve_stats[i]["time_solve"];
-        console.log(solve_stats[i]);
-        if (cur["best"] < best["best"]["time"] && !isDnfValue(solve_stats[i]["DNF"])) {
-          best["best"]["time"] = parseFloat(cur["best"]);
-          best["best"]["num"] = i;
-          best["best"]["solve"] = solve_stats[i];
-        }
-      }
-
-      if (i + 3 <= len) {
-        cur["mo3"] = this.calc_mo3(solve_stats.slice(i, i + 3));
-        if (cur["mo3"] < best["mo3"]["time"]) {
-          best["mo3"]["time"] = cur["mo3"];
-          best["mo3"]["num"] = i;
-          best["mo3"]["solves"] = solve_stats.slice(i, i + 3);
-        }
-      }
-
-      if (i + 5 <= len) {
-        cur["ao5"] = this.calc_average(solve_stats.slice(i, i + 5));
-        if (cur["ao5"] < best["ao5"]["time"]) {
-          best["ao5"]["time"] = cur["ao5"];
-          best["ao5"]["num"] = i;
-          best["ao5"]["solves"] = solve_stats.slice(i, i + 5);
-        }
-      }
-
-      if (i + 12 <= len) {
-        cur["ao12"] = this.calc_average(solve_stats.slice(i, i + 12));
-        if (cur["ao12"] < best["ao12"]["time"]) {
-          best["ao12"]["time"] = cur["ao12"];
-          best["ao12"]["num"] = i;
-          best["ao12"]["solves"] = solve_stats.slice(i, i + 12);
-        }
-      }
-    }
-    cur_averages["best"] = best["best"];
-    cur_averages["bmo3"] = best["mo3"];
-    cur_averages["bao5"] = best["ao5"];
-    cur_averages["bao12"] = best["ao12"];
-    localStorage.setItem("averages", JSON.stringify(cur_averages));
-    this.setState({ averages: cur_averages });
-  };
+  calc_best_average = () => this.initialAverages();
+  calc_best_average_after_delete = () => this.initialAverages();
 
   initialStatsFromLocalstorage = () => {
     const { sessions, activeSessionId, activeSession } = this.ensureSessionStorage();
     const solve_stats = activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : [];
-    const storedAverages = this.parseJsonStorage("averages", this.state.averages);
+    const averages = this.initialAverages(solve_stats);
 
     if (solve_stats.length > 0) {
-      let url_csv = this.generateCsvURL(solve_stats, storedAverages);
+      let url_csv = this.generateCsvURL(solve_stats, averages);
       this.setState({ url_stats: url_csv }, () => {});
     } else {
       this.setState({ url_stats: "" });
@@ -6619,8 +6580,6 @@ class App extends React.Component {
 
     this.setState({ sessions, activeSessionId, solves_stats: solve_stats });
     this.renderTableData(solve_stats);
-    this.initialAverages();
-    this.calc_best_average();
   };
   addSolveToLocalStorage = (data, setting, parseError = null) => {
     const solveStats = this.buildSolveRecord(data, setting, parseError);
@@ -6639,16 +6598,50 @@ class App extends React.Component {
     return practiceType === "corners" ? "Corners only" : "Edges only";
   };
 
-  persistPracticeSolves = (practiceSolves) => {
-    const nextSolves = Array.isArray(practiceSolves) ? practiceSolves : [];
-    const storageSolves = nextSolves.slice(-PRACTICE_LOCAL_STORAGE_SOLVE_LIMIT);
-    const saved = this.safeSetJsonStorage("practiceSolves", storageSolves, "practice solves");
-
+  cacheRecentPracticeSolves = (practiceSolves) => {
+    const storageSolves = practiceSolves.slice(-PRACTICE_LOCAL_STORAGE_SOLVE_LIMIT);
+    const saved = this.safeSetJsonStorage("practiceSolves", storageSolves, "practice recovery cache");
     if (!saved && storageSolves.length > 50) {
-      this.safeSetJsonStorage("practiceSolves", storageSolves.slice(-50), "recent practice solves");
+      this.safeSetJsonStorage("practiceSolves", storageSolves.slice(-50), "practice recovery cache");
     }
+  };
 
+  persistPracticeSolves = (practiceSolves, { replaceAll = false } = {}) => {
+    const nextSolves = Array.isArray(practiceSolves) ? practiceSolves : [];
+    this.practiceSolvesCache = nextSolves;
     this.setState({ practiceSolves: nextSolves });
+
+    // Keep a complete fallback until the durable database write has succeeded.
+    this.safeSetJsonStorage("practiceSolvesPending", {
+      complete: this.practiceStorageHydrated || replaceAll,
+      solves: nextSolves,
+    }, "practice history awaiting database save");
+    this.localDatabaseWritePromise = this.localDatabaseWritePromise
+      .catch(() => null)
+      .then(async () => {
+        // Read after startup hydration so early attempts cannot truncate older history.
+        const snapshot = this.practiceSolvesCache;
+        await persistPracticeSolvesToDatabase(snapshot);
+        this.cacheRecentPracticeSolves(snapshot);
+        if (snapshot === this.practiceSolvesCache) {
+          this.safeRemoveLocalStorageItem("practiceSolvesPending");
+        }
+        return true;
+      })
+      .catch((error) => {
+        console.warn("Failed to persist practice history to PGlite", error);
+        const cached = this.safeSetJsonStorage("practiceSolvesPending", {
+          complete: this.practiceStorageHydrated || replaceAll,
+          solves: this.practiceSolvesCache,
+        }, "full practice history");
+        this.setState({
+          connectionNotice: cached
+            ? "Practice history is saved in browser storage while the database is unavailable. Export a backup to keep a separate copy."
+            : "Practice history could not be saved. Export a backup before closing this page.",
+        });
+        return false;
+      });
+    return this.localDatabaseWritePromise;
   };
 
   addPracticeSolveToLocalStorage = (data, setting, parseError = null) => {
@@ -6658,7 +6651,7 @@ class App extends React.Component {
       practice_type: practiceType,
       practice_label: this.getPracticeLabel(practiceType),
     };
-    const currentSolves = Array.isArray(this.state.practiceSolves) ? this.state.practiceSolves : [];
+    const currentSolves = this.practiceSolvesCache;
     const nextSolves = [...currentSolves, solveStats];
     this.persistPracticeSolves(nextSolves);
     this.markAlgLibraryCommsSeen(solveStats.comm_stats, solveStats.date);
@@ -7119,7 +7112,7 @@ class App extends React.Component {
       this.updateActiveSessionSolves(() => []);
     }
   };
-  resetLocalAppData = () => {
+  resetLocalAppData = async () => {
     if (
       !window.confirm(
         "Reset all local JBLD data on this device? This clears sessions, solves, averages, and cached app state."
@@ -7127,6 +7120,8 @@ class App extends React.Component {
     ) {
       return;
     }
+
+    await this.localPersistenceReady?.catch(() => null);
 
     const preservedSetting = this.state.parse_settings;
     const freshSession = this.buildSessionRecord("Session 1", []);
@@ -7140,6 +7135,11 @@ class App extends React.Component {
       localStorage.removeItem("setting");
       localStorage.setItem("setting", JSON.stringify(preservedSetting));
       this.persistSessionStorage([freshSession], freshSession.id);
+      const saved = await this.persistPracticeSolves([], { replaceAll: true });
+      if (!saved) {
+        this.setState({ connectionNotice: "Reset could not finish because practice history could not be cleared from the database." });
+        return;
+      }
     } catch (error) {
       console.error("Failed to reset local app data", error);
     }
@@ -7347,20 +7347,14 @@ class App extends React.Component {
       ({ DNF, time_solve }) => !isDnfValue(DNF) && Number.isFinite(parseFloat(time_solve))
     );
     const practiceValidTimes = practiceValidSolves.map(({ time_solve }) => parseFloat(time_solve));
-    const formatAverageValue = (values) => {
-      const validValues = values.filter((value) => Number.isFinite(value));
-      if (!validValues.length) {
-        return "--";
-      }
-      return this.convert_sec_to_format(validValues.reduce((total, value) => total + value, 0) / validValues.length);
-    };
+    const practiceStats = computeSessionAggregateStats(practiceSolves);
     const practiceMemoText = latestPracticeSolve ? this.convert_sec_to_format(latestPracticeSolve.memo_time) : "--";
     const practiceExecText = latestPracticeSolve ? this.convert_sec_to_format(latestPracticeSolve.exe_time) : "--";
     const practiceCountLabel = `${practiceSolves.length} ${practiceSolves.length === 1 ? "attempt" : "attempts"}`;
-    const practiceAo5Text = formatAverageValue(practiceValidTimes.slice(0, 5));
-    const practiceMeanText = formatAverageValue(practiceValidTimes);
-    const practiceMemoAvgText = formatAverageValue(practiceValidSolves.map(({ memo_time }) => parseFloat(memo_time)));
-    const practiceExecAvgText = formatAverageValue(practiceValidSolves.map(({ exe_time }) => parseFloat(exe_time)));
+    const practiceAo5Text = this.formatSummaryValue(practiceStats.ao5, "--");
+    const practiceMeanText = this.formatSummaryValue(practiceStats.aoAll, "--");
+    const practiceMemoAvgText = this.formatSummaryValue(practiceStats.memo, "--");
+    const practiceExecAvgText = this.formatSummaryValue(practiceStats.exe, "--");
     const practiceBestSingle = practiceValidTimes.length ? Math.min(...practiceValidTimes) : null;
     const practiceBestText = practiceBestSingle === null ? "--" : this.convert_sec_to_format(practiceBestSingle);
     const practiceDnfCount = recentPracticeSolves.filter(({ DNF }) => isDnfValue(DNF)).length;
@@ -7485,7 +7479,7 @@ class App extends React.Component {
         body: "This page brings your execution trends and weak cases together in one place.",
       },
       "alg-library": {
-        title: "Library",
+        title: "Alg Library",
         eyebrow: "Library",
         heading: "Search, review, and update your preferred comms without leaving the app.",
         body: "Use the library tabs to search comms, review recent cases, and maintain your local data.",
@@ -8095,7 +8089,7 @@ class App extends React.Component {
                 <div className="chart_card_title">Execution Performance</div>
                 <div className="study_stat_caption">Avg. execution time</div>
               </div>
-              <div className="study_hero_stat">{execText}</div>
+              <div className="study_hero_stat">{this.formatSummaryValue(this.state.averages.exe)}</div>
             </div>
             {chartPath ? (
               <div className="chart_canvas">
@@ -8340,6 +8334,7 @@ class App extends React.Component {
                 <span>Type</span>
                 <select
                   className="settings_input alg_library_select"
+                  aria-label="Type"
                   value={this.state.algLibraryPieceType}
                   onChange={(event) =>
                     this.setState({
@@ -8359,6 +8354,7 @@ class App extends React.Component {
                 <span>Group</span>
                 <select
                   className="settings_input alg_library_select"
+                  aria-label="Group"
                   value={this.state.algLibraryGroup}
                   onChange={(event) => this.setState({ algLibraryGroup: event.target.value })}
                 >
@@ -8411,47 +8407,37 @@ class App extends React.Component {
                           <span>{cardTypeLabel}</span>
                         </div>
                         <div className="alg_library_card_meta alg_library_card_meta_editing">
-                          <input
+                          <label className="library_edit_field"><span>Group</span><input
                             type="text"
                             className="settings_input alg_library_inline_input"
                             placeholder="Category"
                             value={this.state.algLibraryDraft ? this.state.algLibraryDraft.category : ""}
                             onChange={(event) => this.updateAlgLibraryDraftField("category", event.target.value)}
-                          />
-                          <input
+                          /></label>
+                          <label className="library_edit_field"><span>Memo word</span><input
                             type="text"
                             className="settings_input alg_library_inline_input"
                             placeholder="Memo"
                             value={this.state.algLibraryDraft ? this.state.algLibraryDraft.memoWord : ""}
                             onChange={(event) => this.updateAlgLibraryDraftField("memoWord", event.target.value)}
-                          />
+                          /></label>
                         </div>
                         <div className="alg_library_card_desc alg_library_card_desc_editing">
-                          <textarea
+                          <label className="library_edit_field"><span>Notation / description</span><textarea
                             className="settings_textarea alg_library_inline_textarea"
                             placeholder="Description"
                             value={this.state.algLibraryDraft ? this.state.algLibraryDraft.description : ""}
                             onChange={(event) => this.updateAlgLibraryDraftField("description", event.target.value)}
-                          />
+                          /></label>
                         </div>
                         <div className="alg_library_card_alg">
-                          <textarea
+                          <label className="library_edit_field"><span>Preferred algorithm</span><textarea
                             className="settings_textarea alg_library_inline_textarea"
                             placeholder="Alg"
                             value={this.state.algLibraryDraft ? this.state.algLibraryDraft.alg : ""}
                             onChange={(event) => this.updateAlgLibraryDraftField("alg", event.target.value)}
-                          />
-                          <button
-                            type="button"
-                            className="alg_library_icon_button alg_library_icon_button_small"
-                            onClick={this.saveAlgLibraryEntry}
-                            disabled={this.state.algLibrarySavingEntry}
-                            aria-label="Save entry"
-                          >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="m5 13 4 4L19 7" />
-                            </svg>
-                          </button>
+                          /></label>
+
                         </div>
                         {this.renderAlternateAlgsEditor({
                           draft: this.state.algLibraryDraft || {},
@@ -8459,6 +8445,12 @@ class App extends React.Component {
                           onChange: (alternateAlgs) => this.updateAlgLibraryDraftField("alternateAlgs", alternateAlgs),
                           onSelect: (alg) => this.selectAlgLibraryAlternateAlg(alg, entry.piece_type),
                         })}
+                        <div className="library_edit_actions">
+                          <button type="button" onClick={this.closeAlgLibraryEditor} disabled={this.state.algLibrarySavingEntry}>Cancel</button>
+                          <button type="button" className="primary" onClick={this.saveAlgLibraryEntry} disabled={this.state.algLibrarySavingEntry}>
+                            {this.state.algLibrarySavingEntry ? "Saving…" : "Save changes"}
+                          </button>
+                        </div>
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
@@ -8666,36 +8658,7 @@ class App extends React.Component {
           </div>
           <div className="history_list">
             {recentSolves.length ? (
-              recentSolves.map((solve, index) => (
-                <button
-                  key={solve.date || index}
-                  type="button"
-                  className="history_card history_card_button"
-                  onClick={() => this.openSolveDetails(solve)}
-                >
-                  <div className="history_solve_row">
-                    <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
-                    <div className="history_card_subtitle history_split_times">
-                      {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
-                    </div>
-                  </div>
-                  <div className="history_solve_row history_solve_row_meta">
-                    {(() => {
-                      const tag = this.getSolveHistoryTag(
-                        solve,
-                        activeSession && Array.isArray(activeSession.solves) ? activeSession.solves : []
-                      );
-                      return (
-                        <div className="history_card_subtitle history_solve_tag">
-                          <span>{tag.prefix}</span>
-                          {tag.reason ? <em>{tag.reason}</em> : null}
-                        </div>
-                      );
-                    })()}
-                    <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
-                  </div>
-                </button>
-              ))
+              recentSolves.map((solve) => this.renderHistorySolve(solve, (activeSession && activeSession.solves) || []))
             ) : (
               <div className="empty_state_card">
                 <div className="placeholder_eyebrow">History</div>
@@ -8729,21 +8692,21 @@ class App extends React.Component {
               </div>
               <div className="stats_tile">
                 <span>Ao50</span>
-                <strong>{this.formatSummaryValue(this.state.averages.aoAll)}</strong>
+                <strong>{this.formatSummaryValue(this.state.averages.ao50)}</strong>
               </div>
               <div className="stats_tile">
                 <span>Mean</span>
-                <strong>{this.formatSummaryValue(this.state.averages.current)}</strong>
+                <strong>{this.formatSummaryValue(this.state.averages.aoAll)}</strong>
               </div>
             </div>
             <div className="stats_breakdown_grid">
               <div className="breakdown_card">
                 <span>Memo Avg</span>
-                <strong>{memoText}</strong>
+                <strong>{this.formatSummaryValue(this.state.averages.memo)}</strong>
               </div>
               <div className="breakdown_card">
                 <span>Exec Avg</span>
-                <strong>{execText}</strong>
+                <strong>{this.formatSummaryValue(this.state.averages.exe)}</strong>
               </div>
               <div className="breakdown_card">
                 <span>DNFs</span>
@@ -8908,7 +8871,7 @@ class App extends React.Component {
                   <div className="session_card_title">Memo Average</div>
                   <div className="session_card_subtitle">Current session</div>
                 </div>
-                <div className="session_card_value">{memoText}</div>
+                <div className="session_card_value">{this.formatSummaryValue(this.state.averages.memo)}</div>
               </article>
             </div>
             <div className="session_recent_block">
@@ -8971,35 +8934,7 @@ class App extends React.Component {
             </div>
             <div className="history_list">
               {recentPracticeSolves.length ? (
-                recentPracticeSolves.map((solve, index) => (
-                  <button
-                    key={solve.date || index}
-                    type="button"
-                    className="history_card history_card_button"
-                    onClick={() => this.openSolveDetails(solve)}
-                  >
-                    <div className="history_solve_row">
-                      <div className="history_card_title">{this.formatSolveResultLabel(solve)}</div>
-                      <div className="history_card_subtitle history_split_times">
-                        {this.convert_sec_to_format(solve.memo_time)} | {this.convert_sec_to_format(solve.exe_time)}
-                      </div>
-                    </div>
-                    <div className="history_solve_row history_solve_row_meta">
-                      {(() => {
-                        const tag = this.getSolveHistoryTag(solve, practiceSolves);
-                        const label = solve.practice_label || this.getPracticeLabel(solve.practice_type);
-                        const status = `${tag.prefix}${tag.reason ? ` ${tag.reason}` : ""}`;
-                        return (
-                          <div className="history_card_subtitle history_solve_tag">
-                            <span>{label}</span>
-                            <em>{status}</em>
-                          </div>
-                        );
-                      })()}
-                      <div className="history_card_subtitle">{formatHistoryDate(solve.date)}</div>
-                    </div>
-                  </button>
-                ))
+                recentPracticeSolves.map((solve) => this.renderHistorySolve(solve, practiceSolves))
               ) : (
                 <div className="empty_state_card">
                   <div className="placeholder_eyebrow">Practise</div>
@@ -9239,7 +9174,7 @@ class App extends React.Component {
             </div>
 
             <div className="last_solve_block">
-              <div className="last_solve_heading">Last Practise Solve</div>
+              <div className="last_solve_heading">Last practise solve{latestPracticeSolve ? <span>View details →</span> : null}</div>
               {latestPracticeSolve ? (
                 <button
                   type="button"
@@ -9313,7 +9248,7 @@ class App extends React.Component {
           </div>
 
           <div className="last_solve_block">
-            <div className="last_solve_heading">Last Solve</div>
+            <div className="last_solve_heading">Last solve{latestSolve ? <span>View details →</span> : null}</div>
             {latestSolve ? (
               <button
                 type="button"
@@ -9381,7 +9316,9 @@ class App extends React.Component {
               <div className="header_title_group">
                 <div className="header_title">{currentView.title}</div>
               </div>
-              <button
+              <div className="header_actions">
+                <button type="button" className="header_library_button" onClick={() => this.setState({ activeView: "alg-library" })}>Library</button>
+                <button
                 type="button"
                 className="icon_button"
                 aria-label="Open settings"
@@ -9401,6 +9338,7 @@ class App extends React.Component {
                   <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 0 1 0 2.8 2 2 0 0 1-2.8 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v-.2a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 0 1-2.8 0 2 2 0 0 1 0-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h.2a1 1 0 0 0 .9-.7 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 0 1 0-2.8 2 2 0 0 1 2.8 0l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v.2a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l.1-.1a2 2 0 0 1 2.8 0 2 2 0 0 1 0 2.8l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h-.2a1 1 0 0 0-.9.7Z" />
                 </svg>
               </button>
+              </div>
             </header>
 
             {this.isLiveTimerView() ? (
@@ -9637,7 +9575,7 @@ class App extends React.Component {
                   className="menu_item"
                   onClick={() => this.setState({ showMenu: false, activeView: "alg-library" })}
                 >
-                  Library
+                  Alg Library
                 </button>
                 <button
                   type="button"
@@ -9846,14 +9784,10 @@ class App extends React.Component {
               onClick={this.closeSolveDetailsModal}
             >
             <div className="solve_modal" onClick={(event) => event.stopPropagation()}>
-              <button
-                type="button"
-                className="solve_modal_close solve_modal_close_corner"
-                aria-label="Close solve details"
-                  onClick={this.closeSolveDetailsModal}
-                >
-                  x
-                </button>
+              <div className="solve_details_toolbar">
+                <span>Solve details</span>
+                <button type="button" className="dialog_close" aria-label="Close solve details" onClick={this.closeSolveDetailsModal}>×</button>
+              </div>
               {selectedSolveDetailsData ? (
                 <React.Fragment>
                   {selectedSolveCommCardData ? (
@@ -9983,6 +9917,10 @@ class App extends React.Component {
                       <div className="solve_details_split_line">{selectedSolveDetailsData.memoExecLabel}</div>
                     </div>
                     <div className="solve_details_header_right">
+                      <div className="header_utilities">
+                        <button type="button" className="text_action" aria-haspopup="dialog"
+                          disabled={!selectedSolveDetailsData.scramble}
+                          onClick={() => this.setState({ showSolveScramble: true, solveScrambleCopied: false })}>Scramble</button>
                       {selectedSolveDetailsData.link ? (
                         <a
                           className="cubedb_link_box"
@@ -9995,6 +9933,7 @@ class App extends React.Component {
                       ) : (
                         <div className="cubedb_link_box cubedb_link_box_disabled">CubeDB</div>
                       )}
+                      </div>
                       <div className="solve_details_date">{selectedSolveDetailsData.date}</div>
                     </div>
                   </div>
@@ -10132,13 +10071,6 @@ class App extends React.Component {
                       <div className="empty_chart_state">No comm reconstruction available yet.</div>
                     ) : null}
                   </div>
-                  <div className="solve_details_scramble_box">
-                    <div className="reconstruction_phase_title">Scramble</div>
-                    <div className="solve_details_scramble_text">
-                      {selectedSolveDetailsData.scramble || "--"}
-                    </div>
-
-                  </div>
                   {selectedSolveMemoData ? (
                     <div className="solve_details_memo_box">
                       <div className="reconstruction_phase_title">Memo</div>
@@ -10265,29 +10197,6 @@ class App extends React.Component {
                     </div>
                   ) : null}
                   <div className="solve_details_footer">
-                    <div className="solve_details_dnf_controls">
-                      <select
-                        className="settings_input solve_details_select"
-                        value={this.state.solveDetailsDnfCategory}
-                        onChange={(event) => this.handleSolveDetailsDnfCategoryChange(event.target.value)}
-                      >
-                        <option value="">DNF reason</option>
-                        <option value="Forgot Memo">Forgot Memo</option>
-                        <option value="Wrong Exec">Wrong Exec</option>
-                      </select>
-                      <select
-                        className="settings_input solve_details_select"
-                        value={this.state.solveDetailsDnfStage}
-                        onChange={(event) => this.handleSolveDetailsDnfStageChange(event.target.value)}
-                      >
-                        <option value="">Stage</option>
-                        <option value="Edge">Edge</option>
-                        <option value="Corner">Corner</option>
-                        <option value="Parity">Parity</option>
-                        <option value="Flip">Flip</option>
-                        <option value="Twist">Twist</option>
-                      </select>
-                    </div>
                     <button
                       type="button"
                       className="study_library_button solve_details_action solve_details_action_danger"
@@ -10300,6 +10209,49 @@ class App extends React.Component {
               ) : null}
             </div>
           </div>
+        ) : null}
+        {this.state.showSolveScramble && selectedSolveDetailsData ? (
+          <Dialog title="Scramble" onClose={() => this.setState({ showSolveScramble: false })}>
+            <div className="dialog_scramble">{selectedSolveDetailsData.scramble}</div>
+            <div className="dialog_actions"><button type="button" className="primary" onClick={this.copySelectedSolveScramble}>Copy scramble</button></div>
+            <div className="dialog_feedback" role="status">{this.state.solveScrambleCopied || ""}</div>
+          </Dialog>
+        ) : null}
+        {this.state.solveResultEditor ? (
+          <Dialog title={this.state.solveResultEditor.mode === "reason" ? "DNF reason" : "Solve result"}
+            onClose={() => { if (!this.state.solveResultSaving) this.setState({ solveResultEditor: null }); }}>
+            <form onSubmit={this.saveSolveResultEditor}>
+              <p className="dialog_description">{this.formatSolveResultLabel(this.state.solveResultEditor.solve)}</p>
+              {this.state.solveResultEditor.mode === "reason" ? (
+                <React.Fragment>
+                  <label className="dialog_field">Reason
+                    <select aria-label="Reason" value={this.state.solveResultEditor.category} onChange={(e) => this.updateSolveResultEditor({ category: e.target.value })}>
+                      <option value="">No reason recorded</option><option value="Forgot Memo">Forgot Memo</option><option value="Wrong Exec">Wrong Exec</option>
+                    </select>
+                  </label>
+                  <label className="dialog_field">Stage
+                    <select aria-label="Stage" value={this.state.solveResultEditor.stage} disabled={!this.state.solveResultEditor.category}
+                      onChange={(e) => this.updateSolveResultEditor({ stage: e.target.value })}>
+                      <option value="">Not specified</option>
+                      {["Edge", "Corner", "Parity", "Flip", "Twist"].map((stage) => <option key={stage}>{stage}</option>)}
+                    </select>
+                  </label>
+                </React.Fragment>
+              ) : (
+                <fieldset className="result_choices"><legend className="visually-hidden">Result</legend>
+                  {[["ok", "OK"], ["plus2", "+2"], ["dnf", "DNF"]].map(([value, label]) => (
+                    <label key={value}><input type="radio" name="solve-result" value={value}
+                      checked={this.state.solveResultEditor.result === value}
+                      onChange={() => this.updateSolveResultEditor({ result: value })} /><span>{label}</span></label>
+                  ))}
+                </fieldset>
+              )}
+              <div className="dialog_actions">
+                <button type="button" disabled={this.state.solveResultSaving} onClick={() => this.setState({ solveResultEditor: null })}>Cancel</button>
+                <button type="submit" className="primary" disabled={this.state.solveResultSaving}>{this.state.solveResultSaving ? "Saving…" : "Save"}</button>
+              </div>
+            </form>
+          </Dialog>
         ) : null}
       </React.Fragment>
     );
