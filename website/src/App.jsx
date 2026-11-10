@@ -9,6 +9,7 @@ import Setting from "./component/Settings";
 import "bootstrap/dist/css/bootstrap.css";
 import Timer from "./component/Timer";
 import Dialog from "./component/Dialog";
+import { LIBRARY_PREFERENCES_KEY, normalizeLibraryPreferences, normalizeLibraryFilters, readLibraryPreferences, writeLibraryPreferences, sameLibraryFilters } from "./utils/libraryPreferences";
 import { applySolveResult, getSolveResult, parseDnfReason, formatDnfReason } from "./utils/solveResult";
 import { Helmet } from "react-helmet";
 import { buildSolveAnalysis } from "./utils/bldParser";
@@ -122,6 +123,8 @@ class App extends React.Component {
     this.algReviewAttemptMoves = [];
     this.drillProcessedMoveCount = 0;
     this.solveRecommendationRequestId = 0;
+    this.algLibraryEntriesRequestId = 0;
+    const libraryPreferences = readLibraryPreferences();
     this.state = {
       activeView: "solve",
       showMenu: false,
@@ -162,9 +165,13 @@ class App extends React.Component {
       algLibraryEntryTotal: 0,
       algLibrarySelectedEntryId: null,
       algLibraryDraft: null,
-      algLibrarySearch: "",
-      algLibraryPieceType: "all",
-      algLibraryGroup: "all",
+      algLibrarySearch: libraryPreferences.lastUsed.search,
+      algLibraryPieceType: libraryPreferences.lastUsed.pieceType,
+      algLibraryGroup: libraryPreferences.lastUsed.group,
+      algLibrarySavedFilters: libraryPreferences.saved,
+      libraryFilterDialog: null,
+      libraryFilterName: "",
+      libraryFilterError: "",
       algLibraryTab: "search",
       algLibraryEditing: false,
       algLibraryLoadingEntries: false,
@@ -408,6 +415,7 @@ class App extends React.Component {
       sessions,
       practiceSolves: this.practiceSolvesCache,
       parseSettings: this.state.parse_settings || null,
+      libraryPreferences: this.getLibraryPreferences(),
       algLibrary: {
         version: 1,
         exportedAt,
@@ -484,6 +492,16 @@ class App extends React.Component {
         await importAlgLibraryEntries(algLibraryEntries);
       }
 
+      if (Object.prototype.hasOwnProperty.call(backup, "libraryPreferences")) {
+        const preferences = normalizeLibraryPreferences(backup.libraryPreferences);
+        if (!writeLibraryPreferences(preferences)) throw new Error("Library filters could not be saved on this device.");
+        this.setState({
+          algLibraryPieceType: preferences.lastUsed.pieceType,
+          algLibraryGroup: preferences.lastUsed.group,
+          algLibrarySearch: preferences.lastUsed.search,
+          algLibrarySavedFilters: preferences.saved,
+        });
+      }
       this.persistSessionStorage(sessions, activeSessionId);
       // Older backups have no practice field; leave the existing history intact.
       if (hasPracticeSolves) {
@@ -821,6 +839,7 @@ class App extends React.Component {
   refreshAlgLibraryEntries = async (options = {}) => {
     const pieceType = options.pieceType || this.state.algLibraryPieceType || "all";
 
+    const requestId = ++this.algLibraryEntriesRequestId;
     this.setState({ algLibraryLoadingEntries: true });
     await this.ensureBundledAlgLibraryLoaded({ refreshEntries: false, silent: true });
 
@@ -833,6 +852,7 @@ class App extends React.Component {
       [...this.state.solves_stats].slice().reverse().slice(0, 8)
     );
 
+    if (requestId !== this.algLibraryEntriesRequestId) return result;
     this.setState((currentState) => {
       const allEntries = Array.isArray(result.entries) ? result.entries : [];
       const filteredEntries = this.filterAlgLibraryEntries(allEntries, {
@@ -880,6 +900,9 @@ class App extends React.Component {
         return true;
       }
 
+      const memoWord = String(this.getAlgLibraryDisplayMemoWord(entry) || "").trim().toLowerCase();
+      if (memoWord && memoWord !== "--" && memoWord.includes(search)) return true;
+
       const searchableAliases = getAlgLibrarySearchAliases(entry).map((alias) => alias.toLowerCase());
       if (
         searchNeedles.length
@@ -902,6 +925,67 @@ class App extends React.Component {
         ? search.includes(caseCode)
         : false;
     });
+  };
+
+  getLibraryFilters = (state = this.state) => normalizeLibraryFilters({
+    pieceType: state.algLibraryPieceType,
+    group: state.algLibraryGroup,
+    search: state.algLibrarySearch,
+  });
+
+  getLibraryPreferences = (saved = this.state.algLibrarySavedFilters) => ({
+    version: 1, lastUsed: this.getLibraryFilters(), saved,
+  });
+
+  describeLibraryFilters = (filters) => [
+    filters.pieceType === "all" ? "All types" : this.formatPieceTypeLabel(filters.pieceType),
+    filters.group === "all" ? "All groups" : this.formatAlgLibraryCategory(filters.group),
+    filters.search.trim() ? `“${filters.search.trim()}”` : "",
+  ].filter(Boolean).join(" · ");
+
+  openSaveLibraryFilter = () => {
+    const filters = this.getLibraryFilters();
+    const existing = this.state.algLibrarySavedFilters.find((entry) => sameLibraryFilters(entry.filters, filters));
+    this.setState({
+      libraryFilterDialog: "save",
+      libraryFilterName: existing ? existing.name : this.describeLibraryFilters(filters).slice(0, 60),
+      libraryFilterError: "",
+    });
+  };
+
+  saveLibraryFilter = (event) => {
+    event.preventDefault();
+    const name = this.state.libraryFilterName.trim();
+    if (!name) { this.setState({ libraryFilterError: "Enter a name for this filter." }); return; }
+    const existing = this.state.algLibrarySavedFilters.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
+    const entry = {
+      id: existing ? existing.id : `filter-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      filters: this.getLibraryFilters(),
+    };
+    const saved = existing ? this.state.algLibrarySavedFilters.map((item) => item.id === existing.id ? entry : item)
+      : [...this.state.algLibrarySavedFilters, entry];
+    if (!writeLibraryPreferences(this.getLibraryPreferences(saved))) {
+      this.setState({ libraryFilterError: "Filters could not be saved on this device." }); return;
+    }
+    this.setState({ algLibrarySavedFilters: saved, libraryFilterDialog: null, libraryFilterError: "" });
+  };
+
+  applySavedLibraryFilter = (entry) => {
+    const filters = normalizeLibraryFilters(entry.filters);
+    this.setState({
+      algLibraryPieceType: filters.pieceType, algLibraryGroup: filters.group,
+      algLibrarySearch: filters.search, algLibraryEditing: false,
+      libraryFilterDialog: null, libraryFilterError: "", algLibraryTab: "search",
+    });
+  };
+
+  deleteSavedLibraryFilter = (id) => {
+    const saved = this.state.algLibrarySavedFilters.filter((entry) => entry.id !== id);
+    if (!writeLibraryPreferences(this.getLibraryPreferences(saved))) {
+      this.setState({ libraryFilterError: "Filters could not be saved on this device." }); return;
+    }
+    this.setState({ algLibrarySavedFilters: saved, libraryFilterError: "" });
   };
 
   formatAlgLibraryCategory = (category) => {
@@ -1148,6 +1232,7 @@ class App extends React.Component {
       algLibraryTab: "search",
       algLibraryPieceType: entry.piece_type || "all",
       algLibrarySearch: entry.case_code || "",
+      algLibraryGroup: "all",
       algLibraryEditing: false,
     });
     this.selectAlgLibraryEntry(entry);
@@ -6328,6 +6413,13 @@ class App extends React.Component {
     }
   }
   componentDidUpdate = (prevProps, prevState) => {
+    if (prevState.algLibraryPieceType !== this.state.algLibraryPieceType ||
+        prevState.algLibraryGroup !== this.state.algLibraryGroup ||
+        prevState.algLibrarySearch !== this.state.algLibrarySearch) {
+      if (!writeLibraryPreferences(this.getLibraryPreferences())) {
+        this.setState({ libraryFilterError: "Filters could not be saved on this device." });
+      }
+    }
     if (
       this.state.activeView === "alg-library" &&
       (prevState.activeView !== "alg-library" || prevState.algLibraryPieceType !== this.state.algLibraryPieceType)
@@ -7133,6 +7225,7 @@ class App extends React.Component {
       localStorage.removeItem("averages");
       localStorage.removeItem("practiceSolves");
       localStorage.removeItem("setting");
+      localStorage.removeItem(LIBRARY_PREFERENCES_KEY);
       localStorage.setItem("setting", JSON.stringify(preservedSetting));
       this.persistSessionStorage([freshSession], freshSession.id);
       const saved = await this.persistPracticeSolves([], { replaceAll: true });
@@ -7161,6 +7254,8 @@ class App extends React.Component {
           practiceSolves: [],
           practiceScrambleType: "edges",
           practiceTab: "solve",
+          algLibrarySearch: "", algLibraryPieceType: "all", algLibraryGroup: "all",
+          algLibrarySavedFilters: [], libraryFilterDialog: null, libraryFilterError: "",
           scramble: null,
           solveScramble: null,
           practiceScramble: null,
@@ -8329,6 +8424,12 @@ class App extends React.Component {
           {this.state.algLibraryTab === "search" ? (
           <React.Fragment>
           <div className="alg_library_toolbar alg_library_toolbar_flat">
+            <label className="alg_library_search_field">
+              <span className="visually-hidden">Search library</span>
+              <input type="search" className="settings_input alg_library_search" placeholder="Search pair or memo word"
+                autoComplete="off" spellCheck="false" value={this.state.algLibrarySearch}
+                onChange={(event) => this.setState({ algLibrarySearch: event.target.value })} />
+            </label>
             <div className="alg_library_control_grid alg_library_control_grid_compact">
               <label className="alg_library_field">
                 <span>Type</span>
@@ -8359,6 +8460,8 @@ class App extends React.Component {
                   onChange={(event) => this.setState({ algLibraryGroup: event.target.value })}
                 >
                   <option value="all">All</option>
+                  {this.state.algLibraryGroup !== "all" && !algLibraryGroups.includes(this.state.algLibraryGroup) ?
+                    <option value={this.state.algLibraryGroup}>{this.formatAlgLibraryCategory(this.state.algLibraryGroup)} (unavailable)</option> : null}
                   {algLibraryGroups.map((group) => (
                     <option key={group} value={group}>
                       {this.formatAlgLibraryCategory(group)}
@@ -8366,17 +8469,19 @@ class App extends React.Component {
                   ))}
                 </select>
               </label>
-              <label className="alg_library_field">
-                <span>Name</span>
-                <input
-                  type="text"
-                  className="settings_input alg_library_search alg_library_search_compact"
-                  placeholder=""
-                  value={this.state.algLibrarySearch}
-                  onChange={(event) => this.setState({ algLibrarySearch: event.target.value.toUpperCase() })}
-                />
-              </label>
+
             </div>
+            <div className="library_filter_actions">
+              {this.state.algLibrarySavedFilters.length ? (
+                <button type="button" className="text_action" aria-haspopup="dialog"
+                  onClick={() => this.setState({ libraryFilterDialog: "list", libraryFilterError: "" })}>
+                  Saved filters ({this.state.algLibrarySavedFilters.length})
+                </button>
+              ) : null}
+              <span className="library_result_count" role="status">{this.state.algLibraryLoadingEntries ? "Loading…" : `${algLibraryEntries.length} ${algLibraryEntries.length === 1 ? "case" : "cases"}`}</span>
+              <button type="button" className="text_action" onClick={this.openSaveLibraryFilter} aria-haspopup="dialog">Save filters</button>
+            </div>
+            {this.state.libraryFilterError && !this.state.libraryFilterDialog ? <div className="library_filter_error" role="alert">{this.state.libraryFilterError}</div> : null}
           </div>
           <div className="alg_library_results alg_library_results_flat">
             {this.state.algLibraryLoadingEntries ? (
@@ -8532,6 +8637,7 @@ class App extends React.Component {
                           algLibraryTab: "search",
                           algLibraryPieceType: entry.pieceType,
                           algLibrarySearch: entry.caseCode,
+                          algLibraryGroup: "all",
                           algLibraryEditing: false,
                         });
                       }
@@ -10209,6 +10315,35 @@ class App extends React.Component {
               ) : null}
             </div>
           </div>
+        ) : null}
+        {this.state.libraryFilterDialog ? (
+          <Dialog title={this.state.libraryFilterDialog === "save" ? "Save library filters" : "Saved filters"}
+            onClose={() => this.setState({ libraryFilterDialog: null, libraryFilterError: "" })}>
+            {this.state.libraryFilterDialog === "save" ? (
+              <form onSubmit={this.saveLibraryFilter}>
+                <p className="library_filter_summary">{this.describeLibraryFilters(this.getLibraryFilters())}</p>
+                <label className="dialog_field">Name
+                  <input type="text" maxLength={60} required autoFocus value={this.state.libraryFilterName}
+                    onChange={(event) => this.setState({ libraryFilterName: event.target.value, libraryFilterError: "" })} />
+                </label>
+                {this.state.algLibrarySavedFilters.some((entry) => entry.name.toLowerCase() === this.state.libraryFilterName.trim().toLowerCase()) ?
+                  <p className="library_replace_hint">Saving will update the filter with this name.</p> : null}
+                {this.state.libraryFilterError ? <p className="library_filter_error" role="alert">{this.state.libraryFilterError}</p> : null}
+                <div className="dialog_actions"><button type="button" onClick={() => this.setState({ libraryFilterDialog: null })}>Cancel</button><button type="submit" className="primary">Save filter</button></div>
+              </form>
+            ) : (
+              <React.Fragment>
+                {this.state.algLibrarySavedFilters.length ? <ul className="library_saved_filters">
+                  {this.state.algLibrarySavedFilters.map((entry) => <li key={entry.id}>
+                    <button type="button" className={`library_saved_filter ${sameLibraryFilters(entry.filters, this.getLibraryFilters()) ? "library_saved_filter_active" : ""}`}
+                      onClick={() => this.applySavedLibraryFilter(entry)}><strong>{entry.name}</strong><span>{this.describeLibraryFilters(entry.filters)}</span></button>
+                    <button type="button" className="library_delete_filter" aria-label={`Delete saved filter ${entry.name}`} onClick={() => this.deleteSavedLibraryFilter(entry.id)}>×</button>
+                  </li>)}
+                </ul> : <p className="library_filter_summary">No saved filters yet.</p>}
+                {this.state.libraryFilterError ? <p className="library_filter_error" role="alert">{this.state.libraryFilterError}</p> : null}
+              </React.Fragment>
+            )}
+          </Dialog>
         ) : null}
         {this.state.showSolveScramble && selectedSolveDetailsData ? (
           <Dialog title="Scramble" onClose={() => this.setState({ showSolveScramble: false })}>

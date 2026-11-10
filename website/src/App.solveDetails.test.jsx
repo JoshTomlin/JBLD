@@ -791,10 +791,11 @@ describe("solve details view data", () => {
     ]);
     expect(app.filterAlgLibraryEntries(entries, { search: "SP" }).map((entry) => entry.id).sort()).toEqual([
       "corner-ps",
+      "edge-ab",
       "edge-sp",
       "twist-ps",
     ]);
-    expect(app.filterAlgLibraryEntries(entries, { search: "SPOON" }).map((entry) => entry.id)).toEqual([]);
+    expect(app.filterAlgLibraryEntries(entries, { search: "SPOON" }).map((entry) => entry.id)).toEqual(["corner-ps", "edge-ab"]);
     expect(app.getAlgLibraryDisplayMemoWord(entries[0])).toBe("PS-Twist");
     expect(app.getAlgLibraryDisplayMemoWord(entries[1])).toBe("AC-Flip");
     expect(app.getAlgLibraryDisplayMemoWord(entries[2])).toBe("B-Parity");
@@ -1687,5 +1688,111 @@ describe("history result controls", () => {
     app.state.selectedSolveDetails = solve;
     app.clearSelectedSolveDnfReason();
     expect(records()[0].DNF).toBe(true);
+  });
+});
+
+describe("library memo search and saved filters", () => {
+  const createApp = () => {
+    window.matchMedia = jest.fn().mockReturnValue({ matches: false });
+    const app = new App();
+    app.setState = (update, callback) => {
+      app.state = { ...app.state, ...(typeof update === "function" ? update(app.state) : update) };
+      if (callback) callback();
+    };
+    return app;
+  };
+  const save = (app) => app.saveLibraryFilter({ preventDefault: jest.fn() });
+  beforeEach(() => localStorage.clear());
+
+  it("searches memo words without relaxing the selected group", () => {
+    const app = createApp();
+    const entries = [
+      { id: "a", piece_type: "edge", case_code: "AB", memo_word: "Abe Lincoln", category: "4-Mover" },
+      { id: "b", piece_type: "edge", case_code: "CD", memo_word: "Lincoln", category: "U-Swap" },
+    ];
+    expect(app.filterAlgLibraryEntries(entries, { search: "  LINCOLN  ", group: "4-Mover" }).map((e) => e.id)).toEqual(["a"]);
+    expect(app.filterAlgLibraryEntries(entries, { search: "AB", group: "4-Mover" }).map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("saves, updates, applies and deletes a named filter across reloads", () => {
+    const app = createApp();
+    app.setState({ algLibraryPieceType: "edge", algLibraryGroup: "4-Mover", algLibrarySearch: "Abe" });
+    app.openSaveLibraryFilter();
+    app.setState({ libraryFilterName: "Quick edges" });
+    save(app);
+    const restored = createApp();
+    expect(restored.state).toMatchObject({ algLibraryPieceType: "edge", algLibraryGroup: "4-Mover", algLibrarySearch: "Abe" });
+    restored.setState({ libraryFilterName: "Quick edges", algLibrarySearch: "" });
+    save(restored);
+    expect(restored.state.algLibrarySavedFilters).toHaveLength(1);
+    restored.setState({ algLibraryPieceType: "corner", algLibraryGroup: "all" });
+    restored.applySavedLibraryFilter(restored.state.algLibrarySavedFilters[0]);
+    expect(restored.state).toMatchObject({ algLibraryPieceType: "edge", algLibraryGroup: "4-Mover", algLibrarySearch: "" });
+    restored.deleteSavedLibraryFilter(restored.state.algLibrarySavedFilters[0].id);
+    expect(createApp().state.algLibrarySavedFilters).toEqual([]);
+  });
+
+  it("does not discard the saved filter when storage is unavailable", () => {
+    const app = createApp();
+    app.setState({ libraryFilterName: "Edges" });
+    save(app);
+    const setItem = jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Quota"); });
+    try {
+      app.deleteSavedLibraryFilter(app.state.algLibrarySavedFilters[0].id);
+      expect(app.state.algLibrarySavedFilters).toHaveLength(1);
+      expect(app.state.libraryFilterError).toMatch(/could not be saved/);
+    } finally { setItem.mockRestore(); }
+  });
+
+  it("ignores an earlier type response after a newer filter request", async () => {
+    const app = createApp();
+    app.ensureBundledAlgLibraryLoaded = jest.fn(() => Promise.resolve());
+    app.buildRecentAlgLibraryMatches = jest.fn(() => Promise.resolve([]));
+    let first;
+    getAlgLibraryEntries.mockReset()
+      .mockImplementationOnce(() => new Promise((resolve) => { first = resolve; }))
+      .mockResolvedValueOnce({ entries: [{ id: "corner-ab", piece_type: "corner", case_code: "AB" }] });
+    const oldRequest = app.refreshAlgLibraryEntries({ pieceType: "edge" });
+    await Promise.resolve();
+    app.setState({ algLibraryPieceType: "corner" });
+    await app.refreshAlgLibraryEntries({ pieceType: "corner" });
+    first({ entries: [{ id: "edge-ab", piece_type: "edge", case_code: "AB" }] });
+    await oldRequest;
+    expect(app.state.algLibraryEntries.map((entry) => entry.id)).toEqual(["corner-ab"]);
+  });
+});
+
+describe("library filters in backups", () => {
+  beforeEach(() => { localStorage.clear(); window.matchMedia = jest.fn().mockReturnValue({ matches: false }); });
+
+  it("backs up filters and preserves them when restoring an older backup", async () => {
+    const app = new App();
+    app.setState = (update, callback) => {
+      app.state = { ...app.state, ...(typeof update === "function" ? update(app.state) : update) };
+      if (callback) callback();
+    };
+    app.state.algLibrarySavedFilters = [{ id: "quick", name: "Quick edges", filters: { pieceType: "edge", group: "4-Mover", search: "Abe" } }];
+    app.downloadBlobFile = jest.fn();
+    app.ensureSessionStorage = jest.fn(() => ({ sessions: [{ id: "s", solves: [] }], activeSessionId: "s" }));
+    app.persistSessionStorage = jest.fn();
+    app.initialStatsFromLocalstorage = jest.fn();
+    app.refreshAlgLibrarySummary = jest.fn(() => Promise.resolve());
+    app.syncSessionsWithCloud = jest.fn(() => Promise.resolve());
+    getAlgLibraryEntries.mockResolvedValue({ entries: [], totalCount: 0 });
+    await app.exportSolveBackup();
+    const blob = app.downloadBlobFile.mock.calls[0][0];
+    const text = await new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsText(blob); });
+    const backup = JSON.parse(text);
+    expect(backup.libraryPreferences.saved[0].name).toBe("Quick edges");
+    delete backup.practiceSolves;
+    app.state.algLibrarySavedFilters = [];
+    const restore = (data) => app.importSolveBackup({ target: { files: [{ name: "filters.json", text: async () => JSON.stringify(data) }] } });
+    await restore(backup);
+    expect(app.state.algLibrarySavedFilters[0].name).toBe("Quick edges");
+    delete backup.libraryPreferences;
+    await restore(backup);
+    expect(app.state.algLibrarySavedFilters[0].name).toBe("Quick edges");
+    await restore({ ...backup, libraryPreferences: { version: 1, saved: [] } });
+    expect(app.state.algLibrarySavedFilters).toEqual([]);
   });
 });

@@ -1632,3 +1632,109 @@ button:hover {
   width: 36px;
   flex: 0 0 36px;
 }
+/* Library search stays readable for memo words on small screens. */
+.alg_library_search_field {
+  display: block;
+  margin: 0;
+}
+.alg_library_search_field .alg_library_search {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+.alg_library_control_grid_compact {
+  grid-template-columns: 1fr 1.4fr;
+}
+.library_filter_actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 30px;
+}
+.library_filter_actions .text_action {
+  font-weight: 400;
+}
+.library_result_count,
+.library_filter_summary,
+.library_replace_hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 19px;
+}
+.library_filter_summary {
+  margin: 0 0 14px;
+  overflow-wrap: anywhere;
+}
+.library_replace_hint {
+  margin: 10px 0 0;
+}
+.library_filter_error {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 18px;
+  margin: 6px 0;
+}
+.dialog_field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  font-size: 14px;
+}
+.library_saved_filters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.library_saved_filters li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.library_saved_filter {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+  padding: 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.library_saved_filter strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.library_saved_filter span {
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 19px;
+}
+.library_saved_filter_active strong {
+  color: var(--accent);
+}
+.library_saved_filter:hover {
+  background: var(--bg-soft);
+}
+.library_delete_filter {
+  min-height: 36px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 22px;
+}
+.library_delete_filter:hover {
+  color: var(--danger);
+}
